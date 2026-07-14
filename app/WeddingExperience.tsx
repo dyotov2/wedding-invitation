@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Attendance = "pending" | "attending" | "declined";
 type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
@@ -58,6 +58,83 @@ const meals = [
 
 function PetalMark({ small = false }: { small?: boolean }) {
   return <span className={small ? "petal-mark small" : "petal-mark"} aria-hidden="true" />;
+}
+
+function Flower({ className = "" }: { className?: string }) {
+  return (
+    <span className={`flower ${className}`} aria-hidden="true">
+      <span className="flower-petal petal-one" />
+      <span className="flower-petal petal-two" />
+      <span className="flower-petal petal-three" />
+      <span className="flower-petal petal-four" />
+      <span className="flower-petal petal-five" />
+      <span className="flower-heart" />
+    </span>
+  );
+}
+
+function BotanicalFrame() {
+  return (
+    <div className="garden-frame" aria-hidden="true">
+      <div className="side-garden garden-left">
+        <span className="garden-stem" />
+        {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
+        <Flower className="garden-flower flower-one" />
+        <Flower className="garden-flower flower-two" />
+        <Flower className="garden-flower flower-three" />
+      </div>
+      <div className="side-garden garden-right">
+        <span className="garden-stem" />
+        {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
+        <Flower className="garden-flower flower-one" />
+        <Flower className="garden-flower flower-two" />
+        <Flower className="garden-flower flower-three" />
+      </div>
+    </div>
+  );
+}
+
+function useLivingGarden() {
+  const pageRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const blooms = Array.from(page.querySelectorAll<HTMLElement>("[data-bloom]"));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-blooming");
+      });
+    }, { threshold: 0.18, rootMargin: "0px 0px -8%" });
+    blooms.forEach((element) => observer.observe(element));
+
+    let scheduled = false;
+    const updateGarden = () => {
+      const rect = page.getBoundingClientRect();
+      const travel = Math.max(page.offsetHeight - window.innerHeight, 1);
+      const progress = Math.min(1, Math.max(0, -rect.top / travel));
+      page.style.setProperty("--garden-progress", progress.toFixed(4));
+      page.classList.toggle("garden-awake", progress > 0.025);
+      scheduled = false;
+    };
+    const onScroll = () => {
+      if (!scheduled) {
+        scheduled = true;
+        window.requestAnimationFrame(updateGarden);
+      }
+    };
+    updateGarden();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  return pageRef;
 }
 
 function ContactActions() {
@@ -121,6 +198,9 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
     <main className="entry-page">
       <div className="botanical botanical-left" aria-hidden="true" />
       <div className="botanical botanical-right" aria-hidden="true" />
+      <Flower className="entry-flower entry-flower-one" />
+      <Flower className="entry-flower entry-flower-two" />
+      <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="monogram" aria-label="Dimitar and Ekaterina">D <PetalMark small /> E</div>
         <p className="date-line">20 · 06 · 2027</p>
@@ -197,6 +277,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
   mealPhaseOpen: boolean;
   onExit: () => void;
 }) {
+  const pageRef = useLivingGarden();
   const [draft, setDraft] = useState(household);
   const [status, setStatus] = useState("");
   const updateGuest = (next: Guest) => setDraft({ ...draft, guests: draft.guests.map((guest) => guest.id === next.id ? next : guest) });
@@ -223,7 +304,8 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
   };
 
   return (
-    <main className="invitation-page">
+    <main className="invitation-page" ref={pageRef}>
+      <BotanicalFrame />
       <nav className="invitation-nav" aria-label="Invitation navigation">
         <button type="button" className="wordmark" onClick={onExit}>D <PetalMark small /> E</button>
         <span>Our wedding</span>
@@ -233,9 +315,15 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <header className="invitation-hero">
         <div className="hero-vine hero-vine-one" aria-hidden="true" />
         <div className="hero-vine hero-vine-two" aria-hidden="true" />
-        <p className="eyebrow">Please celebrate with us</p>
+        <div className="hero-flower-crown" aria-hidden="true">
+          <Flower className="crown-flower crown-one" />
+          <Flower className="crown-flower crown-two" />
+          <Flower className="crown-flower crown-three" />
+        </div>
+        <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
+        <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
         <h1><span>Dimitar</span><small>&</small><span>Ekaterina</span></h1>
-        <p className="hero-message">Join us as we begin our forever</p>
+        <p className="hero-message"><span>Love is blooming.</span> Join us as we begin our forever.</p>
         <div className="event-line" aria-label="Wedding date and venue">
           <div><strong>Sunday</strong><span>20 June 2027</span></div>
           <PetalMark />
@@ -244,7 +332,16 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <a className="scroll-prompt" href="#your-invitation">Your invitation <span aria-hidden="true">↓</span></a>
       </header>
 
-      <section className="personal-section" id="your-invitation">
+      <section className="bloom-manifesto" data-bloom aria-label="Love blooms">
+        <span className="manifesto-seal">20 · 06 · 2027</span>
+        <p>Love</p><p>blooms</p>
+        <Flower className="manifesto-flower manifesto-one" />
+        <Flower className="manifesto-flower manifesto-two" />
+        <span className="manifesto-note">Forever starts here</span>
+      </section>
+
+      <section className="personal-section" id="your-invitation" data-bloom>
+        <div className="personal-vine" aria-hidden="true"><span /><span /><Flower className="personal-flower" /></div>
         <div className="personal-intro">
           <p className="eyebrow">Dear {household.householdName}</p>
           <h2>We would love to<br />celebrate with you.</h2>
@@ -264,7 +361,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
       </section>
 
-      <section className="estate-section">
+      <section className="estate-section" data-bloom>
         <div className="estate-copy">
           <p className="eyebrow">The celebration</p>
           <h2>A summer day<br />among the vines</h2>
@@ -278,11 +375,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <div className="estate-art" aria-label="An abstract garden view inspired by Midalidare Estate">
           <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
           <span className="vine-row row-one" /><span className="vine-row row-two" /><span className="vine-row row-three" />
+          <div className="estate-flowers" aria-hidden="true"><Flower className="estate-flower flower-a" /><Flower className="estate-flower flower-b" /><Flower className="estate-flower flower-c" /></div>
           <p>Love blooms<br /><small>20 · 06 · 2027</small></p>
         </div>
       </section>
 
-      <section className="meal-teaser">
+      <section className="meal-teaser" data-bloom>
+        <div className="meal-vine" aria-hidden="true"><span /><span /><Flower className="meal-flower" /></div>
         <PetalMark />
         <div>
           <p className="eyebrow">Later this year</p>
@@ -292,7 +391,8 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <button type="button" className="secondary-action" onClick={onOpenMeals}>{mealPhaseOpen ? "Choose meals" : "See how it works"} <span aria-hidden="true">→</span></button>
       </section>
 
-      <footer className="wedding-footer">
+      <footer className="wedding-footer" data-bloom>
+        <Flower className="footer-flower" />
         <p>Forever starts now</p>
         <span>Dimitar & Ekaterina · 20 June 2027</span>
       </footer>
