@@ -20,20 +20,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-v2.png`;
+  const imageUrl = `${protocol}://${host}/og-v3.png`;
 
   return {
     title: "Dimitar & Ekaterina | Our Wedding",
     description:
       "Join Dimitar and Ekaterina as they begin their forever at Midalidare Estate on 20 June 2027.",
     openGraph: {
-      title: "Forever starts now | Dimitar & Ekaterina",
+      title: "Forever starts today | Dimitar & Ekaterina",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
       images: [{ url: imageUrl, width: 1536, height: 1024, alt: "Dimitar and Ekaterina's wedding invitation" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Forever starts now | Dimitar & Ekaterina",
+      title: "Forever starts today | Dimitar & Ekaterina",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
       images: [imageUrl],
     },

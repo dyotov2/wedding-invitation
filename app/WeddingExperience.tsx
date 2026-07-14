@@ -202,9 +202,17 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
       <Flower className="entry-flower entry-flower-two" />
       <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
-        <div className="monogram" aria-label="Dimitar and Ekaterina">D <PetalMark small /> E</div>
+        <div className="entry-heart-vine" aria-hidden="true">
+          <span className="heart-stem heart-stem-left" />
+          <span className="heart-stem heart-stem-right" />
+          <span className="heart-leaf heart-leaf-one" /><span className="heart-leaf heart-leaf-two" />
+          <span className="heart-leaf heart-leaf-three" /><span className="heart-leaf heart-leaf-four" />
+          <Flower className="heart-flower heart-flower-one" />
+          <Flower className="heart-flower heart-flower-two" />
+        </div>
+        <div className="entry-names" aria-label="Dimitar and Ekaterina"><span>Dimitar</span><small>+</small><span>Ekaterina</span></div>
         <p className="date-line">20 · 06 · 2027</p>
-        <h1 id="entry-title">Forever<br />starts now</h1>
+        <h1 id="entry-title">Forever<br />starts today</h1>
         <p className="entry-copy">Your personal invitation is waiting.</p>
 
         <form className="code-form" onSubmit={submit} noValidate>
@@ -361,16 +369,40 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
       </section>
 
+      <section className="program-hero" data-bloom aria-labelledby="program-title">
+        <div className="program-canopy" aria-hidden="true">
+          <span className="program-branch branch-left" /><span className="program-branch branch-right" />
+          <Flower className="program-flower program-flower-one" />
+          <Flower className="program-flower program-flower-two" />
+          <Flower className="program-flower program-flower-three" />
+        </div>
+        <div className="program-heading">
+          <p className="eyebrow">The day in bloom</p>
+          <h2 id="program-title">Our wedding day</h2>
+          <p>A gentle rhythm for a long summer celebration.</p>
+        </div>
+        <div className="program-path">
+          <span className="program-vine" aria-hidden="true" />
+          <article className="program-stop stop-one">
+            <time>16:30</time><span className="program-bud" aria-hidden="true" />
+            <div><small>Gather</small><h3>Ceremony</h3><p>Our promises among the vines.</p></div>
+          </article>
+          <article className="program-stop stop-two">
+            <time>18:00</time><span className="program-bud" aria-hidden="true" />
+            <div><small>Celebrate</small><h3>Dinner</h3><p>A long table, local wine, and summer light.</p></div>
+          </article>
+          <article className="program-stop stop-three">
+            <time>20:30</time><span className="program-bud" aria-hidden="true" />
+            <div><small>Stay awhile</small><h3>Dancing</h3><p>Music beneath the evening sky.</p></div>
+          </article>
+        </div>
+      </section>
+
       <section className="estate-section" data-bloom>
         <div className="estate-copy">
           <p className="eyebrow">The celebration</p>
           <h2>A summer day<br />among the vines</h2>
           <p>We will gather at Midalidare Estate for a relaxed afternoon of ceremony, dinner, music, and dancing beneath the Bulgarian summer sky.</p>
-          <div className="timeline">
-            <div><time>16:30</time><span>Ceremony</span></div>
-            <div><time>18:00</time><span>Dinner</span></div>
-            <div><time>20:30</time><span>Dancing</span></div>
-          </div>
         </div>
         <div className="estate-art" aria-label="An abstract garden view inspired by Midalidare Estate">
           <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
@@ -393,7 +425,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
 
       <footer className="wedding-footer" data-bloom>
         <Flower className="footer-flower" />
-        <p>Forever starts now</p>
+        <p>Forever starts today</p>
         <span>Dimitar & Ekaterina · 20 June 2027</span>
       </footer>
     </main>
