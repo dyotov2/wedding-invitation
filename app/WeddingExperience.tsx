@@ -73,6 +73,87 @@ function Flower({ className = "" }: { className?: string }) {
   );
 }
 
+function HeartVine() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0;
+    let startedAt = 0;
+    let currentProgress = reducedMotion ? 1 : 0;
+
+    const pointAt = (angle: number, width: number, height: number) => {
+      const scale = Math.min(width / 36, height / 31);
+      const x = 16 * Math.sin(angle) ** 3;
+      const y = 13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle);
+      return { x: width / 2 + x * scale, y: height * 0.43 - y * scale };
+    };
+
+    const draw = (progress: number) => {
+      currentProgress = progress;
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(rect.width, 1);
+      const height = Math.max(rect.height, 1);
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+      context.lineCap = "round";
+      context.lineJoin = "round";
+
+      const end = Math.PI * 2 * progress;
+      context.beginPath();
+      for (let index = 0; index <= 260 * progress; index += 1) {
+        const angle = (index / 260) * Math.PI * 2;
+        const point = pointAt(Math.min(angle, end), width, height);
+        if (index === 0) context.moveTo(point.x, point.y);
+        else context.lineTo(point.x, point.y);
+      }
+      context.strokeStyle = "rgba(67, 91, 48, 0.92)";
+      context.lineWidth = Math.max(3, width / 210);
+      context.shadowColor = "rgba(46, 65, 33, 0.16)";
+      context.shadowBlur = 7;
+      context.stroke();
+      context.shadowBlur = 0;
+
+      const leaves = [0.42, 1.12, 2.05, 3.58, 4.62, 5.42];
+      leaves.forEach((angle, index) => {
+        if (angle > end) return;
+        const point = pointAt(angle, width, height);
+        const next = pointAt(angle + 0.02, width, height);
+        const rotation = Math.atan2(next.y - point.y, next.x - point.x) + (index % 2 ? -0.9 : 0.9);
+        context.save();
+        context.translate(point.x, point.y);
+        context.rotate(rotation);
+        context.beginPath();
+        context.ellipse(0, 0, Math.max(5, width / 105), Math.max(11, width / 52), 0, 0, Math.PI * 2);
+        context.fillStyle = index % 2 ? "rgba(72, 101, 53, 0.9)" : "rgba(88, 116, 65, 0.9)";
+        context.fill();
+        context.restore();
+      });
+    };
+
+    const animate = (time: number) => {
+      if (!startedAt) startedAt = time;
+      const elapsed = (time - startedAt) / 1800;
+      const progress = reducedMotion ? 1 : 1 - Math.pow(1 - Math.min(elapsed, 1), 4);
+      draw(progress);
+      if (progress < 1) frame = window.requestAnimationFrame(animate);
+    };
+    const observer = new ResizeObserver(() => draw(currentProgress));
+    observer.observe(canvas);
+    frame = window.requestAnimationFrame(animate);
+    return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
+  }, []);
+
+  return <canvas ref={canvasRef} className="heart-vine-canvas" aria-hidden="true" />;
+}
+
 function BotanicalFrame() {
   return (
     <div className="garden-frame" aria-hidden="true">
@@ -203,10 +284,7 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
       <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="entry-heart-vine" aria-hidden="true">
-          <span className="heart-stem heart-stem-left" />
-          <span className="heart-stem heart-stem-right" />
-          <span className="heart-leaf heart-leaf-one" /><span className="heart-leaf heart-leaf-two" />
-          <span className="heart-leaf heart-leaf-three" /><span className="heart-leaf heart-leaf-four" />
+          <HeartVine />
           <Flower className="heart-flower heart-flower-one" />
           <Flower className="heart-flower heart-flower-two" />
         </div>
