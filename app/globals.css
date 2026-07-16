@@ -177,7 +177,7 @@ h1, h2, h3, p { margin-top: 0; }
 .entry-footer { position: absolute; z-index: 2; bottom: 1.7rem; margin: 0; font-size: 0.72rem; letter-spacing: 0.08em; }
 .entry-botanical { z-index: 1; opacity: .9; animation: botanical-arrive 1.5s 260ms var(--ease-out) both, botanical-breathe 9s 1.8s ease-in-out infinite; }
 .entry-botanical-one { --botanical-size: clamp(240px, 31vw, 470px); left: -8%; bottom: -14%; transform: rotate(-15deg); }
-.entry-botanical-two { --botanical-size: clamp(205px, 25vw, 380px); right: -5%; top: -11%; transform: scaleX(-1) rotate(-12deg); animation-delay: 440ms, 2s; }
+.entry-botanical-two { --botanical-size: clamp(135px, 16vw, 220px); right: 3%; top: -12%; transform: scaleX(-1) rotate(-12deg); animation-delay: 440ms, 2s; }
 .entry-petals { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .entry-petals span { position: absolute; width: 10px; height: 18px; border-radius: 80% 10% 80% 10%; background: oklch(76% 0.045 309 / 0.24); animation: petal-drift 17s linear infinite; }
 .entry-petals span:nth-child(1) { left: 13%; top: 16%; animation-delay: -2s; }
@@ -300,7 +300,7 @@ h1, h2, h3, p { margin-top: 0; }
 .hero-botanical-frame { position: absolute; z-index: 2; width: min(1050px, 98vw); height: min(720px, 75vw); left: 50%; top: 49%; transform: translate(-50%, -50%); pointer-events: none; }
 .hero-botanical { --botanical-size: clamp(260px, 32vw, 470px); opacity: .93; animation: botanical-arrive 1.55s var(--ease-out) both, botanical-breathe 10s 1.7s ease-in-out infinite; }
 .hero-botanical-left { left: -4%; bottom: -4%; transform: rotate(-17deg); }
-.hero-botanical-right { right: -3%; top: -8%; transform: scaleX(-1) rotate(-17deg); animation-delay: 180ms, 1.9s; }
+.hero-botanical-right { --botanical-size: clamp(390px, 48vw, 620px); right: -6%; top: 5%; transform: scaleX(-1) rotate(-10deg); animation-delay: 180ms, 1.9s; }
 .floating-petals { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
 .floating-petals span { position: absolute; width: 9px; height: 18px; border-radius: 85% 8% 85% 8%; background: oklch(72% 0.045 309 / 0.25); animation: petal-drift 18s linear infinite; }
 .floating-petals span:nth-child(1) { left: 7%; top: 15%; animation-delay: -1s; }.floating-petals span:nth-child(2) { left: 14%; top: 70%; animation-delay: -8s; transform: scale(.7); }
@@ -349,8 +349,8 @@ h1, h2, h3, p { margin-top: 0; }
 .manifesto-seal { position: absolute; z-index: 3; left: clamp(1rem, 7vw, 7rem); top: 3rem; font-size: .72rem; font-weight: 700; letter-spacing: .22em; }
 .manifesto-note { position: absolute; z-index: 3; right: clamp(1rem, 7vw, 7rem); bottom: 3rem; font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; }
 .manifesto-botanical { z-index: 1; opacity: 0; scale: .72; transition: scale 1.4s var(--ease-out), opacity 1s ease; }
-.manifesto-one { --botanical-size: clamp(310px, 39vw, 580px); left: -11%; bottom: -23%; transform: rotate(-17deg); }
-.manifesto-two { --botanical-size: clamp(250px, 31vw, 450px); right: -8%; top: -19%; transform: scaleX(-1) rotate(-16deg); }
+.manifesto-one { --botanical-size: clamp(420px, 54vw, 760px); left: -13%; bottom: -11%; transform: rotate(-8deg); }
+.manifesto-two { --botanical-size: clamp(150px, 19vw, 250px); right: 2%; top: -12%; transform: scaleX(-1) rotate(-16deg); }
 .bloom-manifesto.is-blooming .manifesto-botanical { opacity: .92; scale: 1; }
 
 .personal-section { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(280px, 0.72fr) minmax(420px, 1.28fr); gap: clamp(3rem, 9vw, 9rem); padding: clamp(7rem, 13vw, 12rem) clamp(1.25rem, 10vw, 10rem); background: radial-gradient(circle at 10% 85%, var(--pastel-sage), transparent 33%), var(--paper); }
@@ -362,7 +362,7 @@ h1, h2, h3, p { margin-top: 0; }
 .personal-vine::before { content: ""; position: absolute; width: 3px; height: 100%; left: 50%; background: var(--sage); border-radius: 100%; transform: rotate(12deg); }
 .personal-vine > span { position: absolute; width: 58px; height: 95px; left: 48%; border-radius: 90% 8% 90% 8%; background: var(--sage-dark); transform-origin: 0 90%; }
 .personal-vine > span:nth-child(1) { top: 18%; transform: rotate(-58deg); }.personal-vine > span:nth-child(2) { top: 52%; transform: rotate(44deg); }
-.personal-botanical { --botanical-size: 190px; left: 1%; bottom: -7%; transform: rotate(-18deg); }
+.personal-botanical { --botanical-size: 118px; left: 20%; bottom: -2%; transform: rotate(-18deg); }
 
 .program-hero {
   position: relative;
@@ -404,8 +404,8 @@ h1, h2, h3, p { margin-top: 0; }
 .program-hero.is-blooming .program-branch { opacity: .9; transform: scale(1); }.program-hero.is-blooming .branch-right { transform: scaleX(-1) scale(1); }
 .program-botanical { opacity: 0; scale: .7; transition: scale 1.35s var(--ease-out), opacity .9s ease; }
 .program-hero.is-blooming .program-botanical { opacity: .94; scale: 1; }
-.program-botanical-one { --botanical-size: clamp(300px, 38vw, 560px); left: -13%; bottom: -23%; transform: rotate(-20deg); }
-.program-botanical-two { --botanical-size: clamp(245px, 31vw, 450px); right: -10%; top: -18%; transform: scaleX(-1) rotate(-19deg); transition-delay: 150ms; }
+.program-botanical-one { --botanical-size: clamp(440px, 56vw, 760px); left: -16%; bottom: -8%; transform: rotate(-9deg); }
+.program-botanical-two { --botanical-size: clamp(150px, 19vw, 245px); right: 1%; top: -13%; transform: scaleX(-1) rotate(-19deg); transition-delay: 150ms; }
 .personal-intro { align-self: start; position: sticky; top: 2rem; }
 .personal-intro h2, .rsvp-heading h2, .estate-copy h2, .meal-teaser h2, .meal-intro h1, .phase-closed h2, .meal-guest h2 {
   margin-bottom: 1.4rem;
@@ -473,7 +473,7 @@ h1, h2, h3, p { margin-top: 0; }
 .estate-botanical { opacity: 0; scale: .7; transition: scale 1.25s var(--ease-out), opacity .85s ease; }
 .estate-section.is-blooming .estate-botanical { opacity: .96; scale: 1; }
 .estate-botanical-one { --botanical-size: clamp(250px, 32vw, 430px); left: -12%; bottom: -25%; transform: rotate(-16deg); }
-.estate-botanical-two { --botanical-size: clamp(180px, 22vw, 310px); right: -10%; top: -14%; transform: scaleX(-1) rotate(-18deg); transition-delay: 140ms; }
+.estate-botanical-two { --botanical-size: clamp(270px, 34vw, 440px); right: -13%; top: -4%; transform: scaleX(-1) rotate(-12deg); transition-delay: 140ms; }
 
 .meal-teaser { position: relative; z-index: 2; display: grid; grid-template-columns: auto minmax(260px, 1fr) auto; align-items: center; gap: clamp(1.5rem, 5vw, 4rem); overflow: hidden; padding: clamp(6rem, 10vw, 9rem) clamp(1.25rem, 10vw, 10rem); background: linear-gradient(135deg, var(--pastel-champagne), var(--pastel-blush)); }
 .meal-teaser > *:not(.meal-vine) { position: relative; z-index: 2; opacity: 0; transform: translateY(35px); transition: transform .9s var(--ease-out), opacity .7s ease; }
@@ -484,7 +484,7 @@ h1, h2, h3, p { margin-top: 0; }
 .meal-vine::before { content: ""; position: absolute; width: 4px; height: 100%; left: 50%; background: var(--sage-dark); border-radius: 100%; transform: rotate(13deg); }
 .meal-vine > span { position: absolute; width: 62px; height: 105px; left: 49%; border-radius: 90% 8% 90% 8%; background: oklch(66% .04 132); transform-origin: 0 92%; }
 .meal-vine > span:nth-child(1) { top: 18%; transform: rotate(-56deg); }.meal-vine > span:nth-child(2) { top: 46%; transform: rotate(45deg); }
-.meal-botanical { --botanical-size: 235px; left: -4%; top: -8%; transform: rotate(-17deg); }
+.meal-botanical { --botanical-size: 155px; left: 7%; top: -4%; transform: rotate(-17deg); }
 .meal-teaser h2 { margin-bottom: 0.7rem; font-size: clamp(2.5rem, 5vw, 4.2rem); }
 .meal-teaser p:last-child { max-width: 59ch; margin-bottom: 0; }
 .secondary-action { min-height: 54px; border: 1px solid var(--mulberry); border-radius: 5px; background: transparent; padding: 0.75rem 1rem; color: var(--mulberry); font-weight: 750; cursor: pointer; white-space: nowrap; }
@@ -494,7 +494,7 @@ h1, h2, h3, p { margin-top: 0; }
 .wedding-footer p, .wedding-footer > span { position: relative; z-index: 2; opacity: 0; transform: translateY(40px); transition: transform 1s var(--ease-out), opacity .8s ease; }
 .wedding-footer > span { transition-delay: 130ms; }
 .wedding-footer.is-blooming p, .wedding-footer.is-blooming > span { opacity: 1; transform: translateY(0); }
-.footer-botanical { --botanical-size: clamp(350px, 47vw, 650px); right: -8%; top: -29%; opacity: 0; scale: .75; transform: scaleX(-1) rotate(-14deg); transition: scale 1.6s var(--ease-out), opacity 1.2s ease; }
+.footer-botanical { --botanical-size: clamp(520px, 68vw, 920px); right: -12%; top: -3%; opacity: 0; scale: .75; transform: scaleX(-1) rotate(-8deg); transition: scale 1.6s var(--ease-out), opacity 1.2s ease; }
 .wedding-footer.is-blooming .footer-botanical { opacity: .9; scale: 1; }
 
 /* Meal phase */
@@ -600,7 +600,7 @@ h1, h2, h3, p { margin-top: 0; }
   .code-row { grid-template-columns: 1fr; }
   .code-row button { width: 100%; }
   .entry-footer { max-width: 80%; text-align: center; }
-  .entry-botanical-one { left: -38%; bottom: -12%; }.entry-botanical-two { right: -34%; top: -7%; }
+  .entry-botanical-one { left: -38%; bottom: -12%; }.entry-botanical-two { --botanical-size: clamp(120px, 37vw, 175px); right: -15%; top: -8%; }
   .entry-heart-stage { height: 225px; margin-top: -.5rem; }
   .entry-heart-vine { width: 106vw; }
   .entry-love-note { top: 14%; font-size: 1rem; }
@@ -620,7 +620,7 @@ h1, h2, h3, p { margin-top: 0; }
   .hero-countdown { max-width: 30ch; line-height: 1.7; }
   .hero-botanical-frame { width: 118vw; height: 112vw; top: 48%; }
   .hero-botanical { --botanical-size: clamp(230px, 73vw, 360px); }
-  .hero-botanical-left { left: -28%; bottom: -12%; }.hero-botanical-right { right: -28%; top: -14%; }
+  .hero-botanical-left { left: -28%; bottom: -12%; }.hero-botanical-right { --botanical-size: clamp(320px, 96vw, 470px); right: -35%; top: 6%; }
   .event-line { gap: 0.8rem; }
   .event-line > div { min-width: 0; flex: 1; }
   .event-line strong { font-size: 0.7rem; }
@@ -630,7 +630,7 @@ h1, h2, h3, p { margin-top: 0; }
   .bloom-manifesto { min-height: 76svh; padding-inline: 1rem; }
   .bloom-manifesto > p { font-size: clamp(6rem, 31vw, 10rem); line-height: .66; }
   .manifesto-seal { top: 1.7rem; }.manifesto-note { bottom: 1.7rem; }
-  .manifesto-one { left: -25%; bottom: -5%; }.manifesto-two { right: -20%; top: -2%; }
+  .manifesto-one { --botanical-size: clamp(390px, 118vw, 580px); left: -46%; bottom: -2%; }.manifesto-two { --botanical-size: clamp(135px, 42vw, 190px); right: -16%; top: -4%; }
   .personal-vine { display: none; }
   .program-hero { min-height: auto; padding-block: 6rem; }
   .program-heading { margin-bottom: 4rem; }
@@ -644,7 +644,7 @@ h1, h2, h3, p { margin-top: 0; }
   .program-bud { position: absolute; left: -2.95rem; top: 1.2rem; margin: 0; }
   .program-stop > div { grid-column: 2; }
   .program-stop p { max-width: 32ch; }
-  .program-botanical-one { left: -48%; bottom: -16%; }.program-botanical-two { right: -42%; top: -10%; }
+  .program-botanical-one { --botanical-size: clamp(390px, 118vw, 580px); left: -48%; bottom: -5%; }.program-botanical-two { --botanical-size: clamp(135px, 41vw, 185px); right: -13%; top: -8%; }
   .rsvp-heading { align-items: start; flex-direction: column; }
   .attendance-buttons { grid-template-columns: 1fr; }
   .attendance-buttons button { text-align: center; }
@@ -653,13 +653,13 @@ h1, h2, h3, p { margin-top: 0; }
   .contact-button { text-align: left; padding-left: 1.3rem; }
   .estate-copy { padding: 4rem 1.25rem; }
   .estate-art { min-height: 400px; }
-  .estate-botanical-one { left: -40%; bottom: -18%; }.estate-botanical-two { right: -35%; top: -8%; }
+  .estate-botanical-one { left: -40%; bottom: -18%; }.estate-botanical-two { --botanical-size: clamp(280px, 82vw, 390px); right: -42%; top: 1%; }
   .timeline { gap: 0.4rem; }.timeline time { font-size: 1.35rem; }
   .meal-teaser { grid-template-columns: 1fr; }
   .meal-teaser > .petal-mark { display: none; }
   .meal-teaser .secondary-action { grid-column: 1; width: 100%; }
   .wedding-footer { align-items: start; flex-direction: column; }
-  .footer-botanical { right: -65%; top: -18%; }
+  .footer-botanical { --botanical-size: clamp(430px, 130vw, 620px); right: -70%; top: 2%; }
   .meal-options { grid-template-columns: 1fr; }
   .meal-options button { min-height: 115px; }
   .admin-content { padding: 1.5rem 1rem 4rem; }

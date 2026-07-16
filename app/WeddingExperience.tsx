@@ -60,11 +60,19 @@ function PetalMark({ small = false }: { small?: boolean }) {
   return <span className={small ? "petal-mark small" : "petal-mark"} aria-hidden="true" />;
 }
 
-function BotanicalPhoto({ className = "" }: { className?: string }) {
+type BotanicalVariant = "cluster" | "sprig" | "corner";
+
+const botanicalSources: Record<BotanicalVariant, string> = {
+  cluster: "/botanical-cluster-v1.png",
+  sprig: "/botanical-sprig-v1.png",
+  corner: "/botanical-corner-v1.png",
+};
+
+function BotanicalPhoto({ variant = "cluster", className = "" }: { variant?: BotanicalVariant; className?: string }) {
   return (
     <img
-      className={`botanical-photo ${className}`}
-      src="/botanical-cluster-v1.png"
+      className={`botanical-photo botanical-photo--${variant} ${className}`}
+      src={botanicalSources[variant]}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -189,14 +197,14 @@ function BotanicalFrame() {
       <div className="side-garden garden-left">
         <span className="garden-stem" />
         {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
-        <BotanicalPhoto className="garden-botanical garden-botanical-low" />
-        <BotanicalPhoto className="garden-botanical garden-botanical-high" />
+        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
+        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-high" />
       </div>
       <div className="side-garden garden-right">
         <span className="garden-stem" />
         {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
-        <BotanicalPhoto className="garden-botanical garden-botanical-low" />
-        <BotanicalPhoto className="garden-botanical garden-botanical-high" />
+        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
+        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-high" />
       </div>
     </div>
   );
@@ -305,7 +313,7 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
   return (
     <main className="entry-page">
       <BotanicalPhoto className="entry-botanical entry-botanical-one" />
-      <BotanicalPhoto className="entry-botanical entry-botanical-two" />
+      <BotanicalPhoto variant="sprig" className="entry-botanical entry-botanical-two" />
       <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="entry-heart-stage">
@@ -428,7 +436,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <div className="hero-vine hero-vine-two" aria-hidden="true" />
         <div className="hero-botanical-frame" aria-hidden="true">
           <BotanicalPhoto className="hero-botanical hero-botanical-left" />
-          <BotanicalPhoto className="hero-botanical hero-botanical-right" />
+          <BotanicalPhoto variant="corner" className="hero-botanical hero-botanical-right" />
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
         <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
@@ -447,13 +455,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <section className="bloom-manifesto" data-bloom aria-label="Love blooms">
         <span className="manifesto-seal">20 · 06 · 2027</span>
         <p>Love</p><p>blooms</p>
-        <BotanicalPhoto className="manifesto-botanical manifesto-one" />
-        <BotanicalPhoto className="manifesto-botanical manifesto-two" />
+        <BotanicalPhoto variant="corner" className="manifesto-botanical manifesto-one" />
+        <BotanicalPhoto variant="sprig" className="manifesto-botanical manifesto-two" />
         <span className="manifesto-note">Forever starts here</span>
       </section>
 
       <section className="personal-section" id="your-invitation" data-bloom>
-        <div className="personal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto className="personal-botanical" /></div>
+        <div className="personal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto variant="sprig" className="personal-botanical" /></div>
         <div className="personal-intro">
           <p className="eyebrow">Dear {household.householdName}</p>
           <h2>We would love to<br />celebrate with you.</h2>
@@ -476,8 +484,8 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <section className="program-hero" id="program" data-bloom aria-labelledby="program-title">
         <div className="program-canopy" aria-hidden="true">
           <span className="program-branch branch-left" /><span className="program-branch branch-right" />
-          <BotanicalPhoto className="program-botanical program-botanical-one" />
-          <BotanicalPhoto className="program-botanical program-botanical-two" />
+          <BotanicalPhoto variant="corner" className="program-botanical program-botanical-one" />
+          <BotanicalPhoto variant="sprig" className="program-botanical program-botanical-two" />
         </div>
         <div className="program-heading">
           <p className="eyebrow">The day in bloom</p>
@@ -510,13 +518,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <div className="estate-art" aria-label="An abstract garden view inspired by Midalidare Estate">
           <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
           <span className="vine-row row-one" /><span className="vine-row row-two" /><span className="vine-row row-three" />
-          <div className="estate-botanicals" aria-hidden="true"><BotanicalPhoto className="estate-botanical estate-botanical-one" /><BotanicalPhoto className="estate-botanical estate-botanical-two" /></div>
+          <div className="estate-botanicals" aria-hidden="true"><BotanicalPhoto className="estate-botanical estate-botanical-one" /><BotanicalPhoto variant="corner" className="estate-botanical estate-botanical-two" /></div>
           <p>Love blooms<br /><small>20 · 06 · 2027</small></p>
         </div>
       </section>
 
       <section className="meal-teaser" data-bloom>
-        <div className="meal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto className="meal-botanical" /></div>
+        <div className="meal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto variant="sprig" className="meal-botanical" /></div>
         <PetalMark />
         <div>
           <p className="eyebrow">Later this year</p>
@@ -527,7 +535,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       </section>
 
       <footer className="wedding-footer" data-bloom>
-        <BotanicalPhoto className="footer-botanical" />
+        <BotanicalPhoto variant="corner" className="footer-botanical" />
         <p>Forever starts today</p>
         <span>Dimitar & Ekaterina · 20 June 2027</span>
       </footer>
