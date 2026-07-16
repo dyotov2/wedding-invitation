@@ -7,6 +7,8 @@
   --mulberry: oklch(35% 0.095 14);
   --rose: oklch(61% 0.105 18);
   --rose-pale: oklch(88% 0.055 23);
+  --lavender: oklch(63% 0.057 309);
+  --lavender-pale: oklch(88% 0.032 309);
   --sage: oklch(48% 0.067 128);
   --sage-dark: oklch(35% 0.057 127);
   --line: oklch(72% 0.035 66 / 0.46);
@@ -34,6 +36,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   outline-offset: 3px;
 }
 h1, h2, h3, p { margin-top: 0; }
+#program, #your-invitation { scroll-margin-top: 86px; }
 
 .eyebrow {
   margin-bottom: 0.65rem;
@@ -129,12 +132,14 @@ h1, h2, h3, p { margin-top: 0; }
   text-align: center;
   animation: rise-in 900ms var(--ease-out) both;
 }
-.entry-heart-vine { position: absolute; z-index: 1; width: min(790px, 98vw); height: 270px; left: 50%; top: -34px; transform: translateX(-50%); pointer-events: none; }
+.entry-heart-stage { position: relative; height: clamp(235px, 34vw, 325px); margin: -1.2rem auto 0; }
+.entry-heart-vine { position: absolute; z-index: 1; width: min(850px, 100vw); height: 100%; left: 50%; top: 0; transform: translateX(-50%); pointer-events: none; }
 .heart-vine-canvas { display: block; width: 100%; height: 100%; }
 .heart-flower { --flower-size: 67px; --petal-color: oklch(68% .13 17 / .9); z-index: 3; opacity: 0; animation: open-flower .9s var(--ease-out) forwards, garden-breathe 7s 2s ease-in-out infinite; }
 .heart-flower-one { left: 7%; top: 87px; animation-delay: 1.08s, 2s; }.heart-flower-two { right: 7%; top: 87px; --petal-color: oklch(87% .08 46 / .92); animation-delay: 1.2s, 2.2s; }
-.entry-names { position: relative; z-index: 3; display: flex; align-items: center; justify-content: center; gap: clamp(.6rem, 2vw, 1.4rem); min-height: 108px; margin-top: 3.6rem; padding-inline: 5rem; font-family: var(--font-display), serif; font-size: clamp(2.2rem, 5.6vw, 4.1rem); letter-spacing: -.055em; line-height: .9; white-space: nowrap; }
-.entry-names small { color: var(--rose); font-family: var(--font-body), sans-serif; font-size: .27em; font-weight: 700; letter-spacing: .08em; }
+.entry-love-note { position: absolute; z-index: 3; width: 100%; top: 16%; margin: 0; color: var(--lavender); font-family: var(--font-display), serif; font-size: clamp(1rem, 2.3vw, 1.45rem); font-style: italic; letter-spacing: .035em; animation: rise-in 900ms 1.3s var(--ease-out) both; }
+.entry-names { position: absolute; z-index: 3; inset: 37% 0 auto; display: flex; align-items: center; justify-content: center; gap: clamp(.55rem, 2vw, 1.25rem); padding-inline: clamp(1.2rem, 9vw, 6rem); font-family: var(--font-display), serif; font-size: clamp(2.15rem, 5.4vw, 4rem); letter-spacing: -.055em; line-height: .9; white-space: nowrap; animation: rise-in 900ms 620ms var(--ease-out) both; }
+.entry-names small { color: var(--lavender); font-family: var(--font-body), sans-serif; font-size: .25em; font-weight: 700; letter-spacing: .08em; }
 .monogram {
   display: flex;
   align-items: center;
@@ -144,7 +149,7 @@ h1, h2, h3, p { margin-top: 0; }
   font-size: clamp(1.5rem, 4vw, 2.15rem);
   letter-spacing: 0.08em;
 }
-.date-line { margin: 1.8rem 0 0.8rem; color: var(--sage-dark); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.26em; }
+.date-line { margin: -.2rem 0 0.8rem; color: var(--sage-dark); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.26em; }
 .entry-panel h1 {
   margin-bottom: 1rem;
   font-family: var(--font-display), serif;
@@ -178,7 +183,7 @@ h1, h2, h3, p { margin-top: 0; }
 .code-row button, .primary-action {
   min-height: 60px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 999px;
   background: var(--mulberry);
   color: var(--white-tint);
   padding: 0.9rem 1.4rem;
@@ -299,20 +304,25 @@ h1, h2, h3, p { margin-top: 0; }
 .garden-flower.flower-two { --reveal: .48; bottom: 51%; left: 30%; --petal-color: oklch(84% 0.08 48); }
 .garden-flower.flower-three { --reveal: .74; bottom: 82%; left: 4%; --petal-color: oklch(61% 0.14 8); }
 .invitation-nav {
+  position: sticky;
+  z-index: 12;
+  top: 0;
   min-height: 76px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 0 clamp(1.25rem, 5vw, 4.5rem);
-  border-bottom: 1px solid oklch(85% 0.03 56 / 0.32);
-  background: var(--mulberry);
-  color: var(--paper);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--sage-dark);
 }
-.invitation-nav > span { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.invitation-nav-links { display: flex; align-items: center; gap: 2rem; }
+.invitation-nav-links a { color: inherit; font-size: .68rem; font-weight: 700; letter-spacing: .18em; text-decoration: none; text-transform: uppercase; }
+.invitation-nav-links a:hover { color: var(--lavender); }
 .wordmark, .nav-link { border: 0; background: transparent; color: inherit; cursor: pointer; }
 .wordmark { justify-self: start; display: flex; align-items: center; gap: 0.45rem; font-family: var(--font-display), serif; font-size: 1.2rem; }
-.wordmark .petal-mark::before { background: var(--rose-pale); }
-.wordmark .petal-mark::after { background: oklch(75% 0.07 128); }
+.wordmark .petal-mark::before { background: var(--lavender); }
+.wordmark .petal-mark::after { background: var(--sage); }
 .nav-link { justify-self: end; font-size: 0.75rem; text-decoration: underline; text-underline-offset: 4px; }
 .invitation-hero {
   position: relative;
@@ -332,13 +342,13 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .invitation-hero .eyebrow { color: var(--rose-pale); }
 .invitation-hero::before { content: ""; position: absolute; inset: 0; opacity: 0.12; background-image: radial-gradient(oklch(95% 0.02 70) 0.7px, transparent 0.9px); background-size: 6px 6px; mix-blend-mode: soft-light; }
-.invitation-hero h1 { position: relative; z-index: 3; margin: 0; font-family: var(--font-display), serif; font-size: clamp(4.7rem, 14vw, 11rem); font-weight: 400; letter-spacing: -0.065em; line-height: 0.74; text-shadow: 0 22px 55px oklch(16% 0.05 10 / 0.28); }
-.invitation-hero h1 span { display: block; animation: rise-in 850ms var(--ease-out) both; }
+.invitation-hero h1 { position: relative; z-index: 3; display: flex; align-items: center; justify-content: center; gap: clamp(1rem, 3vw, 2.6rem); margin: 0; font-family: var(--font-display), serif; font-size: clamp(4rem, 8vw, 7.6rem); font-weight: 400; letter-spacing: -0.065em; line-height: 0.82; text-shadow: 0 22px 55px oklch(16% 0.05 10 / 0.28); }
+.invitation-hero h1 span { display: inline-block; animation: rise-in 850ms var(--ease-out) both; }
 .invitation-hero h1 span:last-child { animation-delay: 100ms; }
-.invitation-hero h1 small { display: block; margin: 0.35rem 0 0.55rem; color: var(--rose-pale); font-family: var(--font-body), sans-serif; font-size: 0.16em; font-style: normal; font-weight: 500; letter-spacing: 0.08em; }
+.invitation-hero h1 small { display: inline-block; margin: 0; color: var(--lavender-pale); font-family: var(--font-body), sans-serif; font-size: 0.16em; font-style: normal; font-weight: 500; letter-spacing: 0.08em; }
 .hero-eyebrow { position: relative; z-index: 3; }
-.hero-message { position: relative; z-index: 3; margin: 2.1rem 0 0; color: oklch(92% 0.025 62); font-size: clamp(1rem, 2vw, 1.2rem); }
-.hero-message span { display: block; margin-bottom: .2rem; color: oklch(91% 0.07 42); font-family: var(--font-display), serif; font-size: 1.55em; letter-spacing: -0.02em; }
+.hero-love-note { position: relative; z-index: 3; margin: .35rem 0 .9rem; color: var(--lavender-pale); font-family: var(--font-display), serif; font-size: clamp(1.2rem, 2.4vw, 1.75rem); font-style: italic; letter-spacing: .04em; }
+.hero-message { position: relative; z-index: 3; margin: 1.7rem 0 0; color: oklch(92% 0.025 62); font-size: clamp(1rem, 2vw, 1.2rem); }
 .hero-flower-crown { position: absolute; z-index: 2; width: min(780px, 82vw); height: min(650px, 68vw); left: 50%; top: 48%; transform: translate(-50%, -50%); pointer-events: none; }
 .crown-flower { animation: open-flower 1.4s var(--ease-out) both, garden-breathe 8s 1.5s ease-in-out infinite; }
 .crown-one { --flower-size: clamp(150px, 22vw, 320px); --petal-color: oklch(55% 0.13 10 / 0.46); left: -18%; top: 2%; transform: rotate(-22deg); }
@@ -359,6 +369,8 @@ h1, h2, h3, p { margin-top: 0; }
 .event-line span { margin-top: 0.25rem; color: oklch(83% 0.025 65); font-size: 0.85rem; }
 .event-line .petal-mark::before { background: var(--rose-pale); }
 .event-line .petal-mark::after { background: oklch(72% 0.075 128); }
+.hero-countdown { position: relative; z-index: 3; margin: 1.8rem 0 0; color: var(--lavender-pale); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.hero-countdown span { padding-inline: .45rem; color: var(--rose-pale); }
 .scroll-prompt { position: absolute; bottom: 1.4rem; color: var(--paper); font-size: 0.72rem; letter-spacing: 0.12em; text-decoration: none; text-transform: uppercase; }
 .scroll-prompt span { display: block; margin-top: 0.25rem; }
 .hero-vine { position: absolute; width: min(27vw, 350px); height: 68%; opacity: 0.45; border: 1px solid oklch(69% 0.075 129); border-width: 0 0 0 1px; border-radius: 50%; }
@@ -435,7 +447,7 @@ h1, h2, h3, p { margin-top: 0; }
 .program-stop time { font-family: var(--font-display), serif; font-size: clamp(2.4rem, 5vw, 4.4rem); line-height: 1; }
 .program-bud { position: relative; z-index: 2; width: 22px; height: 22px; margin: 1.15rem 0 1.8rem; border: 5px solid var(--rose-pale); border-radius: 50%; background: var(--mulberry); box-shadow: 0 0 0 7px oklch(58% .09 127); transform: scale(.1); transition: transform .7s .7s var(--ease-out); }
 .program-hero.is-blooming .program-bud { transform: scale(1); }
-.program-stop small { color: oklch(78% .08 126); font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+.program-stop small { color: var(--lavender-pale); font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
 .program-stop h3 { margin: .35rem 0 .45rem; font-family: var(--font-display), serif; font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 400; }
 .program-stop p { max-width: 26ch; margin: 0; color: oklch(86% .025 74); font-size: .9rem; }
 .program-canopy { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
@@ -637,27 +649,30 @@ h1, h2, h3, p { margin-top: 0; }
 
 @media (max-width: 620px) {
   body { font-size: 16px; }
-  .entry-page { place-items: start center; padding-top: 12vh; }
+  .entry-page { place-items: start center; padding-top: 8vh; }
   .entry-page::before { inset: 10px; }
   .botanical { width: 120px; opacity: 0.28; }
   .code-row { grid-template-columns: 1fr; }
   .code-row button { width: 100%; }
   .entry-footer { max-width: 80%; text-align: center; }
   .entry-flower-one { left: -15%; top: 1%; }.entry-flower-two { right: -10%; bottom: 8%; }
-  .entry-heart-vine { width: 112vw; height: 220px; left: 50%; top: -12px; }
-  .heart-flower { --flower-size: 46px; }.heart-flower-one, .heart-flower-two { top: 72px; }
-  .heart-flower-one { left: 8%; }.heart-flower-two { right: 8%; }
-  .entry-names { min-height: 88px; margin-top: 2.8rem; padding-inline: 2.4rem; font-size: clamp(1.78rem, 8.6vw, 2.85rem); }
-  .entry-panel .date-line { margin-top: 1.15rem; }
+  .entry-heart-stage { height: 225px; margin-top: -.5rem; }
+  .entry-heart-vine { width: 106vw; }
+  .entry-love-note { top: 14%; font-size: 1rem; }
+  .entry-names { inset-block-start: 37%; padding-inline: 1.5rem; font-size: clamp(1.7rem, 8.5vw, 2.65rem); }
+  .entry-panel .date-line { margin-top: -.15rem; }
   .garden-frame { opacity: .42; }
   .side-garden { width: 55px; }
   .garden-stem { width: 3px; left: 31%; }
   .garden-leaf { width: 29px; height: 50px; left: 29%; }
   .garden-flower { --flower-size: 50px; left: 0; }
   .invitation-nav { min-height: 64px; grid-template-columns: 1fr auto; }
-  .invitation-nav > span { display: none; }
+  .invitation-nav-links { display: none; }
   .invitation-hero { min-height: calc(100svh - 64px); padding-top: 4rem; }
-  .invitation-hero h1 { font-size: clamp(4rem, 20vw, 6.5rem); }
+  .invitation-hero h1 { flex-direction: column; gap: .35rem; font-size: clamp(3.7rem, 18.5vw, 6.2rem); line-height: .78; }
+  .invitation-hero h1 small { margin: .1rem 0 .3rem; }
+  .hero-love-note { margin-bottom: 1.15rem; }
+  .hero-countdown { max-width: 30ch; line-height: 1.7; }
   .hero-flower-crown { width: 100vw; height: 75vw; }
   .crown-one { left: -20%; top: 0; }.crown-two { right: -14%; bottom: -5%; }
   .event-line { gap: 0.8rem; }
@@ -717,4 +732,5 @@ h1, h2, h3, p { margin-top: 0; }
   .floating-petals, .entry-petals { display: none; }
   .garden-stem { transform: rotate(2deg) scaleY(1); }
   .garden-leaf, .garden-flower { opacity: .78; }
+  .entry-love-note, .entry-names { opacity: 1; transform: none; }
 }

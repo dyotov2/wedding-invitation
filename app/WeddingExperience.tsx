@@ -87,10 +87,46 @@ function HeartVine() {
     let currentProgress = reducedMotion ? 1 : 0;
 
     const pointAt = (angle: number, width: number, height: number) => {
-      const scale = Math.min(width / 36, height / 31);
+      const horizontalScale = width / 36.5;
+      const verticalScale = height / 34;
       const x = 16 * Math.sin(angle) ** 3;
       const y = 13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle);
-      return { x: width / 2 + x * scale, y: height * 0.43 - y * scale };
+      return { x: width / 2 + x * horizontalScale, y: height * 0.37 - y * verticalScale };
+    };
+
+    const drawLeaf = (x: number, y: number, rotation: number, size: number, tone: number) => {
+      context.save();
+      context.translate(x, y);
+      context.rotate(rotation);
+      context.beginPath();
+      context.ellipse(0, 0, size * 0.42, size, 0, 0, Math.PI * 2);
+      context.fillStyle = tone % 2 ? "rgba(111, 139, 98, 0.94)" : "rgba(80, 111, 73, 0.94)";
+      context.fill();
+      context.beginPath();
+      context.moveTo(0, -size * 0.7);
+      context.lineTo(0, size * 0.72);
+      context.strokeStyle = "rgba(235, 239, 222, 0.52)";
+      context.lineWidth = 0.8;
+      context.stroke();
+      context.restore();
+    };
+
+    const drawFlower = (x: number, y: number, size: number, color: string, bloom: number) => {
+      context.save();
+      context.translate(x, y);
+      context.scale(bloom, bloom);
+      for (let petal = 0; petal < 5; petal += 1) {
+        const angle = (petal / 5) * Math.PI * 2 - Math.PI / 2;
+        context.beginPath();
+        context.ellipse(Math.cos(angle) * size * 0.55, Math.sin(angle) * size * 0.55, size * 0.48, size * 0.34, angle, 0, Math.PI * 2);
+        context.fillStyle = color;
+        context.fill();
+      }
+      context.beginPath();
+      context.arc(0, 0, size * 0.31, 0, Math.PI * 2);
+      context.fillStyle = "rgba(217, 185, 138, 0.98)";
+      context.fill();
+      context.restore();
     };
 
     const draw = (progress: number) => {
@@ -106,35 +142,61 @@ function HeartVine() {
       context.lineCap = "round";
       context.lineJoin = "round";
 
-      const end = Math.PI * 2 * progress;
+      const stemEnd = pointAt(Math.PI, width, height);
+      const stemProgress = Math.min(1, progress / 0.2);
       context.beginPath();
-      for (let index = 0; index <= 260 * progress; index += 1) {
-        const angle = (index / 260) * Math.PI * 2;
-        const point = pointAt(Math.min(angle, end), width, height);
+      context.moveTo(width / 2, height - 2);
+      context.bezierCurveTo(
+        width / 2 - width * 0.015,
+        height - (height - stemEnd.y) * 0.46 * stemProgress,
+        width / 2 + width * 0.018,
+        height - (height - stemEnd.y) * 0.76 * stemProgress,
+        stemEnd.x,
+        height - (height - stemEnd.y) * stemProgress,
+      );
+      context.strokeStyle = "rgba(79, 106, 70, 0.95)";
+      context.lineWidth = Math.max(2, width / 310);
+      context.stroke();
+
+      const heartProgress = Math.max(0, Math.min(1, (progress - 0.12) / 0.88));
+      context.beginPath();
+      const pointsToDraw = Math.floor(300 * heartProgress);
+      for (let index = 0; index <= pointsToDraw; index += 1) {
+        const angle = Math.PI + (index / 300) * Math.PI * 2;
+        const point = pointAt(angle, width, height);
         if (index === 0) context.moveTo(point.x, point.y);
         else context.lineTo(point.x, point.y);
       }
-      context.strokeStyle = "rgba(67, 91, 48, 0.92)";
-      context.lineWidth = Math.max(3, width / 210);
-      context.shadowColor = "rgba(46, 65, 33, 0.16)";
-      context.shadowBlur = 7;
+      context.strokeStyle = "rgba(78, 107, 70, 0.96)";
+      context.lineWidth = Math.max(2.2, width / 285);
+      context.shadowColor = "rgba(49, 69, 42, 0.12)";
+      context.shadowBlur = 4;
       context.stroke();
       context.shadowBlur = 0;
 
-      const leaves = [0.42, 1.12, 2.05, 3.58, 4.62, 5.42];
-      leaves.forEach((angle, index) => {
-        if (angle > end) return;
+      const leaves = [0.07, 0.14, 0.25, 0.34, 0.43, 0.57, 0.65, 0.74, 0.84, 0.93];
+      leaves.forEach((fraction, index) => {
+        if (fraction > heartProgress) return;
+        const angle = Math.PI + fraction * Math.PI * 2;
         const point = pointAt(angle, width, height);
         const next = pointAt(angle + 0.02, width, height);
-        const rotation = Math.atan2(next.y - point.y, next.x - point.x) + (index % 2 ? -0.9 : 0.9);
-        context.save();
-        context.translate(point.x, point.y);
-        context.rotate(rotation);
-        context.beginPath();
-        context.ellipse(0, 0, Math.max(5, width / 105), Math.max(11, width / 52), 0, 0, Math.PI * 2);
-        context.fillStyle = index % 2 ? "rgba(72, 101, 53, 0.9)" : "rgba(88, 116, 65, 0.9)";
-        context.fill();
-        context.restore();
+        const rotation = Math.atan2(next.y - point.y, next.x - point.x) + (index % 2 ? -0.92 : 0.92);
+        drawLeaf(point.x, point.y, rotation, Math.max(8, width / 82), index);
+      });
+
+      const flowers = [
+        { fraction: 0.02, color: "rgba(223, 194, 205, 0.98)", size: 17 },
+        { fraction: 0.2, color: "rgba(179, 164, 198, 0.96)", size: 15 },
+        { fraction: 0.48, color: "rgba(232, 207, 214, 0.98)", size: 18 },
+        { fraction: 0.69, color: "rgba(179, 164, 198, 0.96)", size: 15 },
+        { fraction: 0.88, color: "rgba(223, 194, 205, 0.98)", size: 16 },
+      ];
+      flowers.forEach((flower) => {
+        if (flower.fraction > heartProgress) return;
+        const angle = Math.PI + flower.fraction * Math.PI * 2;
+        const point = pointAt(angle, width, height);
+        const localProgress = Math.min(1, Math.max(0.12, (heartProgress - flower.fraction) * 8));
+        drawFlower(point.x, point.y, Math.max(flower.size, width / 52), flower.color, localProgress);
       });
     };
 
@@ -283,12 +345,11 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
       <Flower className="entry-flower entry-flower-two" />
       <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
-        <div className="entry-heart-vine" aria-hidden="true">
-          <HeartVine />
-          <Flower className="heart-flower heart-flower-one" />
-          <Flower className="heart-flower heart-flower-two" />
+        <div className="entry-heart-stage">
+          <div className="entry-heart-vine" aria-hidden="true"><HeartVine /></div>
+          <p className="entry-love-note">love blooms</p>
+          <div className="entry-names" aria-label="Dimitar and Ekaterina"><span>Dimitar</span><small>+</small><span>Ekaterina</span></div>
         </div>
-        <div className="entry-names" aria-label="Dimitar and Ekaterina"><span>Dimitar</span><small>+</small><span>Ekaterina</span></div>
         <p className="date-line">20 · 06 · 2027</p>
         <h1 id="entry-title">Forever<br />starts today</h1>
         <p className="entry-copy">Your personal invitation is waiting.</p>
@@ -366,6 +427,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
   const pageRef = useLivingGarden();
   const [draft, setDraft] = useState(household);
   const [status, setStatus] = useState("");
+  const daysUntilWedding = Math.max(0, Math.ceil((new Date("2027-06-20T16:30:00+03:00").getTime() - Date.now()) / 86_400_000));
   const updateGuest = (next: Guest) => setDraft({ ...draft, guests: draft.guests.map((guest) => guest.id === next.id ? next : guest) });
   const hasPending = draft.guests.some((guest) => guest.attendance === "pending");
 
@@ -394,7 +456,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <BotanicalFrame />
       <nav className="invitation-nav" aria-label="Invitation navigation">
         <button type="button" className="wordmark" onClick={onExit}>D <PetalMark small /> E</button>
-        <span>Our wedding</span>
+        <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a></div>
         <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
 
@@ -408,13 +470,15 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
         <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
+        <p className="hero-love-note">love blooms</p>
         <h1><span>Dimitar</span><small>&</small><span>Ekaterina</span></h1>
-        <p className="hero-message"><span>Love is blooming.</span> Join us as we begin our forever.</p>
+        <p className="hero-message">Join us as we begin our forever.</p>
         <div className="event-line" aria-label="Wedding date and venue">
           <div><strong>Sunday</strong><span>20 June 2027</span></div>
           <PetalMark />
           <div><strong>Midalidare Estate</strong><span>Bulgaria</span></div>
         </div>
+        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 20 April 2027</p>
         <a className="scroll-prompt" href="#your-invitation">Your invitation <span aria-hidden="true">↓</span></a>
       </header>
 
@@ -447,7 +511,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
       </section>
 
-      <section className="program-hero" data-bloom aria-labelledby="program-title">
+      <section className="program-hero" id="program" data-bloom aria-labelledby="program-title">
         <div className="program-canopy" aria-hidden="true">
           <span className="program-branch branch-left" /><span className="program-branch branch-right" />
           <Flower className="program-flower program-flower-one" />
