@@ -45,7 +45,7 @@ h1, h2, h3, p { margin-top: 0; }
 .eyebrow {
   margin-bottom: 0.65rem;
   color: var(--rose);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   line-height: 1.3;
@@ -272,6 +272,7 @@ h1, h2, h3, p { margin-top: 0; }
 .wordmark .petal-mark::before { background: var(--lavender); }
 .wordmark .petal-mark::after { background: var(--sage); }
 .nav-link { justify-self: end; font-size: 0.75rem; text-decoration: underline; text-underline-offset: 4px; }
+.mobile-rsvp-link { display: none; }
 .invitation-hero {
   position: relative;
   min-height: calc(100svh - 76px);
@@ -443,11 +444,17 @@ h1, h2, h3, p { margin-top: 0; }
 .notes-field label { display: block; margin-bottom: 0.35rem; font-size: 0.78rem; font-weight: 700; }
 .notes-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 5px; background: oklch(98% 0.01 76); padding: 0.85rem; resize: vertical; }
 .rsvp-column > .primary-action { width: 100%; margin-top: 1.2rem; display: flex; align-items: center; justify-content: space-between; font-size: 1rem; }
+.primary-action:disabled { cursor: wait; opacity: .68; transform: none; }
 .save-status { min-height: 1.5rem; margin: 0.55rem 0; color: var(--mulberry); font-size: 0.82rem; font-weight: 650; }
 .save-status.success { color: var(--sage-dark); }
+.save-status.error { color: oklch(42% .12 25); }
+.rsvp-receipt { display: grid; grid-template-columns: auto 1fr; gap: .9rem; margin-top: 1rem; padding: 1.1rem; border: 1px solid oklch(57% .05 132 / .35); border-radius: 6px; background: oklch(93% .032 132); }
+.receipt-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--sage-dark); color: var(--white-tint); font-weight: 800; }
+.rsvp-receipt strong { display: block; color: var(--sage-dark); }
+.rsvp-receipt p { max-width: 55ch; margin: .25rem 0 0; color: oklch(39% .025 125); font-size: .9rem; }
 .contact-area { margin-top: 2rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
 .contact-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
-.contact-button { min-height: 52px; border: 1px solid var(--line); border-radius: 100px; background: transparent; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.contact-button { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 100px; background: transparent; color: inherit; font-size: 0.86rem; font-weight: 700; text-decoration: none; cursor: pointer; }
 .contact-button span { display: inline-grid; place-items: center; width: 25px; height: 25px; margin-right: 0.2rem; border-radius: 50%; color: var(--white-tint); font-size: 0.7rem; }
 .contact-button.whatsapp span { background: oklch(63% 0.14 145); }
 .contact-button.viber span { background: oklch(51% 0.16 306); }
@@ -455,6 +462,8 @@ h1, h2, h3, p { margin-top: 0; }
 .contact-message { min-height: 1.2rem; margin: 0.5rem 0 0; color: var(--sage-dark); font-size: 0.74rem; }
 
 .estate-section { position: relative; z-index: 2; display: grid; grid-template-columns: 0.9fr 1.1fr; min-height: 760px; background: var(--pastel-lilac); color: var(--ink); }
+.estate-section > .estate-map-shell { grid-column: 1 / -1; width: min(1120px, calc(100vw - 2.5rem)); margin: clamp(2rem, 5vw, 4rem) auto clamp(5rem, 9vw, 8rem); }
+.estate-section.is-blooming > .estate-map-shell { opacity: 1; transform: translateY(0); }
 .estate-copy { display: flex; flex-direction: column; justify-content: center; padding: clamp(4rem, 9vw, 8rem); }
 .estate-copy > * { opacity: 0; transform: translateY(40px); transition: transform .9s var(--ease-out), opacity .7s ease; }
 .estate-copy > *:nth-child(2) { transition-delay: 90ms; }.estate-copy > *:nth-child(3) { transition-delay: 160ms; }.estate-copy > *:nth-child(4) { transition-delay: 230ms; }
@@ -501,8 +510,9 @@ h1, h2, h3, p { margin-top: 0; }
 .meal-teaser p:last-child { max-width: 59ch; margin-bottom: 0; }
 .secondary-action { min-height: 54px; border: 1px solid var(--mulberry); border-radius: 5px; background: transparent; padding: 0.75rem 1rem; color: var(--mulberry); font-weight: 750; cursor: pointer; white-space: nowrap; }
 .wedding-footer { position: relative; z-index: 2; min-height: 62svh; display: flex; align-items: end; justify-content: space-between; gap: 2rem; overflow: hidden; padding: clamp(4rem, 9vw, 8rem) clamp(1.25rem, 10vw, 10rem); background: radial-gradient(circle at 80% 20%, var(--pastel-sage), transparent 38%), linear-gradient(145deg, var(--pastel-lilac), var(--pastel-blush)); color: var(--ink); }
-.wedding-footer p { margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.8rem, 7vw, 6rem); line-height: 0.9; }
+.wedding-footer p { max-width: 12ch; margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.8rem, 7vw, 6rem); line-height: 0.9; }
 .wedding-footer span { color: oklch(44% 0.025 120); font-size: 0.75rem; letter-spacing: 0.1em; }
+.footer-copy > span { display: block; max-width: 46ch; margin-top: 1.3rem; font-size: .9rem; letter-spacing: .02em; }
 .wedding-footer p, .wedding-footer > span { position: relative; z-index: 2; opacity: 0; transform: translateY(40px); transition: transform 1s var(--ease-out), opacity .8s ease; }
 .wedding-footer > span { transition-delay: 130ms; }
 .wedding-footer.is-blooming p, .wedding-footer.is-blooming > span { opacity: 1; transform: translateY(0); }
@@ -533,19 +543,23 @@ h1, h2, h3, p { margin-top: 0; }
 /* Admin */
 .admin-page { min-height: 100svh; display: grid; grid-template-columns: 265px minmax(0, 1fr); background: oklch(96% 0.012 77); }
 .admin-sidebar { position: sticky; top: 0; height: 100svh; display: flex; flex-direction: column; padding: 1.6rem; background: var(--mulberry); color: var(--paper); }
-.admin-brand { display: flex; align-items: center; gap: 0.45rem; align-self: flex-start; border: 0; background: transparent; color: inherit; font-family: var(--font-display), serif; font-size: 1.25rem; cursor: pointer; }
+.admin-brand { display: flex; align-items: center; gap: 0.45rem; align-self: flex-start; border: 0; background: transparent; color: inherit; font-family: var(--font-display), serif; font-size: 1.25rem; text-decoration: none; cursor: pointer; }
 .admin-brand .petal-mark::before { background: var(--rose-pale); }.admin-brand .petal-mark::after { background: oklch(70% 0.07 128); }
 .admin-sidebar > div { margin: 3rem 0 1.5rem; }
 .admin-sidebar .eyebrow { color: var(--rose-pale); }
 .admin-sidebar h1 { margin: 0; font-family: var(--font-display), serif; font-size: 2.4rem; font-weight: 400; line-height: 1; }
 .admin-sidebar nav { display: grid; gap: 0.2rem; }
-.admin-sidebar nav button { border: 0; border-radius: 4px; background: transparent; padding: 0.75rem; color: oklch(86% 0.02 65); text-align: left; font-size: 0.85rem; cursor: pointer; }
-.admin-sidebar nav button.active { background: oklch(98% 0.01 74 / 0.11); color: var(--paper); font-weight: 700; }
+.admin-sidebar nav a { border: 0; border-radius: 4px; background: transparent; padding: 0.75rem; color: oklch(86% 0.02 65); text-align: left; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
+.admin-sidebar nav a.active { background: oklch(98% 0.01 74 / 0.11); color: var(--paper); font-weight: 700; }
 .back-to-site { margin-top: auto; border: 0; background: transparent; padding: 0.8rem 0; color: var(--rose-pale); text-align: left; font-size: 0.78rem; cursor: pointer; }
 .admin-content { min-width: 0; padding: clamp(2rem, 5vw, 4.5rem); }
 .admin-header { display: flex; justify-content: space-between; align-items: center; gap: 2rem; }
 .admin-header h2 { margin-bottom: 0.35rem; font-family: var(--font-display), serif; font-size: clamp(2rem, 4vw, 3.35rem); font-weight: 400; line-height: 1; }
 .admin-header p:last-child { color: oklch(48% 0.02 42); }
+.admin-account { display: grid; justify-items: end; gap: .65rem; }
+.admin-account > a { color: var(--sage-dark); font-size: .8rem; }
+.admin-status { min-height: 1.5rem; margin: 1rem 0 0; color: var(--mulberry); font-size: .86rem; font-weight: 650; }
+.admin-empty { padding: 2rem 0; color: oklch(46% .025 42); }
 .phase-toggle { min-width: 185px; min-height: 48px; border: 1px solid var(--line); border-radius: 100px; background: var(--white-tint); padding: 0.6rem 0.8rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
 .phase-toggle span { display: inline-block; width: 10px; height: 10px; margin-right: 0.45rem; border-radius: 50%; background: var(--rose); }
 .phase-toggle.open span { background: oklch(61% 0.15 145); }
@@ -623,8 +637,10 @@ h1, h2, h3, p { margin-top: 0; }
   .garden-stem { width: 3px; left: 31%; }
   .garden-leaf { width: 29px; height: 50px; left: 29%; }
   .garden-botanical { --botanical-size: 88px; left: -28px; }
-  .invitation-nav { min-height: 64px; grid-template-columns: 1fr auto; }
+  .invitation-nav { min-height: 64px; grid-template-columns: 1fr auto auto; gap: .75rem; padding-inline: 1rem; }
   .invitation-nav-links { display: none; }
+  .mobile-rsvp-link { min-height: 44px; display: inline-flex; align-items: center; border-radius: 100px; background: var(--sage-dark); padding: .45rem .85rem; color: var(--white-tint); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-decoration: none; }
+  .nav-link { min-height: 44px; font-size: .72rem; }
   .invitation-hero { min-height: calc(100svh - 64px); padding-top: 4rem; }
   .invitation-hero h1 { flex-direction: column; gap: .35rem; font-size: clamp(3.7rem, 18.5vw, 6.2rem); line-height: .78; }
   .invitation-hero h1 small { margin: .1rem 0 .3rem; }
@@ -675,6 +691,7 @@ h1, h2, h3, p { margin-top: 0; }
   .meal-teaser > .petal-mark { display: none; }
   .meal-teaser .secondary-action { grid-column: 1; width: 100%; }
   .wedding-footer { align-items: start; flex-direction: column; }
+  .wedding-footer > span { max-width: 24ch; line-height: 1.6; }
   .footer-botanical { --botanical-size: clamp(430px, 130vw, 620px); right: -70%; top: 2%; }
   .meal-options { grid-template-columns: 1fr; }
   .meal-options button { min-height: 115px; }
@@ -695,4 +712,64 @@ h1, h2, h3, p { margin-top: 0; }
   .garden-stem { transform: rotate(2deg) scaleY(1); }
   .garden-leaf, .garden-botanical { opacity: .78; }
   .entry-love-note, .entry-names { opacity: 1; transform: none; }
+}
+
+/* Progressive motion: content is readable without JavaScript, then blooms only when motion is active. */
+.bloom-manifesto > p,
+.bloom-manifesto .manifesto-botanical,
+.personal-section .personal-intro,
+.personal-section .rsvp-column,
+.program-heading,
+.program-stop,
+.program-botanical,
+.estate-copy > *,
+.estate-botanical,
+.estate-section > .estate-map-shell,
+.wedding-footer p,
+.wedding-footer > span,
+.footer-botanical,
+.meal-teaser > *:not(.meal-vine) {
+  opacity: 1;
+}
+
+.bloom-manifesto > p,
+.personal-section .personal-intro,
+.personal-section .rsvp-column,
+.program-heading,
+.program-stop,
+.estate-copy > *,
+.estate-section > .estate-map-shell,
+.wedding-footer p,
+.wedding-footer > span,
+.meal-teaser > *:not(.meal-vine) {
+  transform: none;
+}
+
+.bloom-manifesto .manifesto-botanical,
+.program-botanical,
+.estate-botanical,
+.footer-botanical { scale: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion-ready .bloom-manifesto:not(.is-blooming) > p,
+  .motion-ready .personal-section:not(.is-blooming) .personal-intro,
+  .motion-ready .personal-section:not(.is-blooming) .rsvp-column,
+  .motion-ready .program-hero:not(.is-blooming) .program-heading,
+  .motion-ready .program-hero:not(.is-blooming) .program-stop,
+  .motion-ready .estate-section:not(.is-blooming) .estate-copy > *,
+  .motion-ready .estate-section:not(.is-blooming) > .estate-map-shell,
+  .motion-ready .wedding-footer:not(.is-blooming) p,
+  .motion-ready .wedding-footer:not(.is-blooming) > span,
+  .motion-ready .meal-teaser:not(.is-blooming) > *:not(.meal-vine) {
+    opacity: 0;
+    transform: translateY(42px);
+  }
+
+  .motion-ready .bloom-manifesto:not(.is-blooming) .manifesto-botanical,
+  .motion-ready .program-hero:not(.is-blooming) .program-botanical,
+  .motion-ready .estate-section:not(.is-blooming) .estate-botanical,
+  .motion-ready .wedding-footer:not(.is-blooming) .footer-botanical {
+    opacity: 0;
+    scale: .76;
+  }
 }

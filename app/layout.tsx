@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-v3.png`;
+  const imageUrl = `${protocol}://${host}/og-v4.png`;
 
   return {
     title: "Ekaterina & Dimitar | Our Wedding",

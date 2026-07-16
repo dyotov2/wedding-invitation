@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 type Attendance = "pending" | "attending" | "declined";
 type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
@@ -21,10 +22,12 @@ type Household = {
   guests: Guest[];
 };
 
-type AdminData = {
-  households: Household[];
+type InvitationResponse = {
+  household: Household;
   mealPhaseOpen: boolean;
 };
+
+type SaveState = "idle" | "saving" | "success" | "error";
 
 const demoHousehold: Household = {
   id: 1,
@@ -63,19 +66,31 @@ function PetalMark({ small = false }: { small?: boolean }) {
 type BotanicalVariant = "cluster" | "sprig" | "corner";
 
 const botanicalSources: Record<BotanicalVariant, string> = {
-  cluster: "/botanical-cluster-v1.png",
-  sprig: "/botanical-sprig-v1.png",
-  corner: "/botanical-corner-v1.png",
+  cluster: "/botanical-cluster-v1.webp",
+  sprig: "/botanical-sprig-v1.webp",
+  corner: "/botanical-corner-v1.webp",
 };
 
-function BotanicalPhoto({ variant = "cluster", className = "" }: { variant?: BotanicalVariant; className?: string }) {
+const botanicalDimensions: Record<BotanicalVariant, { width: number; height: number }> = {
+  cluster: { width: 1149, height: 1369 },
+  sprig: { width: 864, height: 1821 },
+  corner: { width: 1536, height: 1024 },
+};
+
+function BotanicalPhoto({ variant = "cluster", className = "", priority = false }: { variant?: BotanicalVariant; className?: string; priority?: boolean }) {
+  const dimensions = botanicalDimensions[variant];
   return (
-    <img
+    <Image
       className={`botanical-photo botanical-photo--${variant} ${className}`}
       src={botanicalSources[variant]}
       alt=""
       aria-hidden="true"
       draggable={false}
+      width={dimensions.width}
+      height={dimensions.height}
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      fetchPriority={priority ? "high" : "auto"}
     />
   );
 }
@@ -149,8 +164,12 @@ function HeartVine() {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.max(rect.width, 1);
       const height = Math.max(rect.height, 1);
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
+      const pixelWidth = Math.round(width * ratio);
+      const pixelHeight = Math.round(height * ratio);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.clearRect(0, 0, width, height);
       context.lineCap = "round";
@@ -238,13 +257,11 @@ function BotanicalFrame() {
         <span className="garden-stem" />
         {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
         <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
-        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-high" />
       </div>
       <div className="side-garden garden-right">
         <span className="garden-stem" />
         {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
         <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
-        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-high" />
       </div>
     </div>
   );
@@ -256,6 +273,7 @@ function useLivingGarden() {
   useEffect(() => {
     const page = pageRef.current;
     if (!page) return;
+    page.classList.add("motion-ready");
     const blooms = Array.from(page.querySelectorAll<HTMLElement>("[data-bloom]"));
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -285,6 +303,7 @@ function useLivingGarden() {
 
     return () => {
       observer.disconnect();
+      page.classList.remove("motion-ready");
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
@@ -293,33 +312,34 @@ function useLivingGarden() {
   return pageRef;
 }
 
+const contactLinks = [
+  { key: "whatsapp", label: "WhatsApp", mark: "W", href: process.env.NEXT_PUBLIC_WEDDING_WHATSAPP_URL ?? "" },
+  { key: "viber", label: "Viber", mark: "V", href: process.env.NEXT_PUBLIC_WEDDING_VIBER_URL ?? "" },
+  { key: "phone", label: "Call us", mark: "☎", href: process.env.NEXT_PUBLIC_WEDDING_PHONE_URL ?? "" },
+].filter((contact) => /^(https?:|viber:|tel:)/.test(contact.href));
+
 function ContactActions() {
-  const [message, setMessage] = useState("");
-  const notify = (label: string) => {
-    setMessage(`${label} details will be added to the final invitation.`);
-    window.setTimeout(() => setMessage(""), 3200);
-  };
+  if (contactLinks.length === 0) return null;
 
   return (
     <div className="contact-area">
       <p className="eyebrow">Prefer to reply personally?</p>
       <div className="contact-actions" aria-label="Contact options">
-        <button type="button" className="contact-button whatsapp" onClick={() => notify("WhatsApp")}>
-          <span aria-hidden="true">W</span> WhatsApp
-        </button>
-        <button type="button" className="contact-button viber" onClick={() => notify("Viber")}>
-          <span aria-hidden="true">V</span> Viber
-        </button>
-        <button type="button" className="contact-button phone" onClick={() => notify("Phone")}>
-          <span aria-hidden="true">☎</span> Call us
-        </button>
+        {contactLinks.map((contact) => (
+          <a key={contact.key} className={`contact-button ${contact.key}`} href={contact.href}>
+            <span aria-hidden="true">{contact.mark}</span> {contact.label}
+          </a>
+        ))}
       </div>
-      <p className="contact-message" role="status">{message}</p>
     </div>
   );
 }
 
-function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
+function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
+  onFound: (response: InvitationResponse) => void;
+  linkStatus?: "idle" | "loading";
+  linkError?: string;
+}) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -336,12 +356,12 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
     try {
       const response = await fetch(`/api/invitation?code=${encodeURIComponent(normalized)}`);
       if (!response.ok) throw new Error("not found");
-      const household = (await response.json()) as Household;
+      const invitation = (await response.json()) as InvitationResponse;
       window.history.replaceState({}, "", `?code=${encodeURIComponent(normalized)}`);
-      onFound(household);
+      onFound(invitation);
     } catch {
       if (normalized === demoHousehold.code) {
-        onFound(demoHousehold);
+        onFound({ household: demoHousehold, mealPhaseOpen: false });
       } else {
         setError("We could not find that invitation. Please check the code and try again.");
       }
@@ -352,13 +372,13 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
 
   return (
     <main className="entry-page">
-      <BotanicalPhoto className="entry-botanical entry-botanical-one" />
+      <BotanicalPhoto className="entry-botanical entry-botanical-one" priority />
       <BotanicalPhoto variant="sprig" className="entry-botanical entry-botanical-two" />
       <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="entry-heart-stage">
           <div className="entry-heart-vine" aria-hidden="true"><HeartVine /></div>
-          <p className="entry-love-note">love blooms</p>
+          <p className="entry-love-note">our forever begins</p>
           <div className="entry-names" aria-label="Ekaterina and Dimitar"><span>Ekaterina</span><small>+</small><span>Dimitar</span></div>
         </div>
         <p className="date-line">20 · 06 · 2027</p>
@@ -381,6 +401,8 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
           </div>
           <p id="code-hint" className="form-hint">You will find this short code on your printed card.</p>
           <p id="code-error" className="form-error" role="alert">{error}</p>
+          {linkStatus === "loading" && <p className="link-status" role="status">Opening your personal invitation…</p>}
+          {linkError && <p className="form-error" role="alert">{linkError}</p>}
         </form>
 
         <button className="demo-link" type="button" onClick={() => { setCode("ROSE27"); }}>
@@ -405,21 +427,22 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
         </div>
       </div>
       <div className="attendance-buttons" role="group" aria-label={`Attendance for ${guest.name}`}>
-        <button type="button" className={guest.attendance === "attending" ? "selected yes" : ""} onClick={() => select("attending")}>
+        <button type="button" aria-pressed={guest.attendance === "attending"} className={guest.attendance === "attending" ? "selected yes" : ""} onClick={() => select("attending")}>
           <span aria-hidden="true">✓</span> We will attend
         </button>
-        <button type="button" className={guest.attendance === "declined" ? "selected no" : ""} onClick={() => select("declined")}>
+        <button type="button" aria-pressed={guest.attendance === "declined"} className={guest.attendance === "declined" ? "selected no" : ""} onClick={() => select("declined")}>
           <span aria-hidden="true">×</span> We cannot attend
         </button>
       </div>
       {guest.attendance === "attending" && (
         <div className="notes-field">
-          <label htmlFor={`notes-${guest.id}`}>Dietary restrictions or a note</label>
+          <label htmlFor={`notes-${guest.id}`}>Dietary or accessibility needs</label>
           <textarea
             id={`notes-${guest.id}`}
             value={guest.dietaryNotes}
             onChange={(event) => onChange({ ...guest, dietaryNotes: event.target.value })}
-            placeholder="Optional, tell us anything we should know"
+            placeholder="Optional, tell us what would help you feel comfortable"
+            maxLength={500}
             rows={3}
           />
         </div>
@@ -437,16 +460,50 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
 }) {
   const pageRef = useLivingGarden();
   const [draft, setDraft] = useState(household);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
-  const daysUntilWedding = Math.max(0, Math.ceil((new Date("2027-06-20T16:30:00+03:00").getTime() - Date.now()) / 86_400_000));
-  const updateGuest = (next: Guest) => setDraft({ ...draft, guests: draft.guests.map((guest) => guest.id === next.id ? next : guest) });
+  const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((new Date("2027-06-20T16:30:00+03:00").getTime() - Date.now()) / 86_400_000)));
+  const draftKey = `wedding-rsvp-draft:${household.code}`;
+  const updateGuest = (next: Guest) => {
+    setSaveState("idle");
+    setStatus("");
+    setDraft((current) => ({ ...current, guests: current.guests.map((guest) => guest.id === next.id ? next : guest) }));
+  };
   const hasPending = draft.guests.some((guest) => guest.attendance === "pending");
+  const isDirty = JSON.stringify(draft.guests) !== JSON.stringify(household.guests);
+  const attendingNames = draft.guests.filter((guest) => guest.attendance === "attending").map((guest) => guest.name);
+
+  useEffect(() => {
+    const restoreDraft = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(draftKey);
+        if (!stored) return;
+        const restored = JSON.parse(stored) as Household;
+        const sameGuests = restored.guests.map((guest) => guest.id).join(",") === household.guests.map((guest) => guest.id).join(",");
+        if (sameGuests) setDraft(restored);
+      } catch {
+        window.localStorage.removeItem(draftKey);
+      }
+    }, 0);
+    return () => window.clearTimeout(restoreDraft);
+  }, [draftKey, household]);
+
+  useEffect(() => {
+    if (!isDirty || saveState === "success") return;
+    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [draft, draftKey, isDirty, saveState]);
 
   const save = async () => {
     if (hasPending) {
       setStatus("Please choose an answer for each invited guest.");
+      setSaveState("error");
       return;
     }
+    if (saveState === "saving") return;
+    setSaveState("saving");
     setStatus("Saving your reply…");
     try {
       const response = await fetch("/api/rsvp", {
@@ -455,11 +512,16 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         body: JSON.stringify({ code: draft.code, guests: draft.guests }),
       });
       if (!response.ok) throw new Error("save failed");
+      const saved = (await response.json()) as Household;
+      setDraft(saved);
+      onUpdate(saved);
+      window.localStorage.removeItem(draftKey);
+      setSaveState("success");
+      setStatus("Your reply is confirmed. You can return with the same code if anything changes.");
     } catch {
-      // The designed preview remains usable if local persistence is unavailable.
+      setSaveState("error");
+      setStatus("We could not save your reply. Your choices are safe on this phone. Please try again.");
     }
-    onUpdate(draft);
-    setStatus("Thank you. Your reply has been saved with love.");
   };
 
   return (
@@ -468,6 +530,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <nav className="invitation-nav" aria-label="Invitation navigation">
         <button type="button" className="wordmark" onClick={onExit}>E <PetalMark small /> D</button>
         <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a></div>
+        <a className="mobile-rsvp-link" href="#your-invitation">RSVP</a>
         <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
 
@@ -479,7 +542,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
         <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
-        <p className="hero-love-note">love blooms</p>
+          <p className="hero-love-note">Forever starts today</p>
         <h1><span>Ekaterina</span><small>&</small><span>Dimitar</span></h1>
         <p className="hero-message">Join us as we begin our forever.</p>
         <div className="event-line" aria-label="Wedding date and venue">
@@ -491,29 +554,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <a className="scroll-prompt" href="#your-invitation">Your invitation <span aria-hidden="true">↓</span></a>
       </header>
 
-      <section className="bloom-manifesto" data-bloom aria-label="Love blooms">
-        <span className="manifesto-seal">20 · 06 · 2027</span>
-        <p>Love</p><p>blooms</p>
-        <BotanicalPhoto variant="corner" className="manifesto-botanical manifesto-one" />
-        <BotanicalPhoto variant="sprig" className="manifesto-botanical manifesto-two" />
-        <div className="estate-map-shell">
-          <iframe
-            title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
-            src="https://www.google.com/maps?q=42.3417472%2C25.4058997&z=15&output=embed"
-            loading="lazy"
-            allowFullScreen
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-          <div className="estate-map-caption">
-            <div><span>Our venue</span><strong>Midalidare Estate</strong><small>Mogilovo, Bulgaria</small></div>
-            <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
-          </div>
-        </div>
-        <span className="manifesto-note">Forever starts here</span>
-      </section>
-
       <section className="personal-section" id="your-invitation" data-bloom>
-        <div className="personal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto variant="sprig" className="personal-botanical" /></div>
         <div className="personal-intro">
           <p className="eyebrow">Dear {household.householdName}</p>
           <h2>We would love to<br />celebrate with you.</h2>
@@ -527,8 +568,19 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
           <div className="guest-list">
             {draft.guests.map((guest) => <GuestRsvp key={guest.id} guest={guest} onChange={updateGuest} />)}
           </div>
-          <button type="button" className="primary-action" onClick={save}>Save our reply <span aria-hidden="true">→</span></button>
-          <p className={status.includes("Thank") ? "save-status success" : "save-status"} role="status">{status}</p>
+          <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving"}>
+            {saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : "Save our reply"} <span aria-hidden="true">→</span>
+          </button>
+          <p className={`save-status ${saveState}`} role={saveState === "error" ? "alert" : "status"}>{status}</p>
+          {saveState === "success" && (
+            <div className="rsvp-receipt" aria-label="RSVP confirmation">
+              <span className="receipt-mark" aria-hidden="true">✓</span>
+              <div>
+                <strong>Reply confirmed for {household.householdName}</strong>
+                <p>{attendingNames.length > 0 ? `${attendingNames.join(" and ")} will join us on 20 June 2027.` : "We will miss you, and we are grateful you let us know."}</p>
+              </div>
+            </div>
+          )}
           <ContactActions />
         </div>
       </section>
@@ -561,6 +613,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         </div>
       </section>
 
+      <section className="bloom-manifesto" data-bloom aria-label="Love blooms">
+        <span className="manifesto-seal">20 · 06 · 2027</span>
+        <p>Love</p><p>blooms</p>
+        <BotanicalPhoto variant="corner" className="manifesto-botanical manifesto-one" />
+        <span className="manifesto-note">Forever starts here</span>
+      </section>
+
       <section className="estate-section" data-bloom>
         <div className="estate-copy">
           <p className="eyebrow">The celebration</p>
@@ -576,24 +635,41 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
           <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
           <span className="vine-row row-one" /><span className="vine-row row-two" /><span className="vine-row row-three" />
           <div className="estate-botanicals" aria-hidden="true"><BotanicalPhoto className="estate-botanical estate-botanical-one" /><BotanicalPhoto variant="corner" className="estate-botanical estate-botanical-two" /></div>
-          <p>Love blooms<br /><small>20 · 06 · 2027</small></p>
+          <p>Midalidare<br /><small>Among the Bulgarian vines</small></p>
+        </div>
+        <div className="estate-map-shell">
+          <iframe
+            title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
+            src="https://www.google.com/maps?q=42.3417472%2C25.4058997&z=15&output=embed"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+          <div className="estate-map-caption">
+            <div><span>Our venue</span><strong>Midalidare Estate</strong><small>Mogilovo, Bulgaria</small></div>
+            <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
       </section>
 
-      <section className="meal-teaser" data-bloom>
-        <div className="meal-vine" aria-hidden="true"><span /><span /><BotanicalPhoto variant="sprig" className="meal-botanical" /></div>
-        <PetalMark />
-        <div>
-          <p className="eyebrow">Later this year</p>
-          <h2>Your menu, on the same invitation</h2>
-          <p>When our menu is ready, return with this same private link or code to choose a meal for every attending guest.</p>
-        </div>
-        <button type="button" className="secondary-action" onClick={onOpenMeals}>{mealPhaseOpen ? "Choose meals" : "See how it works"} <span aria-hidden="true">→</span></button>
-      </section>
+      {mealPhaseOpen && (
+        <section className="meal-teaser" data-bloom>
+          <PetalMark />
+          <div>
+            <p className="eyebrow">The wedding table</p>
+            <h2>Meal choices are now open</h2>
+            <p>Choose a meal for each attending guest using this same private invitation.</p>
+          </div>
+          <button type="button" className="secondary-action" onClick={onOpenMeals}>Choose meals <span aria-hidden="true">→</span></button>
+        </section>
+      )}
 
       <footer className="wedding-footer" data-bloom>
         <BotanicalPhoto variant="corner" className="footer-botanical" />
-        <p>Forever starts today</p>
+        <div className="footer-copy">
+          <p>Thank you for being part of our story.</p>
+          <span>We cannot wait to celebrate among the vines with you.</span>
+        </div>
         <span>Ekaterina & Dimitar · 20 June 2027</span>
       </footer>
     </main>
@@ -603,14 +679,30 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
 function MealSelection({ household, open, onBack, onUpdate }: { household: Household; open: boolean; onBack: () => void; onUpdate: (household: Household) => void }) {
   const attending = household.guests.filter((guest) => guest.attendance === "attending");
   const [draft, setDraft] = useState(household);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
+  const missingChoice = attending.some((guest) => !draft.guests.find((item) => item.id === guest.id)?.mealChoice);
   const save = async () => {
+    if (missingChoice) {
+      setSaveState("error");
+      setStatus("Please choose a meal for each attending guest.");
+      return;
+    }
+    if (saveState === "saving") return;
+    setSaveState("saving");
     setStatus("Saving meal choices…");
     try {
-      await fetch("/api/meals", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: draft.code, guests: draft.guests }) });
-    } catch {}
-    onUpdate(draft);
-    setStatus("Meal choices saved. Thank you.");
+      const response = await fetch("/api/meals", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: draft.code, guests: draft.guests }) });
+      if (!response.ok) throw new Error("save failed");
+      const saved = (await response.json()) as Household;
+      setDraft(saved);
+      onUpdate(saved);
+      setSaveState("success");
+      setStatus("Meal choices confirmed. Thank you.");
+    } catch {
+      setSaveState("error");
+      setStatus("We could not save your meal choices. Please try again.");
+    }
   };
 
   return (
@@ -640,7 +732,7 @@ function MealSelection({ household, open, onBack, onUpdate }: { household: House
                 <h2>{guest.name}</h2>
                 <div className="meal-options">
                   {meals.map((meal) => (
-                    <button key={meal.value} type="button" className={current.mealChoice === meal.value ? "selected" : ""} onClick={() => setDraft({ ...draft, guests: draft.guests.map((item) => item.id === guest.id ? { ...item, mealChoice: meal.value } : item) })}>
+                    <button key={meal.value} type="button" aria-pressed={current.mealChoice === meal.value} className={current.mealChoice === meal.value ? "selected" : ""} onClick={() => { setSaveState("idle"); setStatus(""); setDraft({ ...draft, guests: draft.guests.map((item) => item.id === guest.id ? { ...item, mealChoice: meal.value } : item) }); }}>
                       <span className="meal-radio" aria-hidden="true" />
                       <strong>{meal.title}</strong><small>{meal.detail}</small>
                     </button>
@@ -649,106 +741,41 @@ function MealSelection({ household, open, onBack, onUpdate }: { household: House
               </article>
             );
           })}
-          <button type="button" className="primary-action" onClick={save}>Save meal choices <span aria-hidden="true">→</span></button>
-          <p className="save-status" role="status">{status}</p>
+          <button type="button" className="primary-action" disabled={saveState === "saving"} onClick={save}>{saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : "Save meal choices"} <span aria-hidden="true">→</span></button>
+          <p className={`save-status ${saveState}`} role={saveState === "error" ? "alert" : "status"}>{status}</p>
         </section>
       )}
     </main>
   );
 }
 
-function AdminDashboard({ data, onClose, onRefresh }: { data: AdminData; onClose: () => void; onRefresh: () => void }) {
-  const guests = data.households.flatMap((household) => household.guests.map((guest) => ({ ...guest, household })));
-  const attending = guests.filter((guest) => guest.attendance === "attending").length;
-  const declined = guests.filter((guest) => guest.attendance === "declined").length;
-  const pending = guests.filter((guest) => guest.attendance === "pending").length;
-  const [filter, setFilter] = useState<Attendance | "all">("all");
-  const visible = filter === "all" ? guests : guests.filter((guest) => guest.attendance === filter);
-
-  const updateSetting = async () => {
-    await fetch("/api/admin/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mealPhaseOpen: !data.mealPhaseOpen }) });
-    onRefresh();
-  };
-
-  const manualReply = async (guestId: number, attendance: Attendance, responseSource: ReplySource) => {
-    await fetch("/api/admin/reply", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ guestId, attendance, responseSource }) });
-    onRefresh();
-  };
-
-  return (
-    <main className="admin-page">
-      <aside className="admin-sidebar">
-        <button className="admin-brand" type="button" onClick={onClose}>E <PetalMark small /> D</button>
-        <div><p className="eyebrow">Wedding desk</p><h1>Guest replies</h1></div>
-        <nav aria-label="Admin sections"><button className="active">Overview</button><button>Households</button><button>Dietary notes</button><button>Meal choices</button></nav>
-        <button type="button" className="back-to-site" onClick={onClose}>← View invitation</button>
-      </aside>
-      <section className="admin-content">
-        <header className="admin-header">
-          <div><p className="eyebrow">20 June 2027</p><h2>Good morning, Ekaterina & Dimitar</h2><p>Here is how your guest list is coming together.</p></div>
-          <button type="button" className={data.mealPhaseOpen ? "phase-toggle open" : "phase-toggle"} onClick={updateSetting}><span /> Meal choices {data.mealPhaseOpen ? "open" : "closed"}</button>
-        </header>
-        <div className="metric-strip">
-          <div><strong>{guests.length}</strong><span>Invited guests</span></div>
-          <div className="metric-attending"><strong>{attending}</strong><span>Attending</span></div>
-          <div><strong>{pending}</strong><span>Awaiting reply</span></div>
-          <div><strong>{declined}</strong><span>Cannot attend</span></div>
-        </div>
-        <section className="guest-register">
-          <div className="register-heading"><div><p className="eyebrow">Live guest list</p><h2>Responses</h2></div><div className="filter-buttons">{(["all", "attending", "pending", "declined"] as const).map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "All guests" : item === "declined" ? "Not attending" : item}</button>)}</div></div>
-          <div className="guest-table" role="table" aria-label="Guest responses">
-            <div className="table-row table-head" role="row"><span>Guest</span><span>Household</span><span>Reply</span><span>Source</span><span>Notes</span></div>
-            {visible.map((guest) => (
-              <div className="table-row" role="row" key={guest.id}>
-                <span data-label="Guest"><strong>{guest.name}</strong><small>{guest.household.code}</small></span>
-                <span data-label="Household">{guest.household.householdName}</span>
-                <span data-label="Reply"><select aria-label={`Reply for ${guest.name}`} value={guest.attendance} onChange={(event) => manualReply(guest.id, event.target.value as Attendance, guest.responseSource)}><option value="pending">Pending</option><option value="attending">Attending</option><option value="declined">Cannot attend</option></select></span>
-                <span data-label="Source"><select aria-label={`Reply source for ${guest.name}`} value={guest.responseSource} onChange={(event) => manualReply(guest.id, guest.attendance, event.target.value as ReplySource)}><option value="website">Website</option><option value="phone">Phone</option><option value="whatsapp">WhatsApp</option><option value="viber">Viber</option><option value="paper">Paper</option></select></span>
-                <span data-label="Notes" className="notes-cell">{guest.dietaryNotes || "No notes"}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </section>
-    </main>
-  );
-}
-
 export default function WeddingExperience() {
   const [household, setHousehold] = useState<Household | null>(null);
-  const [view, setView] = useState<"entry" | "invitation" | "meals" | "admin">("entry");
-  const [adminData, setAdminData] = useState<AdminData>({ households: [demoHousehold], mealPhaseOpen: false });
-
-  const loadAdmin = async () => {
-    try {
-      const response = await fetch("/api/admin");
-      if (!response.ok) throw new Error("unavailable");
-      setAdminData(await response.json());
-    } catch {
-      setAdminData({ households: household ? [household] : [demoHousehold], mealPhaseOpen: false });
-    }
-  };
+  const [view, setView] = useState<"entry" | "invitation" | "meals">("entry");
+  const [mealPhaseOpen, setMealPhaseOpen] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<"idle" | "loading">("idle");
+  const [linkError, setLinkError] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("admin") === "1") {
-      loadAdmin();
-      setView("admin");
-      return;
-    }
     const code = params.get("code");
     if (code) {
       fetch(`/api/invitation?code=${encodeURIComponent(code)}`)
         .then((response) => response.ok ? response.json() : Promise.reject())
-        .then((data: Household) => { setHousehold(data); setView("invitation"); })
-        .catch(() => { if (code.toUpperCase() === demoHousehold.code) { setHousehold(demoHousehold); setView("invitation"); } });
+        .then((data: InvitationResponse) => { setHousehold(data.household); setMealPhaseOpen(data.mealPhaseOpen); setView("invitation"); })
+        .catch(() => {
+          if (code.toUpperCase() === demoHousehold.code) {
+            setHousehold(demoHousehold);
+            setView("invitation");
+          } else {
+            setLinkError("This personal link could not be opened. Enter the code from your printed invitation below.");
+          }
+        })
+        .finally(() => setLinkStatus("idle"));
     }
   }, []);
 
-  const mealPhaseOpen = useMemo(() => adminData.mealPhaseOpen, [adminData]);
-
-  if (view === "admin") return <AdminDashboard data={adminData} onClose={() => { window.history.replaceState({}, "", "/"); setView(household ? "invitation" : "entry"); }} onRefresh={loadAdmin} />;
-  if (!household || view === "entry") return <><CodeEntry onFound={(found) => { setHousehold(found); setView("invitation"); loadAdmin(); }} /><button className="planning-link" type="button" onClick={() => { loadAdmin(); setView("admin"); }}>Planning view</button></>;
+  if (!household || view === "entry") return <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { setHousehold(found.household); setMealPhaseOpen(found.mealPhaseOpen); setView("invitation"); }} />;
   if (view === "meals") return <MealSelection household={household} open={mealPhaseOpen} onBack={() => setView("invitation")} onUpdate={setHousehold} />;
-  return <><Invitation household={household} onUpdate={setHousehold} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} onExit={() => { setHousehold(null); setView("entry"); window.history.replaceState({}, "", "/"); }} /><button className="planning-link light" type="button" onClick={() => { loadAdmin(); setView("admin"); }}>Planning view</button></>;
+  return <Invitation household={household} onUpdate={setHousehold} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} onExit={() => { setHousehold(null); setView("entry"); window.history.replaceState({}, "", "/"); }} />;
 }

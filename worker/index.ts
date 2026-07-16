@@ -89,29 +89,40 @@ async function handleApi(request: Request, env: Env) {
   if (!env.DB) return json({ error: "Database unavailable" }, 503);
   await prepareDatabase(env.DB);
   const url = new URL(request.url);
+  const isAdminRoute = url.pathname.startsWith("/api/admin");
+  const authenticatedEmail = request.headers.get("oai-authenticated-user-email");
+  if (isAdminRoute && !authenticatedEmail) return json({ error: "Sign in required" }, 401);
 
   if (request.method === "GET" && url.pathname === "/api/invitation") {
     const code = url.searchParams.get("code")?.trim() ?? "";
     if (!code) return json({ error: "Invitation code required" }, 400);
     const household = await getHousehold(env.DB, code);
-    return household ? json(household) : json({ error: "Invitation not found" }, 404);
+    const setting = await env.DB.prepare("SELECT meal_phase_open AS mealPhaseOpen FROM wedding_settings WHERE id = 1").first<{ mealPhaseOpen: number }>();
+    return household ? json({ household, mealPhaseOpen: Boolean(setting?.mealPhaseOpen) }) : json({ error: "Invitation not found" }, 404);
   }
 
   if (request.method === "POST" && (url.pathname === "/api/rsvp" || url.pathname === "/api/meals")) {
     const body = await parseBody(request);
     const code = typeof body?.code === "string" ? body.code : "";
     const guests = Array.isArray(body?.guests) ? body.guests as GuestPayload[] : [];
+    if (!code || guests.length === 0 || guests.length > 30) return json({ error: "Invalid invitation reply" }, 400);
     const household = await getHousehold(env.DB, code);
     if (!household) return json({ error: "Invitation not found" }, 404);
+    if (url.pathname === "/api/meals") {
+      const setting = await env.DB.prepare("SELECT meal_phase_open AS mealPhaseOpen FROM wedding_settings WHERE id = 1").first<{ mealPhaseOpen: number }>();
+      if (!setting?.mealPhaseOpen) return json({ error: "Meal choices are not open" }, 403);
+    }
     for (const guest of guests) {
       if (!Number.isInteger(guest.id)) continue;
       if (url.pathname === "/api/rsvp") {
         const attendance = ["pending", "attending", "declined"].includes(guest.attendance ?? "") ? guest.attendance : "pending";
+        const dietaryNotes = typeof guest.dietaryNotes === "string" ? guest.dietaryNotes.trim().slice(0, 500) : "";
         await env.DB.prepare(`UPDATE guests SET attendance = ?, dietary_notes = ?, response_source = 'website', updated_at = CURRENT_TIMESTAMP
-          WHERE id = ? AND household_id = ?`).bind(attendance, guest.dietaryNotes ?? "", guest.id, household.id).run();
+          WHERE id = ? AND household_id = ?`).bind(attendance, dietaryNotes, guest.id, household.id).run();
       } else {
+        const mealChoice = ["garden", "estate", "little"].includes(guest.mealChoice ?? "") ? guest.mealChoice : "";
         await env.DB.prepare(`UPDATE guests SET meal_choice = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ? AND household_id = ? AND attendance = 'attending'`).bind(guest.mealChoice ?? "", guest.id, household.id).run();
+          WHERE id = ? AND household_id = ? AND attendance = 'attending'`).bind(mealChoice, guest.id, household.id).run();
       }
     }
     return json(await getHousehold(env.DB, code));
