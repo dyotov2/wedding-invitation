@@ -300,7 +300,6 @@ h1, h2, h3, p { margin-top: 0; }
 .hero-botanical-frame { position: absolute; z-index: 2; width: min(1050px, 98vw); height: min(720px, 75vw); left: 50%; top: 49%; transform: translate(-50%, -50%); pointer-events: none; }
 .hero-botanical { --botanical-size: clamp(260px, 32vw, 470px); opacity: .93; animation: botanical-arrive 1.55s var(--ease-out) both, botanical-breathe 10s 1.7s ease-in-out infinite; }
 .hero-botanical-left { left: -4%; bottom: -4%; transform: rotate(-17deg); }
-.hero-botanical-right { --botanical-size: clamp(390px, 48vw, 620px); right: -6%; top: 5%; transform: scaleX(-1) rotate(-10deg); animation-delay: 180ms, 1.9s; }
 .floating-petals { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
 .floating-petals span { position: absolute; width: 9px; height: 18px; border-radius: 85% 8% 85% 8%; background: oklch(72% 0.045 309 / 0.25); animation: petal-drift 18s linear infinite; }
 .floating-petals span:nth-child(1) { left: 7%; top: 15%; animation-delay: -1s; }.floating-petals span:nth-child(2) { left: 14%; top: 70%; animation-delay: -8s; transform: scale(.7); }
@@ -330,7 +329,7 @@ h1, h2, h3, p { margin-top: 0; }
 .bloom-manifesto {
   position: relative;
   z-index: 2;
-  min-height: 94svh;
+  min-height: 118svh;
   display: grid;
   align-content: center;
   overflow: hidden;
@@ -343,7 +342,7 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .bloom-manifesto::before { content: ""; position: absolute; width: 80vw; height: 80vw; max-width: 950px; max-height: 950px; left: 50%; top: 50%; border: 1px solid oklch(55% 0.035 309 / 0.2); border-radius: 50%; transform: translate(-50%, -50%) scale(.45); opacity: 0; transition: transform 1.6s var(--ease-out), opacity 1.2s ease; }
 .bloom-manifesto.is-blooming::before { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-.bloom-manifesto > p { position: relative; z-index: 2; margin: 0; font-family: var(--font-display), serif; font-size: clamp(7.5rem, 23vw, 22rem); font-weight: 400; letter-spacing: -0.09em; line-height: 0.58; transform: translateY(80px); opacity: 0; transition: transform 1.1s var(--ease-out), opacity .9s ease; }
+.bloom-manifesto > p { position: relative; z-index: 2; margin: 0; font-family: var(--font-display), serif; font-size: clamp(6.5rem, 17vw, 15rem); font-weight: 400; letter-spacing: -0.09em; line-height: 0.62; transform: translateY(80px); opacity: 0; transition: transform 1.1s var(--ease-out), opacity .9s ease; }
 .bloom-manifesto > p:nth-of-type(2) { justify-self: end; color: var(--mulberry); transition-delay: 140ms; }
 .bloom-manifesto.is-blooming > p { transform: translateY(0); opacity: 1; }
 .manifesto-seal { position: absolute; z-index: 3; left: clamp(1rem, 7vw, 7rem); top: 3rem; font-size: .72rem; font-weight: 700; letter-spacing: .22em; }
@@ -352,6 +351,15 @@ h1, h2, h3, p { margin-top: 0; }
 .manifesto-one { --botanical-size: clamp(420px, 54vw, 760px); left: -13%; bottom: -11%; transform: rotate(-8deg); }
 .manifesto-two { --botanical-size: clamp(150px, 19vw, 250px); right: 2%; top: -12%; transform: scaleX(-1) rotate(-16deg); }
 .bloom-manifesto.is-blooming .manifesto-botanical { opacity: .92; scale: 1; }
+.estate-map-shell { position: relative; z-index: 4; width: min(960px, 84vw); margin: clamp(2.5rem, 5vw, 4.5rem) auto 0; overflow: hidden; border: 1px solid oklch(63% .025 45 / .34); background: var(--paper); box-shadow: 0 30px 80px oklch(31% .035 35 / .14); opacity: 0; transform: translateY(48px); transition: transform 1.15s 220ms var(--ease-out), opacity .9s 220ms ease; }
+.bloom-manifesto.is-blooming .estate-map-shell { opacity: 1; transform: translateY(0); }
+.estate-map-shell iframe { display: block; width: 100%; height: clamp(290px, 32vw, 410px); border: 0; filter: sepia(.12) saturate(.82) contrast(.94); }
+.estate-map-caption { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.1rem 1.35rem 1.25rem; border-top: 1px solid var(--line); }
+.estate-map-caption div { display: grid; gap: .08rem; }
+.estate-map-caption div > span { color: var(--lavender); font-size: .64rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.estate-map-caption strong { font-family: var(--font-display), serif; font-size: clamp(1.6rem, 3vw, 2.3rem); font-weight: 400; line-height: 1; }
+.estate-map-caption small { color: oklch(44% .022 120); font-size: .74rem; }
+.estate-map-caption a { min-height: 46px; display: inline-flex; align-items: center; gap: .65rem; border-bottom: 1px solid var(--mulberry); color: var(--mulberry); font-size: .72rem; font-weight: 750; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 
 .personal-section { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(280px, 0.72fr) minmax(420px, 1.28fr); gap: clamp(3rem, 9vw, 9rem); padding: clamp(7rem, 13vw, 12rem) clamp(1.25rem, 10vw, 10rem); background: radial-gradient(circle at 10% 85%, var(--pastel-sage), transparent 33%), var(--paper); }
 .personal-section .personal-intro, .personal-section .rsvp-column { opacity: 0; transform: translateY(50px); transition: transform 1s var(--ease-out), opacity .8s ease; }
@@ -454,6 +462,10 @@ h1, h2, h3, p { margin-top: 0; }
 .estate-copy .eyebrow { color: var(--lavender); }
 .estate-copy h2 { font-size: clamp(3rem, 6vw, 5.5rem); }
 .estate-copy > p:last-of-type { max-width: 52ch; color: oklch(42% 0.024 120); }
+.dress-code-note { display: grid; gap: .35rem; margin-top: 2.2rem; padding-top: 1.5rem; border-top: 1px solid oklch(58% .025 309 / .26); }
+.dress-code-note > span { color: var(--lavender); font-size: .67rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.dress-code-note strong { color: var(--mulberry); font-family: var(--font-display), serif; font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 400; line-height: 1; }
+.dress-code-note small { max-width: 42ch; color: oklch(45% .022 120); font-size: .78rem; }
 .timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; padding-top: 1.4rem; border-top: 1px solid var(--line); }
 .timeline time, .timeline span { display: block; }
 .timeline time { font-family: var(--font-display), serif; font-size: 1.7rem; }
@@ -620,17 +632,21 @@ h1, h2, h3, p { margin-top: 0; }
   .hero-countdown { max-width: 30ch; line-height: 1.7; }
   .hero-botanical-frame { width: 118vw; height: 112vw; top: 48%; }
   .hero-botanical { --botanical-size: clamp(230px, 73vw, 360px); }
-  .hero-botanical-left { left: -28%; bottom: -12%; }.hero-botanical-right { --botanical-size: clamp(320px, 96vw, 470px); right: -35%; top: 6%; }
+  .hero-botanical-left { left: -28%; bottom: -12%; }
   .event-line { gap: 0.8rem; }
   .event-line > div { min-width: 0; flex: 1; }
   .event-line strong { font-size: 0.7rem; }
   .event-line .petal-mark { width: 27px; height: 27px; }
   .event-line .petal-mark::before, .event-line .petal-mark::after { inset: 3px 9px; }
   .personal-section { padding-top: 4rem; gap: 3rem; }
-  .bloom-manifesto { min-height: 76svh; padding-inline: 1rem; }
-  .bloom-manifesto > p { font-size: clamp(6rem, 31vw, 10rem); line-height: .66; }
+  .bloom-manifesto { min-height: auto; padding: 6rem 1rem 5rem; }
+  .bloom-manifesto > p { font-size: clamp(5.6rem, 28vw, 9rem); line-height: .68; }
   .manifesto-seal { top: 1.7rem; }.manifesto-note { bottom: 1.7rem; }
   .manifesto-one { --botanical-size: clamp(390px, 118vw, 580px); left: -46%; bottom: -2%; }.manifesto-two { --botanical-size: clamp(135px, 42vw, 190px); right: -16%; top: -4%; }
+  .estate-map-shell { width: 100%; margin-top: 2.4rem; }
+  .estate-map-shell iframe { height: 300px; }
+  .estate-map-caption { align-items: flex-start; flex-direction: column; gap: .8rem; }
+  .estate-map-caption a { min-height: 40px; }
   .personal-vine { display: none; }
   .program-hero { min-height: auto; padding-block: 6rem; }
   .program-heading { margin-bottom: 4rem; }

@@ -23,17 +23,17 @@ export async function generateMetadata(): Promise<Metadata> {
   const imageUrl = `${protocol}://${host}/og-v3.png`;
 
   return {
-    title: "Dimitar & Ekaterina | Our Wedding",
+    title: "Ekaterina & Dimitar | Our Wedding",
     description:
-      "Join Dimitar and Ekaterina as they begin their forever at Midalidare Estate on 20 June 2027.",
+      "Join Ekaterina and Dimitar as they begin their forever at Midalidare Estate on 20 June 2027.",
     openGraph: {
-      title: "Forever starts today | Dimitar & Ekaterina",
+      title: "Forever starts today | Ekaterina & Dimitar",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
-      images: [{ url: imageUrl, width: 1536, height: 1024, alt: "Dimitar and Ekaterina's wedding invitation" }],
+      images: [{ url: imageUrl, width: 1536, height: 1024, alt: "Ekaterina and Dimitar's wedding invitation" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Forever starts today | Dimitar & Ekaterina",
+      title: "Forever starts today | Ekaterina & Dimitar",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
       images: [imageUrl],
     },

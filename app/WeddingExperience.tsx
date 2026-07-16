@@ -118,6 +118,31 @@ function HeartVine() {
       context.restore();
     };
 
+    const drawFlower = (x: number, y: number, size: number, color: string, bloom: number, turn: number) => {
+      context.save();
+      context.translate(x, y);
+      context.rotate(turn);
+      context.scale(bloom, bloom);
+      for (let petal = 0; petal < 5; petal += 1) {
+        context.save();
+        context.rotate((petal / 5) * Math.PI * 2 + (petal % 2 ? 0.06 : -0.04));
+        context.beginPath();
+        context.moveTo(0, 0);
+        context.bezierCurveTo(-size * 0.24, -size * 0.28, -size * 0.34, -size * 0.92, 0, -size * (1 + petal * 0.015));
+        context.bezierCurveTo(size * 0.38, -size * 0.88, size * 0.29, -size * 0.27, 0, 0);
+        context.fillStyle = color;
+        context.globalAlpha = 0.84 + petal * 0.025;
+        context.fill();
+        context.restore();
+      }
+      context.globalAlpha = 1;
+      context.beginPath();
+      context.arc(0, 0, size * 0.19, 0, Math.PI * 2);
+      context.fillStyle = "rgba(205, 165, 108, 0.96)";
+      context.fill();
+      context.restore();
+    };
+
     const draw = (progress: number) => {
       currentProgress = progress;
       const rect = canvas.getBoundingClientRect();
@@ -171,6 +196,21 @@ function HeartVine() {
         const next = pointAt(angle + 0.02, width, height);
         const rotation = Math.atan2(next.y - point.y, next.x - point.x) + (index % 2 ? -0.92 : 0.92);
         drawLeaf(point.x, point.y, rotation, Math.max(8, width / 82), index);
+      });
+
+      const flowers = [
+        { fraction: 0.03, color: "rgba(231, 197, 205, 0.98)", size: 13 },
+        { fraction: 0.22, color: "rgba(189, 174, 205, 0.96)", size: 11 },
+        { fraction: 0.48, color: "rgba(239, 217, 219, 0.98)", size: 14 },
+        { fraction: 0.7, color: "rgba(196, 181, 211, 0.96)", size: 11 },
+        { fraction: 0.89, color: "rgba(232, 198, 207, 0.98)", size: 12 },
+      ];
+      flowers.forEach((flower, index) => {
+        if (flower.fraction > heartProgress) return;
+        const angle = Math.PI + flower.fraction * Math.PI * 2;
+        const point = pointAt(angle, width, height);
+        const localProgress = Math.min(1, Math.max(0.12, (heartProgress - flower.fraction) * 8));
+        drawFlower(point.x, point.y, Math.max(flower.size, width / 74), flower.color, localProgress, index * 0.43);
       });
 
     };
@@ -319,7 +359,7 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
         <div className="entry-heart-stage">
           <div className="entry-heart-vine" aria-hidden="true"><HeartVine /></div>
           <p className="entry-love-note">love blooms</p>
-          <div className="entry-names" aria-label="Dimitar and Ekaterina"><span>Dimitar</span><small>+</small><span>Ekaterina</span></div>
+          <div className="entry-names" aria-label="Ekaterina and Dimitar"><span>Ekaterina</span><small>+</small><span>Dimitar</span></div>
         </div>
         <p className="date-line">20 · 06 · 2027</p>
         <h1 id="entry-title">Forever<br />starts today</h1>
@@ -347,7 +387,7 @@ function CodeEntry({ onFound }: { onFound: (household: Household) => void }) {
           Preview with code <strong>ROSE27</strong>
         </button>
       </section>
-      <p className="entry-footer">Dimitar & Ekaterina · Midalidare Estate, Bulgaria</p>
+      <p className="entry-footer">Ekaterina & Dimitar · Midalidare Estate, Bulgaria</p>
     </main>
   );
 }
@@ -426,7 +466,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
     <main className="invitation-page" ref={pageRef}>
       <BotanicalFrame />
       <nav className="invitation-nav" aria-label="Invitation navigation">
-        <button type="button" className="wordmark" onClick={onExit}>D <PetalMark small /> E</button>
+        <button type="button" className="wordmark" onClick={onExit}>E <PetalMark small /> D</button>
         <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a></div>
         <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
@@ -436,12 +476,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <div className="hero-vine hero-vine-two" aria-hidden="true" />
         <div className="hero-botanical-frame" aria-hidden="true">
           <BotanicalPhoto className="hero-botanical hero-botanical-left" />
-          <BotanicalPhoto variant="corner" className="hero-botanical hero-botanical-right" />
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
         <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
         <p className="hero-love-note">love blooms</p>
-        <h1><span>Dimitar</span><small>&</small><span>Ekaterina</span></h1>
+        <h1><span>Ekaterina</span><small>&</small><span>Dimitar</span></h1>
         <p className="hero-message">Join us as we begin our forever.</p>
         <div className="event-line" aria-label="Wedding date and venue">
           <div><strong>Sunday</strong><span>20 June 2027</span></div>
@@ -457,6 +496,19 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
         <p>Love</p><p>blooms</p>
         <BotanicalPhoto variant="corner" className="manifesto-botanical manifesto-one" />
         <BotanicalPhoto variant="sprig" className="manifesto-botanical manifesto-two" />
+        <div className="estate-map-shell">
+          <iframe
+            title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
+            src="https://www.google.com/maps?q=42.3417472%2C25.4058997&z=15&output=embed"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+          <div className="estate-map-caption">
+            <div><span>Our venue</span><strong>Midalidare Estate</strong><small>Mogilovo, Bulgaria</small></div>
+            <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
         <span className="manifesto-note">Forever starts here</span>
       </section>
 
@@ -514,6 +566,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
           <p className="eyebrow">The celebration</p>
           <h2>A summer day<br />among the vines</h2>
           <p>We will gather at Midalidare Estate for a relaxed afternoon of ceremony, dinner, music, and dancing beneath the Bulgarian summer sky.</p>
+          <div className="dress-code-note">
+            <span>Dress code</span>
+            <strong>Pastels & Wildflowers</strong>
+            <small>Soft, sun-washed colours and romantic floral details.</small>
+          </div>
         </div>
         <div className="estate-art" aria-label="An abstract garden view inspired by Midalidare Estate">
           <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
@@ -537,7 +594,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       <footer className="wedding-footer" data-bloom>
         <BotanicalPhoto variant="corner" className="footer-botanical" />
         <p>Forever starts today</p>
-        <span>Dimitar & Ekaterina · 20 June 2027</span>
+        <span>Ekaterina & Dimitar · 20 June 2027</span>
       </footer>
     </main>
   );
@@ -621,14 +678,14 @@ function AdminDashboard({ data, onClose, onRefresh }: { data: AdminData; onClose
   return (
     <main className="admin-page">
       <aside className="admin-sidebar">
-        <button className="admin-brand" type="button" onClick={onClose}>D <PetalMark small /> E</button>
+        <button className="admin-brand" type="button" onClick={onClose}>E <PetalMark small /> D</button>
         <div><p className="eyebrow">Wedding desk</p><h1>Guest replies</h1></div>
         <nav aria-label="Admin sections"><button className="active">Overview</button><button>Households</button><button>Dietary notes</button><button>Meal choices</button></nav>
         <button type="button" className="back-to-site" onClick={onClose}>← View invitation</button>
       </aside>
       <section className="admin-content">
         <header className="admin-header">
-          <div><p className="eyebrow">20 June 2027</p><h2>Good morning, Dimitar & Ekaterina</h2><p>Here is how your guest list is coming together.</p></div>
+          <div><p className="eyebrow">20 June 2027</p><h2>Good morning, Ekaterina & Dimitar</h2><p>Here is how your guest list is coming together.</p></div>
           <button type="button" className={data.mealPhaseOpen ? "phase-toggle open" : "phase-toggle"} onClick={updateSetting}><span /> Meal choices {data.mealPhaseOpen ? "open" : "closed"}</button>
         </header>
         <div className="metric-strip">
