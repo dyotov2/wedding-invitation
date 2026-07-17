@@ -88,9 +88,11 @@ function BotanicalPhoto({ variant = "cluster", className = "", priority = false 
       draggable={false}
       width={dimensions.width}
       height={dimensions.height}
+      unoptimized
       loading={priority ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={priority ? "high" : "auto"}
+      onError={(event) => { event.currentTarget.hidden = true; }}
     />
   );
 }
