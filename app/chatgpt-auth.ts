@@ -44,6 +44,28 @@ export async function requireChatGPTUser(
   redirect(chatGPTSignInPath(returnTo));
 }
 
+/**
+ * Authorization is deliberately separate from Sign in with ChatGPT. SIWC tells
+ * us who the visitor is; this allowlist decides who may see wedding planning
+ * data. ADMIN_EMAILS is a comma-separated hosted environment value.
+ */
+export function isWeddingAdmin(email: string): boolean {
+  const allowedEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  return allowedEmails.includes(email.trim().toLowerCase());
+}
+
+export async function requireWeddingAdmin(
+  returnTo = "/admin",
+): Promise<ChatGPTUser> {
+  const user = await requireChatGPTUser(returnTo);
+  if (!isWeddingAdmin(user.email)) redirect("/admin/not-authorized");
+  return user;
+}
+
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;

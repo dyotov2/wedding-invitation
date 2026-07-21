@@ -9,6 +9,7 @@ type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
 type Guest = {
   id: number;
   name: string;
+  guestType: "adult" | "child" | "infant";
   attendance: Attendance;
   dietaryNotes: string;
   mealChoice: string;
@@ -17,47 +18,105 @@ type Guest = {
 
 type Household = {
   id: number;
-  code: string;
+  credential: string;
+  responseVersion: number;
   householdName: string;
+  greeting?: string;
   guests: Guest[];
 };
 
 type InvitationResponse = {
   household: Household;
   mealPhaseOpen: boolean;
+  mealOptions: MealOption[];
+  contacts: ContactAction[];
+  deletionDate: string;
 };
 
-type SaveState = "idle" | "saving" | "success" | "error";
-
-const demoHousehold: Household = {
-  id: 1,
-  code: "ROSE27",
-  householdName: "The Petrov Family",
-  guests: [
-    {
-      id: 1,
-      name: "Elena Petrova",
-      attendance: "pending",
-      dietaryNotes: "",
-      mealChoice: "",
-      responseSource: "website",
-    },
-    {
-      id: 2,
-      name: "Nikolay Petrov",
-      attendance: "pending",
-      dietaryNotes: "",
-      mealChoice: "",
-      responseSource: "website",
-    },
-  ],
+type ContactAction = {
+  key: "whatsapp" | "viber" | "phone";
+  href: string;
 };
 
-const meals = [
-  { value: "garden", title: "Garden table", detail: "Seasonal vegetables, herbs and grains" },
-  { value: "estate", title: "Estate table", detail: "A celebratory meat main with summer sides" },
-  { value: "little", title: "Little guest", detail: "A simple child-friendly plate" },
-];
+type MealOption = {
+  optionKey: string;
+  name: string;
+  description: string;
+  guestType: "all" | Guest["guestType"];
+  displayOrder: number;
+};
+
+type SaveState = "idle" | "saving" | "success" | "error" | "conflict";
+
+type StoredGuestDraft = Pick<Guest, "id" | "attendance" | "dietaryNotes" | "mealChoice">;
+
+type StoredRsvpDraft = {
+  householdId: number;
+  responseVersion: number;
+  savedAt: number;
+  guests: StoredGuestDraft[];
+};
+
+const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const DATA_DELETION_TIME = new Date("2027-06-27T00:00:00Z").getTime();
+
+function preserveCredential(invitation: InvitationResponse, credential: string): InvitationResponse {
+  return {
+    ...invitation,
+    household: { ...invitation.household, credential },
+  };
+}
+
+async function fetchInvitation(credential: string): Promise<InvitationResponse> {
+  const response = await fetch("/api/invitation", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ credential }),
+  });
+
+  if (!response.ok) throw new Error("invitation unavailable");
+
+  return preserveCredential((await response.json()) as InvitationResponse, credential);
+}
+
+function credentialFromLocation(): string {
+  const hashMatch = window.location.hash.match(/^#invite(?:=|\/)(.+)$/);
+  if (hashMatch?.[1]) {
+    try {
+      return decodeURIComponent(hashMatch[1]).trim();
+    } catch {
+      return "";
+    }
+  }
+
+  const legacyCode = new URLSearchParams(window.location.search).get("code")?.trim();
+  return legacyCode ?? "";
+}
+
+function setCredentialInAddressBar(credential?: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("code");
+  url.hash = credential ? `invite=${encodeURIComponent(credential)}` : "";
+  const search = url.searchParams.toString();
+  window.history.replaceState(window.history.state, "", `${url.pathname}${search ? `?${search}` : ""}${url.hash}`);
+}
+
+function removeLegacyCredentialDrafts() {
+  try {
+    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith("wedding-rsvp-draft:")) continue;
+      const suffix = key.slice("wedding-rsvp-draft:".length);
+      const value = window.localStorage.getItem(key);
+      const parsed = value ? JSON.parse(value) as Record<string, unknown> : null;
+      const savedAt = typeof parsed?.savedAt === "number" ? parsed.savedAt : 0;
+      const expired = Date.now() >= DATA_DELETION_TIME || savedAt <= 0 || Date.now() - savedAt > DRAFT_MAX_AGE_MS;
+      if (!/^\d+$/.test(suffix) || parsed?.credential || parsed?.code || expired) window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Draft recovery is optional; privacy-safe failure is to leave it unused.
+  }
+}
 
 function PetalMark({ small = false }: { small?: boolean }) {
   return <span className={small ? "petal-mark small" : "petal-mark"} aria-hidden="true" />;
@@ -314,22 +373,22 @@ function useLivingGarden() {
   return pageRef;
 }
 
-const contactLinks = [
-  { key: "whatsapp", label: "WhatsApp", mark: "W", href: process.env.NEXT_PUBLIC_WEDDING_WHATSAPP_URL ?? "" },
-  { key: "viber", label: "Viber", mark: "V", href: process.env.NEXT_PUBLIC_WEDDING_VIBER_URL ?? "" },
-  { key: "phone", label: "Call us", mark: "☎", href: process.env.NEXT_PUBLIC_WEDDING_PHONE_URL ?? "" },
-].filter((contact) => /^(https?:|viber:|tel:)/.test(contact.href));
+const contactPresentation = {
+  whatsapp: { label: "WhatsApp", mark: "W" },
+  viber: { label: "Viber", mark: "V" },
+  phone: { label: "Call us", mark: "☎" },
+} as const;
 
-function ContactActions() {
-  if (contactLinks.length === 0) return null;
+function ContactActions({ contacts }: { contacts: ContactAction[] }) {
+  if (contacts.length === 0) return null;
 
   return (
     <div className="contact-area">
       <p className="eyebrow">Prefer to reply personally?</p>
       <div className="contact-actions" aria-label="Contact options">
-        {contactLinks.map((contact) => (
-          <a key={contact.key} className={`contact-button ${contact.key}`} href={contact.href}>
-            <span aria-hidden="true">{contact.mark}</span> {contact.label}
+        {contacts.map((contact) => (
+          <a key={contact.key} className={`contact-button ${contact.key}`} href={contact.href} rel="noreferrer">
+            <span aria-hidden="true">{contactPresentation[contact.key].mark}</span> {contactPresentation[contact.key].label}
           </a>
         ))}
       </div>
@@ -356,17 +415,10 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/invitation?code=${encodeURIComponent(normalized)}`);
-      if (!response.ok) throw new Error("not found");
-      const invitation = (await response.json()) as InvitationResponse;
-      window.history.replaceState({}, "", `?code=${encodeURIComponent(normalized)}`);
+      const invitation = await fetchInvitation(normalized);
       onFound(invitation);
     } catch {
-      if (normalized === demoHousehold.code) {
-        onFound({ household: demoHousehold, mealPhaseOpen: false });
-      } else {
-        setError("We could not find that invitation. Please check the code and try again.");
-      }
+      setError("We could not find that invitation. Please check the code and try again.");
     } finally {
       setLoading(false);
     }
@@ -387,29 +439,26 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
         <h1 id="entry-title">Forever<br />starts today</h1>
         <p className="entry-copy">Your personal invitation is waiting.</p>
 
-        <form className="code-form" onSubmit={submit} noValidate>
+        <form className="code-form" onSubmit={submit} noValidate aria-busy={loading || linkStatus === "loading"}>
           <label htmlFor="invitation-code">Invitation code</label>
           <div className="code-row">
             <input
               id="invitation-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              placeholder="e.g. ROSE27"
+              placeholder="e.g. K7MP9Q2X"
               autoCapitalize="characters"
               autoComplete="off"
               aria-describedby="code-hint code-error"
             />
-            <button type="submit" disabled={loading}>{loading ? "Opening…" : "Open invitation"}</button>
+            <button type="submit" disabled={loading || linkStatus === "loading"}>{loading || linkStatus === "loading" ? "Opening…" : "Open invitation"}</button>
           </div>
           <p id="code-hint" className="form-hint">You will find this short code on your printed card.</p>
           <p id="code-error" className="form-error" role="alert">{error}</p>
           {linkStatus === "loading" && <p className="link-status" role="status">Opening your personal invitation…</p>}
           {linkError && <p className="form-error" role="alert">{linkError}</p>}
         </form>
-
-        <button className="demo-link" type="button" onClick={() => { setCode("ROSE27"); }}>
-          Preview with code <strong>ROSE27</strong>
-        </button>
+        <p className="privacy-note">We use your invitation details and reply only to plan our wedding. Guest data will be deleted by 27 June 2027.</p>
       </section>
       <p className="entry-footer">Ekaterina & Dimitar · Midalidare Estate, Bulgaria</p>
     </main>
@@ -453,11 +502,12 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
   );
 }
 
-function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }: {
+function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts, onExit }: {
   household: Household;
-  onUpdate: (household: Household) => void;
+  onUpdate: (invitation: InvitationResponse) => void;
   onOpenMeals: () => void;
   mealPhaseOpen: boolean;
+  contacts: ContactAction[];
   onExit: () => void;
 }) {
   const pageRef = useLivingGarden();
@@ -465,10 +515,12 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
   const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((new Date("2027-06-20T16:30:00+03:00").getTime() - Date.now()) / 86_400_000)));
-  const draftKey = `wedding-rsvp-draft:${household.code}`;
+  const draftKey = `wedding-rsvp-draft:${household.id}`;
   const updateGuest = (next: Guest) => {
-    setSaveState("idle");
-    setStatus("");
+    if (saveState !== "conflict") {
+      setSaveState("idle");
+      setStatus("");
+    }
     setDraft((current) => ({ ...current, guests: current.guests.map((guest) => guest.id === next.id ? next : guest) }));
   };
   const hasPending = draft.guests.some((guest) => guest.attendance === "pending");
@@ -480,9 +532,24 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       try {
         const stored = window.localStorage.getItem(draftKey);
         if (!stored) return;
-        const restored = JSON.parse(stored) as Household;
-        const sameGuests = restored.guests.map((guest) => guest.id).join(",") === household.guests.map((guest) => guest.id).join(",");
-        if (sameGuests) setDraft(restored);
+        const restored = JSON.parse(stored) as StoredRsvpDraft;
+        const sameHousehold = restored.householdId === household.id;
+        const sameVersion = restored.responseVersion === household.responseVersion;
+        const fresh = Number.isFinite(restored.savedAt) && restored.savedAt > 0 &&
+          Date.now() < DATA_DELETION_TIME && Date.now() - restored.savedAt <= DRAFT_MAX_AGE_MS;
+        const sameGuests = Array.isArray(restored.guests)
+          && restored.guests.map((guest) => guest.id).join(",") === household.guests.map((guest) => guest.id).join(",");
+        if (!sameHousehold || !sameVersion || !sameGuests || !fresh) {
+          window.localStorage.removeItem(draftKey);
+          return;
+        }
+        setDraft({
+          ...household,
+          guests: household.guests.map((guest) => {
+            const savedGuest = restored.guests.find((candidate) => candidate.id === guest.id);
+            return savedGuest ? { ...guest, ...savedGuest } : guest;
+          }),
+        });
       } catch {
         window.localStorage.removeItem(draftKey);
       }
@@ -492,7 +559,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
 
   useEffect(() => {
     if (!isDirty || saveState === "success") return;
-    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    const storedDraft: StoredRsvpDraft = {
+      householdId: draft.id,
+      responseVersion: draft.responseVersion,
+      savedAt: Date.now(),
+      guests: draft.guests.map(({ id, attendance, dietaryNotes, mealChoice }) => ({ id, attendance, dietaryNotes, mealChoice })),
+    };
+    window.localStorage.setItem(draftKey, JSON.stringify(storedDraft));
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
@@ -511,11 +584,16 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
       const response = await fetch("/api/rsvp", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code: draft.code, guests: draft.guests }),
+        body: JSON.stringify({ credential: draft.credential, responseVersion: draft.responseVersion, guests: draft.guests }),
       });
+      if (response.status === 409) {
+        setSaveState("conflict");
+        setStatus("This invitation was updated on another phone. Load the latest saved reply, then review it before saving again.");
+        return;
+      }
       if (!response.ok) throw new Error("save failed");
-      const saved = (await response.json()) as Household;
-      setDraft(saved);
+      const saved = preserveCredential((await response.json()) as InvitationResponse, draft.credential);
+      setDraft(saved.household);
       onUpdate(saved);
       window.localStorage.removeItem(draftKey);
       setSaveState("success");
@@ -523,6 +601,22 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
     } catch {
       setSaveState("error");
       setStatus("We could not save your reply. Your choices are safe on this phone. Please try again.");
+    }
+  };
+
+  const loadLatest = async () => {
+    setSaveState("saving");
+    setStatus("Loading the latest saved reply…");
+    try {
+      const latest = await fetchInvitation(household.credential);
+      setDraft(latest.household);
+      onUpdate(latest);
+      window.localStorage.removeItem(draftKey);
+      setSaveState("idle");
+      setStatus("The latest saved reply is now shown. Please review it before making any changes.");
+    } catch {
+      setSaveState("conflict");
+      setStatus("We could not load the latest reply. Please check your connection and try again.");
     }
   };
 
@@ -552,28 +646,29 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
           <PetalMark />
           <div><strong>Midalidare Estate</strong><span>Bulgaria</span></div>
         </div>
-        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 20 April 2027</p>
+        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 1 January 2027</p>
         <a className="scroll-prompt" href="#your-invitation">Your invitation <span aria-hidden="true">↓</span></a>
       </header>
 
       <section className="personal-section" id="your-invitation" data-bloom>
         <div className="personal-intro">
-          <p className="eyebrow">Dear {household.householdName}</p>
+          <p className="eyebrow">{household.greeting || `Dear ${household.householdName}`}</p>
           <h2>We would love to<br />celebrate with you.</h2>
           <p>This invitation is especially for the people named below. Please let us know whether each guest can join us.</p>
         </div>
         <div className="rsvp-column">
           <div className="rsvp-heading">
             <div><p className="eyebrow">Kindly reply</p><h2>Will you be there?</h2></div>
-            <span className="reply-date">By 20 April 2027</span>
+            <span className="reply-date">By 1 January 2027</span>
           </div>
           <div className="guest-list">
             {draft.guests.map((guest) => <GuestRsvp key={guest.id} guest={guest} onChange={updateGuest} />)}
           </div>
-          <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving"}>
-            {saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : "Save our reply"} <span aria-hidden="true">→</span>
+          <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
+            {saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : saveState === "conflict" ? "Latest reply needed" : "Save our reply"} <span aria-hidden="true">→</span>
           </button>
-          <p className={`save-status ${saveState}`} role={saveState === "error" ? "alert" : "status"}>{status}</p>
+          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
+          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
           {saveState === "success" && (
             <div className="rsvp-receipt" aria-label="RSVP confirmation">
               <span className="receipt-mark" aria-hidden="true">✓</span>
@@ -583,7 +678,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
               </div>
             </div>
           )}
-          <ContactActions />
+          <ContactActions contacts={contacts} />
         </div>
       </section>
 
@@ -645,7 +740,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
             src="https://www.google.com/maps?q=42.3417472%2C25.4058997&z=15&output=embed"
             loading="lazy"
             allowFullScreen
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy="no-referrer"
           />
           <div className="estate-map-caption">
             <div><span>Our venue</span><strong>Midalidare Estate</strong><small>Mogilovo, Bulgaria</small></div>
@@ -678,12 +773,25 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, onExit }:
   );
 }
 
-function MealSelection({ household, open, onBack, onUpdate }: { household: Household; open: boolean; onBack: () => void; onUpdate: (household: Household) => void }) {
+function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
+  household: Household;
+  open: boolean;
+  mealOptions: MealOption[];
+  onBack: () => void;
+  onUpdate: (invitation: InvitationResponse) => void;
+}) {
   const attending = household.guests.filter((guest) => guest.attendance === "attending");
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
   const missingChoice = attending.some((guest) => !draft.guests.find((item) => item.id === guest.id)?.mealChoice);
+  const chooseMeal = (guestId: number, mealChoice: string) => {
+    if (saveState !== "conflict") {
+      setSaveState("idle");
+      setStatus("");
+    }
+    setDraft((current) => ({ ...current, guests: current.guests.map((item) => item.id === guestId ? { ...item, mealChoice } : item) }));
+  };
   const save = async () => {
     if (missingChoice) {
       setSaveState("error");
@@ -694,16 +802,44 @@ function MealSelection({ household, open, onBack, onUpdate }: { household: House
     setSaveState("saving");
     setStatus("Saving meal choices…");
     try {
-      const response = await fetch("/api/meals", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: draft.code, guests: draft.guests }) });
+      const response = await fetch("/api/meals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          credential: draft.credential,
+          responseVersion: draft.responseVersion,
+          guests: draft.guests.filter((guest) => guest.attendance === "attending"),
+        }),
+      });
+      if (response.status === 409) {
+        setSaveState("conflict");
+        setStatus("This invitation was updated on another phone. Load the latest choices before saving again.");
+        return;
+      }
       if (!response.ok) throw new Error("save failed");
-      const saved = (await response.json()) as Household;
-      setDraft(saved);
+      const saved = preserveCredential((await response.json()) as InvitationResponse, draft.credential);
+      setDraft(saved.household);
       onUpdate(saved);
       setSaveState("success");
       setStatus("Meal choices confirmed. Thank you.");
     } catch {
       setSaveState("error");
       setStatus("We could not save your meal choices. Please try again.");
+    }
+  };
+
+  const loadLatest = async () => {
+    setSaveState("saving");
+    setStatus("Loading the latest saved choices…");
+    try {
+      const latest = await fetchInvitation(household.credential);
+      setDraft(latest.household);
+      onUpdate(latest);
+      setSaveState("idle");
+      setStatus("The latest saved choices are now shown. Please review them before making changes.");
+    } catch {
+      setSaveState("conflict");
+      setStatus("We could not load the latest choices. Please check your connection and try again.");
     }
   };
 
@@ -720,7 +856,7 @@ function MealSelection({ household, open, onBack, onUpdate }: { household: House
           <span className="season-mark" aria-hidden="true">✽</span>
           <p className="eyebrow">Coming later</p>
           <h2>The menu is still blooming.</h2>
-          <p>There is nothing you need to do yet. We will let you know when meal choices open, and your invitation code <strong>{household.code}</strong> will still work.</p>
+          <p>There is nothing you need to do yet. We will let you know when meal choices open, and this same private invitation will still work.</p>
           <button type="button" className="primary-action" onClick={onBack}>Return to the invitation</button>
         </section>
       ) : attending.length === 0 ? (
@@ -729,22 +865,25 @@ function MealSelection({ household, open, onBack, onUpdate }: { household: House
         <section className="meal-choices">
           {attending.map((guest) => {
             const current = draft.guests.find((item) => item.id === guest.id) ?? guest;
+            const availableMeals = mealOptions.filter((meal) => meal.guestType === "all" || meal.guestType === guest.guestType);
             return (
               <article className="meal-guest" key={guest.id}>
                 <h2>{guest.name}</h2>
                 <div className="meal-options">
-                  {meals.map((meal) => (
-                    <button key={meal.value} type="button" aria-pressed={current.mealChoice === meal.value} className={current.mealChoice === meal.value ? "selected" : ""} onClick={() => { setSaveState("idle"); setStatus(""); setDraft({ ...draft, guests: draft.guests.map((item) => item.id === guest.id ? { ...item, mealChoice: meal.value } : item) }); }}>
+                  {availableMeals.map((meal) => (
+                    <button key={meal.optionKey} type="button" aria-pressed={current.mealChoice === meal.optionKey} className={current.mealChoice === meal.optionKey ? "selected" : ""} onClick={() => chooseMeal(guest.id, meal.optionKey)}>
                       <span className="meal-radio" aria-hidden="true" />
-                      <strong>{meal.title}</strong><small>{meal.detail}</small>
+                      <strong>{meal.name}</strong><small>{meal.description}</small>
                     </button>
                   ))}
+                  {availableMeals.length === 0 && <p>The menu for this guest is still being prepared.</p>}
                 </div>
               </article>
             );
           })}
-          <button type="button" className="primary-action" disabled={saveState === "saving"} onClick={save}>{saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : "Save meal choices"} <span aria-hidden="true">→</span></button>
-          <p className={`save-status ${saveState}`} role={saveState === "error" ? "alert" : "status"}>{status}</p>
+          <button type="button" className="primary-action" disabled={saveState === "saving" || saveState === "conflict"} onClick={save}>{saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : saveState === "conflict" ? "Latest choices needed" : "Save meal choices"} <span aria-hidden="true">→</span></button>
+          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
+          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved choices</button>}
         </section>
       )}
     </main>
@@ -755,29 +894,61 @@ export default function WeddingExperience() {
   const [household, setHousehold] = useState<Household | null>(null);
   const [view, setView] = useState<"entry" | "invitation" | "meals">("entry");
   const [mealPhaseOpen, setMealPhaseOpen] = useState(false);
+  const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
+  const [contacts, setContacts] = useState<ContactAction[]>([]);
   const [linkStatus, setLinkStatus] = useState<"idle" | "loading">("idle");
   const [linkError, setLinkError] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (code) {
-      fetch(`/api/invitation?code=${encodeURIComponent(code)}`)
-        .then((response) => response.ok ? response.json() : Promise.reject())
-        .then((data: InvitationResponse) => { setHousehold(data.household); setMealPhaseOpen(data.mealPhaseOpen); setView("invitation"); })
-        .catch(() => {
-          if (code.toUpperCase() === demoHousehold.code) {
-            setHousehold(demoHousehold);
-            setView("invitation");
-          } else {
-            setLinkError("This personal link could not be opened. Enter the code from your printed invitation below.");
-          }
-        })
-        .finally(() => setLinkStatus("idle"));
-    }
+    removeLegacyCredentialDrafts();
+    const credential = credentialFromLocation();
+    if (!credential) return;
+    setCredentialInAddressBar(credential);
+
+    let cancelled = false;
+    const loadingTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setLinkStatus("loading");
+        setLinkError("");
+      }
+    }, 0);
+    fetchInvitation(credential)
+      .then((invitation) => {
+        if (cancelled) return;
+        setHousehold(invitation.household);
+        setMealPhaseOpen(invitation.mealPhaseOpen);
+        setMealOptions(invitation.mealOptions);
+        setContacts(invitation.contacts);
+        setView("invitation");
+        setCredentialInAddressBar(invitation.household.credential);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCredentialInAddressBar();
+          setLinkError("This personal link could not be opened. Enter the code from your printed invitation below.");
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(loadingTimer);
+        if (!cancelled) setLinkStatus("idle");
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(loadingTimer);
+    };
   }, []);
 
-  if (!household || view === "entry") return <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { setHousehold(found.household); setMealPhaseOpen(found.mealPhaseOpen); setView("invitation"); }} />;
-  if (view === "meals") return <MealSelection household={household} open={mealPhaseOpen} onBack={() => setView("invitation")} onUpdate={setHousehold} />;
-  return <Invitation household={household} onUpdate={setHousehold} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} onExit={() => { setHousehold(null); setView("entry"); window.history.replaceState({}, "", "/"); }} />;
+  const updateInvitation = (invitation: InvitationResponse) => {
+    setHousehold(invitation.household);
+    setMealPhaseOpen(invitation.mealPhaseOpen);
+    setMealOptions(invitation.mealOptions);
+    setContacts(invitation.contacts);
+  };
+
+  if (!household || view === "entry") {
+    return <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { updateInvitation(found); setView("invitation"); setCredentialInAddressBar(found.household.credential); }} />;
+  }
+  if (view === "meals") return <MealSelection household={household} open={mealPhaseOpen} mealOptions={mealOptions} onBack={() => setView("invitation")} onUpdate={updateInvitation} />;
+  return <Invitation household={household} onUpdate={updateInvitation} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} contacts={contacts} onExit={() => { setHousehold(null); setView("entry"); setCredentialInAddressBar(); }} />;
 }

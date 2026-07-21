@@ -28,15 +28,34 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (commit the key-only template, never local values)
 .env*
+!.env.example
 
 # vercel
 .vercel
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
 /dist/
 /.wrangler/
 /outputs/
 /work/
+
+# private wedding data and generated delivery material
+/imports/
+/exports/
+/guest-lists/
+/qr-packs/
+/backups/
+/private/
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.numbers
+*.sqlite
+*.sqlite3
+*.db
+*.backup
