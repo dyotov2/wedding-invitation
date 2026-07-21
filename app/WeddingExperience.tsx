@@ -687,7 +687,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
               <div>
                 <strong>Reply confirmed for {household.householdName}</strong>
                 <p>{attendingNames.length > 0 ? `${attendingNames.join(" and ")} will join us on 20 June 2027.` : "We will miss you, and we are grateful you let us know."}</p>
-                {attendingNames.length > 0 && <p>Later in the year we will open the menu. Come back with this same link or printed code to choose a meal for each guest.</p>}
+                {attendingNames.length > 0 && (mealPhaseOpen
+                  ? <p>The menu is open. <button type="button" className="receipt-link" onClick={onOpenMeals}>Choose a meal for each guest</button> with this same invitation.</p>
+                  : <p>Closer to the day we will open the menu. Come back with this same link or printed code to choose a meal for each guest.</p>)}
               </div>
             </div>
           )}
@@ -774,7 +776,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           </div>
           <div>
             <dt>What happens after we reply?</dt>
-            <dd>For now, replying is everything. Later in the year we will open the menu. Return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details closer to the day.</dd>
+            <dd>{mealPhaseOpen
+              ? "The menu is open. Return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details closer to the day."
+              : "For now, replying is everything. Closer to the day we will open the menu, and you can return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details then."}</dd>
           </div>
           <div>
             <dt>Can we change our answer?</dt>

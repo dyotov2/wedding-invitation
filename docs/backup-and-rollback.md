@@ -124,14 +124,20 @@ incorrect import.
 2. Record the incident time and current aggregate totals.
 3. Preserve a backup of the current state, even if it is damaged (take a fresh
    encrypted backup before restoring anything).
-4. Restore the pre-incident backup into an isolated or staging database first
-   using the admin Encrypted backups restore.
+4. Restore the pre-incident backup into a separate recovery deployment bound to
+   its own D1 database, using the admin Encrypted backups restore. Do not
+   restore straight into production while reconciliation is unfinished, and do
+   not use a shared staging database that holds synthetic data.
 5. Compare aggregate counts and identify valid replies received after the
    backup.
-6. Reapply those later valid replies through a reviewed reconciliation process.
-7. Validate the recovered database in staging or an isolated recovery project.
-8. Switch production only after the administrator and verifier approve totals,
-   then run the same restore against production.
+6. In that recovery deployment, reapply those later valid replies through a
+   reviewed reconciliation process.
+7. Validate the reconciled recovery database and have the administrator and
+   verifier approve totals.
+8. Take a fresh encrypted backup **from the reconciled recovery deployment** and
+   restore that new file into production. Never restore the original
+   pre-incident backup into production, because it does not contain the replies
+   reconciled in steps 5 and 6.
 
 Never overwrite production blindly with an older backup. That would discard
 legitimate responses received after the backup.

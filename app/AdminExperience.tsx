@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BACKUP_PASSPHRASE_MIN_LENGTH, decryptBackup, encryptBackup } from "../lib/backup-crypto.mjs";
 
 type Attendance = "pending" | "attending" | "declined";
 type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
@@ -167,81 +168,6 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-const BACKUP_KDF_ITERATIONS = 310_000;
-const BACKUP_KDF_ITERATIONS_MAX = 2_000_000;
-const BACKUP_PASSPHRASE_MIN_LENGTH = 12;
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return window.btoa(binary);
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  const binary = window.atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
-  const keyMaterial = await window.crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"],
-  );
-  return window.crypto.subtle.deriveKey(
-    { name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-async function encryptBackup(plaintext: string, passphrase: string): Promise<string> {
-  const salt = window.crypto.getRandomValues(new Uint8Array(16));
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveBackupKey(passphrase, salt, BACKUP_KDF_ITERATIONS);
-  const ciphertext = await window.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as BufferSource }, key, new TextEncoder().encode(plaintext),
-  );
-  return JSON.stringify({
-    format: "wedding-backup-encrypted",
-    version: 1,
-    kdf: { algorithm: "PBKDF2-SHA-256", iterations: BACKUP_KDF_ITERATIONS, salt: bytesToBase64(salt) },
-    cipher: "AES-256-GCM",
-    iv: bytesToBase64(iv),
-    data: bytesToBase64(new Uint8Array(ciphertext)),
-  });
-}
-
-async function decryptBackup(fileText: string, passphrase: string): Promise<string> {
-  let envelope: Record<string, unknown>;
-  try {
-    envelope = JSON.parse(fileText) as Record<string, unknown>;
-  } catch {
-    throw new Error("That file is not an encrypted wedding backup.");
-  }
-  const kdf = envelope?.kdf as { algorithm?: string; iterations?: number; salt?: string } | undefined;
-  if (envelope?.format !== "wedding-backup-encrypted" || envelope?.version !== 1 ||
-    kdf?.algorithm !== "PBKDF2-SHA-256" || typeof kdf.iterations !== "number" ||
-    kdf.iterations < 1 || kdf.iterations > BACKUP_KDF_ITERATIONS_MAX ||
-    typeof kdf.salt !== "string" || typeof envelope.iv !== "string" || typeof envelope.data !== "string") {
-    throw new Error("That file is not an encrypted wedding backup.");
-  }
-  const key = await deriveBackupKey(passphrase, base64ToBytes(kdf.salt), kdf.iterations);
-  try {
-    const plaintext = await window.crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToBytes(envelope.iv) as BufferSource }, key, base64ToBytes(envelope.data) as BufferSource,
-    );
-    return new TextDecoder().decode(plaintext);
-  } catch {
-    throw new Error("The backup could not be decrypted. Check the passphrase and try again.");
-  }
-}
-
 function downloadText(filename: string, contents: string, type = "text/csv;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const anchor = document.createElement("a");
@@ -277,6 +203,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [backupPassphrase, setBackupPassphrase] = useState("");
   const [backupStatus, setBackupStatus] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
+  const [backupPassphraseConfirm, setBackupPassphraseConfirm] = useState("");
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreConfirmation, setRestoreConfirmation] = useState("");
 
@@ -428,18 +355,26 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
 
   const downloadEncryptedBackup = async () => {
     if (backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH || backupBusy) return;
+    if (backupPassphrase !== backupPassphraseConfirm) {
+      setBackupStatus("The two passphrases do not match. A backup is unreadable without the exact passphrase, so please retype it.");
+      return;
+    }
     setBackupBusy(true);
     setBackupStatus("Preparing and encrypting the backup on this device…");
     try {
       const response = await fetch("/api/admin/backup", { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error("The backup could not be prepared. Please try again.");
       const encrypted = await encryptBackup(await response.text(), backupPassphrase);
+      // Prove the file is decryptable with this passphrase before handing it over, so a
+      // typo can never produce a silently unrecoverable backup.
+      await decryptBackup(encrypted, backupPassphrase);
       downloadText(
         `wedding-backup-${new Date().toISOString().slice(0, 10)}.json.enc`,
         encrypted,
         "application/json;charset=utf-8",
       );
-      setBackupStatus("Encrypted backup downloaded. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
+      setBackupPassphraseConfirm("");
+      setBackupStatus("Encrypted backup downloaded and verified. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : "The backup could not be prepared. Please try again.");
     } finally {
@@ -643,7 +578,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
 
         <section className="admin-tool-card backup-card" id="backups" aria-labelledby="backups-title">
           <div className="admin-tool-heading"><div><p className="eyebrow">Data safety</p><h2 id="backups-title">Encrypted backups</h2></div><span>Encrypted on this device before download</span></div>
-          <p>Sites hosting does not expose database backups, so this is the complete, restorable copy of every household, guest, reply and setting. Take one before every import, migration or release. The file is useless without the passphrase; restoring replaces all current guest data with the backup.</p>
+          <p>Our hosting platform does not expose database backups, so this is the complete, restorable copy of every household, guest, reply, meal option, setting and the audit history. Take one before every import, migration or release. The file is useless without the passphrase; restoring <strong>replaces the entire database</strong> with the backup, including whether meal choices are open, the RSVP and deletion dates, and the audit history recorded since the backup was taken.</p>
           <label htmlFor="backup-passphrase">Backup passphrase ({BACKUP_PASSPHRASE_MIN_LENGTH}+ characters, stored only in your head or a password manager)</label>
           <input
             id="backup-passphrase"
@@ -653,11 +588,20 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
             autoComplete="off"
             disabled={backupBusy}
           />
+          <label htmlFor="backup-passphrase-confirm">Confirm passphrase (a mistyped passphrase makes the backup permanently unreadable)</label>
+          <input
+            id="backup-passphrase-confirm"
+            type="password"
+            value={backupPassphraseConfirm}
+            onChange={(event) => setBackupPassphraseConfirm(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
           <div className="admin-tool-actions">
             <button
               type="button"
               onClick={() => void downloadEncryptedBackup()}
-              disabled={backupBusy || backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH}
+              disabled={backupBusy || backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH || backupPassphrase !== backupPassphraseConfirm}
             >
               {backupBusy ? "Working…" : "Download encrypted backup"}
             </button>

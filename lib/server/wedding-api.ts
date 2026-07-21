@@ -1214,12 +1214,22 @@ const BACKUP_ROW_LIMITS: Record<BackupTable, number> = {
   audit_events: 20_000,
 };
 
+function backupTableQuery(table: BackupTable): string {
+  // audit_events is append-only and unbounded; keep the most recent rows within the
+  // restore cap so the snapshot is always restorable. Other tables are small and bounded.
+  if (table === "audit_events") {
+    return `SELECT * FROM (SELECT * FROM audit_events ORDER BY id DESC LIMIT ${BACKUP_ROW_LIMITS.audit_events}) ORDER BY id ASC`;
+  }
+  return `SELECT * FROM ${table}`;
+}
+
 async function handleAdminBackup(request: Request, db: D1Database, email: string): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
+  // One batch runs in a single implicit transaction, so every table comes from the
+  // same consistent snapshot even if a guest reply or import commits mid-backup.
+  const snapshot = await db.batch(BACKUP_TABLES.map((table) => db.prepare(backupTableQuery(table))));
   const tables: Record<string, unknown[]> = {};
-  for (const table of BACKUP_TABLES) {
-    tables[table] = (await db.prepare(`SELECT * FROM ${table}`).all()).results;
-  }
+  BACKUP_TABLES.forEach((table, index) => { tables[table] = snapshot[index].results ?? []; });
   await db.prepare(`INSERT INTO audit_events
     (event_id, actor_type, actor_email, action, entity_type, details_json)
     VALUES (?, 'admin', ?, 'backup.exported', 'database', ?)`)
@@ -1242,7 +1252,10 @@ async function handleAdminBackup(request: Request, db: D1Database, email: string
 }
 
 function backupTableRows(tables: Record<string, unknown>, table: BackupTable): Record<string, unknown>[] | null {
-  const value = tables[table] ?? [];
+  // A genuine backup always carries every section. An absent key means a truncated or
+  // wrong-format file, so reject it rather than defaulting to an empty (data-wiping) restore.
+  if (!Object.hasOwn(tables, table)) return null;
+  const value = tables[table];
   if (!Array.isArray(value) || value.length > BACKUP_ROW_LIMITS[table]) return null;
   const rows: Record<string, unknown>[] = [];
   for (const row of value) {

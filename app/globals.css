@@ -433,6 +433,7 @@ h1, h2, h3, p { margin-top: 0; }
 .rsvp-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 .rsvp-heading h2 { margin-bottom: 0; font-size: clamp(2.3rem, 4vw, 3.5rem); }
 .reply-date { color: var(--sage-dark); font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+.receipt-link { border: 0; background: transparent; padding: 0; color: var(--sage-dark); font: inherit; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .guest-list { border-top: 1px solid var(--line); }
 .guest-rsvp { padding: 1.35rem 0 1.5rem; border-bottom: 1px solid var(--line); }
 .guest-heading { display: flex; align-items: center; gap: 0.85rem; }
@@ -641,10 +642,10 @@ h1, h2, h3, p { margin-top: 0; }
 .data-care-card > div { max-width: 700px; }
 .data-care-actions { display: grid; flex: 0 0 auto; gap: .55rem; }
 .data-care-actions button.secondary { background: transparent; color: var(--sage-dark); }
-.backup-card label { display: block; max-width: 620px; margin-top: 1.2rem; color: oklch(43% .022 80); font-size: .8rem; font-weight: 650; }
+.backup-card label:not(.guest-file-picker) { display: block; max-width: 620px; margin-top: 1.2rem; color: oklch(40% .024 80); font-size: .875rem; font-weight: 650; }
 .backup-card input[type="password"], .backup-card input:not([type]) { display: block; width: 100%; max-width: 620px; min-height: 48px; margin-top: .45rem; border: 1px solid var(--line); border-radius: 4px; background: var(--white-tint); padding: .7rem .8rem; }
 .backup-card .admin-tool-actions { margin-top: 1rem; }
-.backup-restore-picker { max-width: 620px; margin-top: .45rem; }
+.backup-restore-picker { max-width: 620px; margin-top: .9rem; }
 .retention-card { border-color: oklch(68% .09 25); background: oklch(98% .018 25); }
 .retention-card label, .retention-card input { display: block; width: 100%; max-width: 620px; }
 .retention-card label { margin-top: 1.2rem; color: oklch(38% .045 25); font-size: .8rem; }
