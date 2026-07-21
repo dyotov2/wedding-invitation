@@ -365,16 +365,13 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       const response = await fetch("/api/admin/backup", { method: "POST", cache: "no-store" });
       if (!response.ok) throw new Error("The backup could not be prepared. Please try again.");
       const encrypted = await encryptBackup(await response.text(), backupPassphrase);
-      // Prove the file is decryptable with this passphrase before handing it over, so a
-      // typo can never produce a silently unrecoverable backup.
-      await decryptBackup(encrypted, backupPassphrase);
       downloadText(
         `wedding-backup-${new Date().toISOString().slice(0, 10)}.json.enc`,
         encrypted,
         "application/json;charset=utf-8",
       );
       setBackupPassphraseConfirm("");
-      setBackupStatus("Encrypted backup downloaded and verified. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
+      setBackupStatus("Encrypted backup downloaded. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : "The backup could not be prepared. Please try again.");
     } finally {
@@ -578,7 +575,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
 
         <section className="admin-tool-card backup-card" id="backups" aria-labelledby="backups-title">
           <div className="admin-tool-heading"><div><p className="eyebrow">Data safety</p><h2 id="backups-title">Encrypted backups</h2></div><span>Encrypted on this device before download</span></div>
-          <p>Our hosting platform does not expose database backups, so this is the complete, restorable copy of every household, guest, reply, meal option, setting and the audit history. Take one before every import, migration or release. The file is useless without the passphrase; restoring <strong>replaces the entire database</strong> with the backup, including whether meal choices are open, the RSVP and deletion dates, and the audit history recorded since the backup was taken.</p>
+          <p>Our hosting platform does not expose database backups, so this is the restorable copy of every household, guest, reply, meal option and setting, plus the most recent audit history. Take one before every import, migration or release. The file is useless without the passphrase; restoring <strong>replaces the entire database</strong> with the backup, including whether meal choices are open, the RSVP and deletion dates, and the audit history recorded since the backup was taken.</p>
           <label htmlFor="backup-passphrase">Backup passphrase ({BACKUP_PASSPHRASE_MIN_LENGTH}+ characters, stored only in your head or a password manager)</label>
           <input
             id="backup-passphrase"

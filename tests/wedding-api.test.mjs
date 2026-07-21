@@ -52,7 +52,10 @@ class TestD1 {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const results = statements.map((statement) => {
-        if (/^\s*SELECT/iu.test(statement.sql)) {
+        // Classify by write keyword so read queries (SELECT, or a WITH ... SELECT CTE)
+        // return rows like real D1 does, rather than only detecting a leading SELECT.
+        const isWrite = /^\s*(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER)\b/iu.test(statement.sql);
+        if (!isWrite) {
           const rows = this.database.prepare(statement.sql).all(...statement.values);
           return { success: true, results: rows, meta: { changes: 0 } };
         }
@@ -598,6 +601,10 @@ test("encrypted-backup snapshot restores households, guests and replies exactly"
   assert.equal(backup.tables.households.length, 2);
   assert.equal(backup.tables.guests.length, 3);
   assert.equal(backup.tables.households[0].link_token.length > 0, true);
+  // The snapshot is read through db.batch; assert it actually carries audit rows so a
+  // batched-SELECT regression (empty results) cannot ship green.
+  assert.ok(backup.tables.audit_events.length > 0, "backup must capture audit history");
+  assert.ok(backup.tables.audit_events.some((event) => event.action === "guest_list.imported"), "backup audit rows must carry real content");
   assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'backup.exported'").get().count >= 1);
 
   database.prepare("UPDATE guests SET name = 'Corrupted Guest', attendance = 'pending', dietary_notes = ''").run();
