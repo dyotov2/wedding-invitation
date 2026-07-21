@@ -41,7 +41,11 @@ Cloudflare D1 is the authoritative database for:
 - operational wedding settings such as whether meal selection is open.
 
 The logical D1 binding is `DB` in `.openai/hosting.json`. Sites owns the actual
-Cloudflare resource and binds the correct database during deployment. Drizzle
+Cloudflare resource and binds the correct database during deployment. Sites does
+not expose D1 export, Time Travel or restore controls, so complete backups are
+taken through the admin dashboard's Encrypted backups workflow
+(`/api/admin/backup` and `/api/admin/restore`, passphrase-encrypted in the
+browser); see the backup runbook. Drizzle
 schema changes must produce reviewed SQL files in `drizzle/`. Production
 requests must not create tables, alter schema, or seed demonstration records.
 

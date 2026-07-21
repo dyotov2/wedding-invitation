@@ -486,6 +486,124 @@ test("invitation lookup throttling blocks even a later valid credential", async 
   database.close();
 });
 
+test("successful invitation opens never count toward the shared throttle", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name) VALUES (?, ?, ?, ?)`)
+    .run("GATHERING-HOUSEHOLD", "valid-gathering-token-abcdefgh1234567890", "VALIDGATH2", "Gathering Test");
+  const householdId = database.prepare("SELECT id FROM households WHERE external_id = 'GATHERING-HOUSEHOLD'").get().id;
+  database.prepare("INSERT INTO guests (external_id, household_id, name) VALUES (?, ?, ?)")
+    .run("GATHERING-GUEST", householdId, "Gathering Guest");
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const response = await apiRequest(worker, d1, "/api/invitation", {
+      method: "POST",
+      body: { credential: "valid-gathering-token-abcdefgh1234567890" },
+      origin: undefined,
+      ip: "203.0.113.99",
+    });
+    assert.equal(response.status, 200, `valid open ${attempt + 1} must not be throttled`);
+  }
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM invitation_lookup_limits").get().count, 0);
+
+  const invalidAfterSuccesses = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST",
+    body: { credential: "ABCDEFGH23" },
+    origin: undefined,
+    ip: "203.0.113.99",
+  });
+  assert.equal(invalidAfterSuccesses.status, 404);
+  database.close();
+});
+
+test("encrypted-backup snapshot restores households, guests and replies exactly", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  const admin = { email: "dyotov2@gmail.com", method: "POST" };
+
+  const preview = await (await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "preview", rows, sourceName: "guests.csv" },
+  })).json();
+  const importResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "commit", rows, sourceName: "guests.csv", sourceHash: preview.sourceHash, previewToken: preview.previewToken },
+  });
+  assert.equal(importResponse.status, 200);
+
+  const credential = database.prepare(`SELECT link_token AS linkToken
+    FROM households WHERE external_id = 'HOUSEHOLD-001'`).get();
+  const invitation = await (await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", body: { credential: credential.linkToken }, origin: undefined,
+  })).json();
+  const rsvp = await apiRequest(worker, d1, "/api/rsvp", {
+    method: "POST",
+    origin: undefined,
+    body: {
+      credential: credential.linkToken,
+      responseVersion: invitation.household.responseVersion,
+      guests: invitation.household.guests.map((guest, index) => ({
+        id: guest.id, attendance: index === 0 ? "attending" : "declined", dietaryNotes: index === 0 ? "No nuts" : "",
+      })),
+    },
+  });
+  assert.equal(rsvp.status, 200);
+
+  const deniedBackup = await apiRequest(worker, d1, "/api/admin/backup", { method: "POST", email: "someone@example.com" });
+  assert.equal(deniedBackup.status, 403);
+
+  const backupResponse = await apiRequest(worker, d1, "/api/admin/backup", { ...admin });
+  assert.equal(backupResponse.status, 200);
+  assert.match(backupResponse.headers.get("content-disposition") ?? "", /attachment/u);
+  const backup = await backupResponse.json();
+  assert.equal(backup.format, "wedding-backup");
+  assert.equal(backup.version, 1);
+  assert.equal(backup.tables.households.length, 2);
+  assert.equal(backup.tables.guests.length, 3);
+  assert.equal(backup.tables.households[0].link_token.length > 0, true);
+  assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'backup.exported'").get().count >= 1);
+
+  database.prepare("UPDATE guests SET name = 'Corrupted Guest', attendance = 'pending', dietary_notes = ''").run();
+  database.prepare("UPDATE households SET household_name = 'Corrupted Household'").run();
+
+  const wrongConfirmation = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "restore", backup },
+  });
+  assert.equal(wrongConfirmation.status, 400);
+  assert.equal(database.prepare("SELECT household_name AS name FROM households LIMIT 1").get().name, "Corrupted Household");
+
+  const restoreResponse = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup },
+  });
+  assert.equal(restoreResponse.status, 200);
+  const restored = await restoreResponse.json();
+  assert.equal(restored.households, 2);
+  assert.equal(restored.guests, 3);
+
+  const elenaAfterRestore = database.prepare(`SELECT name, attendance, dietary_notes AS dietaryNotes
+    FROM guests WHERE external_id = 'GUEST-001'`).get();
+  assert.deepEqual({ ...elenaAfterRestore }, { name: "Elena Sample", attendance: "attending", dietaryNotes: "No nuts" });
+  assert.equal(database.prepare("SELECT household_name AS name FROM households WHERE external_id = 'HOUSEHOLD-001'").get().name, "The Sample Family");
+  assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'backup.restored'").get().count >= 1);
+
+  const reopened = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", body: { credential: credential.linkToken }, origin: undefined,
+  });
+  assert.equal(reopened.status, 200);
+  const reopenedInvitation = await reopened.json();
+  assert.equal(reopenedInvitation.household.guests[0].attendance, "attending");
+
+  const malformed = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: { format: "wedding-backup", version: 99, tables: {} } },
+  });
+  assert.equal(malformed.status, 400);
+  database.close();
+});
+
 test("RSVP endpoint cannot be used as an unthrottled credential oracle", async () => {
   const worker = await loadWorker();
   const { database, d1 } = await migratedDatabase();

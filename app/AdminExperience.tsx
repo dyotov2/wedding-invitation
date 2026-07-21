@@ -167,6 +167,81 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const BACKUP_KDF_ITERATIONS = 310_000;
+const BACKUP_KDF_ITERATIONS_MAX = 2_000_000;
+const BACKUP_PASSPHRASE_MIN_LENGTH = 12;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return window.btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"],
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptBackup(plaintext: string, passphrase: string): Promise<string> {
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveBackupKey(passphrase, salt, BACKUP_KDF_ITERATIONS);
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource }, key, new TextEncoder().encode(plaintext),
+  );
+  return JSON.stringify({
+    format: "wedding-backup-encrypted",
+    version: 1,
+    kdf: { algorithm: "PBKDF2-SHA-256", iterations: BACKUP_KDF_ITERATIONS, salt: bytesToBase64(salt) },
+    cipher: "AES-256-GCM",
+    iv: bytesToBase64(iv),
+    data: bytesToBase64(new Uint8Array(ciphertext)),
+  });
+}
+
+async function decryptBackup(fileText: string, passphrase: string): Promise<string> {
+  let envelope: Record<string, unknown>;
+  try {
+    envelope = JSON.parse(fileText) as Record<string, unknown>;
+  } catch {
+    throw new Error("That file is not an encrypted wedding backup.");
+  }
+  const kdf = envelope?.kdf as { algorithm?: string; iterations?: number; salt?: string } | undefined;
+  if (envelope?.format !== "wedding-backup-encrypted" || envelope?.version !== 1 ||
+    kdf?.algorithm !== "PBKDF2-SHA-256" || typeof kdf.iterations !== "number" ||
+    kdf.iterations < 1 || kdf.iterations > BACKUP_KDF_ITERATIONS_MAX ||
+    typeof kdf.salt !== "string" || typeof envelope.iv !== "string" || typeof envelope.data !== "string") {
+    throw new Error("That file is not an encrypted wedding backup.");
+  }
+  const key = await deriveBackupKey(passphrase, base64ToBytes(kdf.salt), kdf.iterations);
+  try {
+    const plaintext = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64ToBytes(envelope.iv) as BufferSource }, key, base64ToBytes(envelope.data) as BufferSource,
+    );
+    return new TextDecoder().decode(plaintext);
+  } catch {
+    throw new Error("The backup could not be decrypted. Check the passphrase and try again.");
+  }
+}
+
 function downloadText(filename: string, contents: string, type = "text/csv;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const anchor = document.createElement("a");
@@ -199,6 +274,11 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [importBusy, setImportBusy] = useState(false);
   const [purgeConfirmation, setPurgeConfirmation] = useState("");
   const [purgeStatus, setPurgeStatus] = useState("");
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [backupStatus, setBackupStatus] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState("");
 
   const refresh = useCallback(async () => {
     setStatus("Refreshing guest replies…");
@@ -346,6 +426,54 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     }
   };
 
+  const downloadEncryptedBackup = async () => {
+    if (backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH || backupBusy) return;
+    setBackupBusy(true);
+    setBackupStatus("Preparing and encrypting the backup on this device…");
+    try {
+      const response = await fetch("/api/admin/backup", { method: "POST", cache: "no-store" });
+      if (!response.ok) throw new Error("The backup could not be prepared. Please try again.");
+      const encrypted = await encryptBackup(await response.text(), backupPassphrase);
+      downloadText(
+        `wedding-backup-${new Date().toISOString().slice(0, 10)}.json.enc`,
+        encrypted,
+        "application/json;charset=utf-8",
+      );
+      setBackupStatus("Encrypted backup downloaded. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : "The backup could not be prepared. Please try again.");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const restoreEncryptedBackup = async () => {
+    if (!restoreFile || restoreConfirmation !== "RESTORE WEDDING GUEST DATA" ||
+      backupPassphrase.length === 0 || backupBusy) return;
+    setBackupBusy(true);
+    setBackupStatus("Decrypting the backup on this device…");
+    try {
+      const plaintext = await decryptBackup(await restoreFile.text(), backupPassphrase);
+      const backup = JSON.parse(plaintext) as Record<string, unknown>;
+      setBackupStatus("Restoring guest data from the backup…");
+      const response = await fetch("/api/admin/restore", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmation: restoreConfirmation, backup }),
+      });
+      const result = (await response.json()) as { error?: string; households?: number; guests?: number };
+      if (!response.ok) throw new Error(result.error || "The backup could not be restored.");
+      setRestoreFile(null);
+      setRestoreConfirmation("");
+      setBackupStatus(`Restore complete: ${result.households ?? 0} households and ${result.guests ?? 0} guests. Review the guest list before sharing any links.`);
+      await refresh();
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : "The backup could not be restored.");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
   const purgeGuestData = async () => {
     if (!data?.deletionDate || purgeConfirmation !== "DELETE WEDDING GUEST DATA") return;
     setPurgeStatus("Deleting wedding guest data…");
@@ -425,6 +553,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           <a href="#responses">Responses</a>
           <a href="#guest-import">Import guests</a>
           <a href="#data-care">Data & exports</a>
+          <a href="#backups">Backups</a>
         </nav>
         <Link className="back-to-site" href="/">← View invitation</Link>
       </aside>
@@ -510,6 +639,59 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
             <button type="button" onClick={() => void downloadPlanningExport()}>Download planning export</button>
             <button type="button" className="secondary" onClick={() => void downloadDeliveryExport()}>Download invitation links</button>
           </div>
+        </section>
+
+        <section className="admin-tool-card backup-card" id="backups" aria-labelledby="backups-title">
+          <div className="admin-tool-heading"><div><p className="eyebrow">Data safety</p><h2 id="backups-title">Encrypted backups</h2></div><span>Encrypted on this device before download</span></div>
+          <p>Sites hosting does not expose database backups, so this is the complete, restorable copy of every household, guest, reply and setting. Take one before every import, migration or release. The file is useless without the passphrase; restoring replaces all current guest data with the backup.</p>
+          <label htmlFor="backup-passphrase">Backup passphrase ({BACKUP_PASSPHRASE_MIN_LENGTH}+ characters, stored only in your head or a password manager)</label>
+          <input
+            id="backup-passphrase"
+            type="password"
+            value={backupPassphrase}
+            onChange={(event) => setBackupPassphrase(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
+          <div className="admin-tool-actions">
+            <button
+              type="button"
+              onClick={() => void downloadEncryptedBackup()}
+              disabled={backupBusy || backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH}
+            >
+              {backupBusy ? "Working…" : "Download encrypted backup"}
+            </button>
+          </div>
+          <label htmlFor="restore-file">Restore from an encrypted backup (uses the passphrase above)</label>
+          <label className="guest-file-picker backup-restore-picker">
+            <span>{restoreFile?.name || "Choose .json.enc backup file"}</span>
+            <input
+              id="restore-file"
+              type="file"
+              accept=".enc,.json,application/json"
+              onChange={(event) => setRestoreFile(event.target.files?.[0] ?? null)}
+              disabled={backupBusy}
+            />
+          </label>
+          <label htmlFor="restore-confirmation">Type <strong>RESTORE WEDDING GUEST DATA</strong> to allow the restore</label>
+          <input
+            id="restore-confirmation"
+            value={restoreConfirmation}
+            onChange={(event) => setRestoreConfirmation(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
+          <div className="admin-tool-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void restoreEncryptedBackup()}
+              disabled={backupBusy || !restoreFile || restoreConfirmation !== "RESTORE WEDDING GUEST DATA" || backupPassphrase.length === 0}
+            >
+              {backupBusy ? "Working…" : "Restore this backup"}
+            </button>
+          </div>
+          <p className="import-status" role="status">{backupStatus}</p>
         </section>
       </section>
     </main>
