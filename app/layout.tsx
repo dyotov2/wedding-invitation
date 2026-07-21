@@ -26,6 +26,14 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Ekaterina & Dimitar | Our Wedding",
     description:
       "Join Ekaterina and Dimitar as they begin their forever at Midalidare Estate on 20 June 2027.",
+    referrer: "no-referrer",
+    robots: {
+      index: false,
+      follow: false,
+      noarchive: true,
+      noimageindex: true,
+      googleBot: { index: false, follow: false, noarchive: true, noimageindex: true },
+    },
     openGraph: {
       title: "Forever starts today | Ekaterina & Dimitar",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",

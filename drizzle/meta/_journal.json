@@ -15,6 +15,34 @@
       "when": 1784015282328,
       "tag": "0001_little_aaron_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784633562482,
+      "tag": "0002_wandering_bill_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784634533820,
+      "tag": "0003_clear_rhodey",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784635476625,
+      "tag": "0004_mean_wendell_vaughn",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784636348432,
+      "tag": "0005_bright_mach_iv",
+      "breakpoints": true
     }
   ]
 }

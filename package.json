@@ -1,5 +1,5 @@
 {
-  "name": "site-creator-vinext-starter",
+  "name": "ekaterina-dimitar-wedding-invitation",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -9,7 +9,11 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:repo": "node --test tests/repository-invariants.test.mjs",
+    "test:app": "npm run build && node --test tests/rendered-html.test.mjs tests/wedding-api.test.mjs",
+    "test": "npm run test:repo && npm run test:app",
+    "check": "npm run lint && npm run typecheck && npm test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern work",
     "db:generate": "drizzle-kit generate"
   },
