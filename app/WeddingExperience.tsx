@@ -101,6 +101,14 @@ function setCredentialInAddressBar(credential?: string) {
   window.history.replaceState(window.history.state, "", `${url.pathname}${search ? `?${search}` : ""}${url.hash}`);
 }
 
+function safeRemoveStoredDraft(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Storage can be blocked entirely; the invitation must keep working without drafts.
+  }
+}
+
 function removeLegacyCredentialDrafts() {
   try {
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
@@ -446,7 +454,7 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
               id="invitation-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              placeholder="e.g. K7MP9Q2X"
+              placeholder="e.g. K7MP9Q2XWD"
               autoCapitalize="characters"
               autoComplete="off"
               aria-describedby="code-hint code-error"
@@ -540,7 +548,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         const sameGuests = Array.isArray(restored.guests)
           && restored.guests.map((guest) => guest.id).join(",") === household.guests.map((guest) => guest.id).join(",");
         if (!sameHousehold || !sameVersion || !sameGuests || !fresh) {
-          window.localStorage.removeItem(draftKey);
+          safeRemoveStoredDraft(draftKey);
           return;
         }
         setDraft({
@@ -551,7 +559,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           }),
         });
       } catch {
-        window.localStorage.removeItem(draftKey);
+        safeRemoveStoredDraft(draftKey);
       }
     }, 0);
     return () => window.clearTimeout(restoreDraft);
@@ -565,7 +573,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       savedAt: Date.now(),
       guests: draft.guests.map(({ id, attendance, dietaryNotes, mealChoice }) => ({ id, attendance, dietaryNotes, mealChoice })),
     };
-    window.localStorage.setItem(draftKey, JSON.stringify(storedDraft));
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(storedDraft));
+    } catch {
+      // Storage can be blocked or full; the reply still works without a local draft.
+    }
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
@@ -595,7 +607,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       const saved = preserveCredential((await response.json()) as InvitationResponse, draft.credential);
       setDraft(saved.household);
       onUpdate(saved);
-      window.localStorage.removeItem(draftKey);
+      safeRemoveStoredDraft(draftKey);
       setSaveState("success");
       setStatus("Your reply is confirmed. You can return with the same code if anything changes.");
     } catch {
@@ -611,7 +623,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       const latest = await fetchInvitation(household.credential);
       setDraft(latest.household);
       onUpdate(latest);
-      window.localStorage.removeItem(draftKey);
+      safeRemoveStoredDraft(draftKey);
       setSaveState("idle");
       setStatus("The latest saved reply is now shown. Please review it before making any changes.");
     } catch {
@@ -625,7 +637,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       <BotanicalFrame />
       <nav className="invitation-nav" aria-label="Invitation navigation">
         <button type="button" className="wordmark" onClick={onExit}>E <PetalMark small /> D</button>
-        <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a></div>
+        <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a><a href="#questions">Questions</a></div>
         <a className="mobile-rsvp-link" href="#your-invitation">RSVP</a>
         <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
@@ -675,6 +687,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
               <div>
                 <strong>Reply confirmed for {household.householdName}</strong>
                 <p>{attendingNames.length > 0 ? `${attendingNames.join(" and ")} will join us on 20 June 2027.` : "We will miss you, and we are grateful you let us know."}</p>
+                {attendingNames.length > 0 && (mealPhaseOpen
+                  ? <p>The menu is open. <button type="button" className="receipt-link" onClick={onOpenMeals}>Choose a meal for each guest</button> with this same invitation.</p>
+                  : <p>Closer to the day we will open the menu. Come back with this same link or printed code to choose a meal for each guest.</p>)}
               </div>
             </div>
           )}
@@ -747,6 +762,33 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
             <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
           </div>
         </div>
+      </section>
+
+      <section className="faq-section" id="questions" aria-labelledby="faq-title">
+        <div className="faq-heading">
+          <p className="eyebrow">Good to know</p>
+          <h2 id="faq-title">Questions, answered</h2>
+        </div>
+        <dl className="faq-list">
+          <div>
+            <dt>When should we reply?</dt>
+            <dd>Kindly reply by 1 January 2027. If the date slips past you, we would still love to hear from you, so please reach out.</dd>
+          </div>
+          <div>
+            <dt>What happens after we reply?</dt>
+            <dd>{mealPhaseOpen
+              ? "The menu is open. Return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details closer to the day."
+              : "For now, replying is everything. Closer to the day we will open the menu, and you can return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details then."}</dd>
+          </div>
+          <div>
+            <dt>Can we change our answer?</dt>
+            <dd>Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts.</dd>
+          </div>
+          <div>
+            <dt>Lost your link or code?</dt>
+            <dd>Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help.</dd>
+          </div>
+        </dl>
       </section>
 
       {mealPhaseOpen && (

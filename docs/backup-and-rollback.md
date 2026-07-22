@@ -13,9 +13,30 @@ back code must not erase valid RSVPs received after a deployment.
 Assign a release operator and a second person to verify production totals before
 the first guest links are distributed.
 
+## Hosting decision (July 2026)
+
+Sites hosting was confirmed to support connecting a custom domain the couple
+already owns (DNS records, validation and SSL are handled by Sites; the domain
+itself is purchased elsewhere). Sites does **not** expose D1 database export,
+Time Travel, or restore controls, and Sites version rollback restores website
+code only, never RSVP data.
+
+Because of that, the application provides its own complete backup workflow: the
+admin dashboard's **Encrypted backups** section snapshots every guest-data table
+(households with credentials, guests, settings, meal options, import history and
+audit events) through `/api/admin/backup`, encrypts it in the browser with a
+passphrase (PBKDF2 + AES-256-GCM) before it touches disk, and can restore a
+snapshot through `/api/admin/restore` after a typed confirmation. The admin CSV
+exports remain planning aids only; they are not restorable backups.
+
+**Gate: do not import the real guest list into production until one encrypted
+backup has been taken and a restore has been rehearsed** (into staging or an
+isolated database), or production D1 has been moved into a Cloudflare account
+the couple controls.
+
 ## Backup requirements
 
-Back up production D1 immediately before:
+Back up production immediately before:
 
 - applying a database migration;
 - importing or materially correcting the guest list;
@@ -23,10 +44,12 @@ Back up production D1 immediately before:
 - deploying a release that changes write behavior; or
 - opening the meal-selection phase.
 
-Store backups in an encrypted location outside Git and outside the project
-working directory. Restrict access to the administrator, record a checksum,
-and test that the backup can be read. A backup is not complete until a restore
-has been rehearsed into an isolated database.
+Use the admin dashboard's Encrypted backups download for each of these. Store
+backups in a private location outside Git and outside the project working
+directory, and keep the passphrase separately from the files. Restrict access
+to the administrator, record a checksum, and test that the backup can be read.
+A backup is not complete until a restore has been rehearsed into an isolated
+database.
 
 The release record contains only:
 
@@ -99,13 +122,22 @@ incorrect import.
 1. Disable the affected write path while leaving safe read access available if
    possible.
 2. Record the incident time and current aggregate totals.
-3. Preserve a backup of the current state, even if it is damaged.
-4. Restore the pre-incident backup into an isolated D1 database.
+3. Preserve a backup of the current state, even if it is damaged (take a fresh
+   encrypted backup before restoring anything).
+4. Restore the pre-incident backup into a separate recovery deployment bound to
+   its own D1 database, using the admin Encrypted backups restore. Do not
+   restore straight into production while reconciliation is unfinished, and do
+   not use a shared staging database that holds synthetic data.
 5. Compare aggregate counts and identify valid replies received after the
    backup.
-6. Reapply those later valid replies through a reviewed reconciliation process.
-7. Validate the recovered database in staging or an isolated recovery project.
-8. Switch production only after the administrator and verifier approve totals.
+6. In that recovery deployment, reapply those later valid replies through a
+   reviewed reconciliation process.
+7. Validate the reconciled recovery database and have the administrator and
+   verifier approve totals.
+8. Take a fresh encrypted backup **from the reconciled recovery deployment** and
+   restore that new file into production. Never restore the original
+   pre-incident backup into production, because it does not contain the replies
+   reconciled in steps 5 and 6.
 
 Never overwrite production blindly with an older backup. That would discard
 legitimate responses received after the backup.

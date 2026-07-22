@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BACKUP_PASSPHRASE_MIN_LENGTH, decryptBackup, encryptBackup } from "../lib/backup-crypto.mjs";
 
 type Attendance = "pending" | "attending" | "declined";
 type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
@@ -199,6 +200,12 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [importBusy, setImportBusy] = useState(false);
   const [purgeConfirmation, setPurgeConfirmation] = useState("");
   const [purgeStatus, setPurgeStatus] = useState("");
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [backupStatus, setBackupStatus] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupPassphraseConfirm, setBackupPassphraseConfirm] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState("");
 
   const refresh = useCallback(async () => {
     setStatus("Refreshing guest replies…");
@@ -346,6 +353,59 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     }
   };
 
+  const downloadEncryptedBackup = async () => {
+    if (backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH || backupBusy) return;
+    if (backupPassphrase !== backupPassphraseConfirm) {
+      setBackupStatus("The two passphrases do not match. A backup is unreadable without the exact passphrase, so please retype it.");
+      return;
+    }
+    setBackupBusy(true);
+    setBackupStatus("Preparing and encrypting the backup on this device…");
+    try {
+      const response = await fetch("/api/admin/backup", { method: "POST", cache: "no-store" });
+      if (!response.ok) throw new Error("The backup could not be prepared. Please try again.");
+      const encrypted = await encryptBackup(await response.text(), backupPassphrase);
+      downloadText(
+        `wedding-backup-${new Date().toISOString().slice(0, 10)}.json.enc`,
+        encrypted,
+        "application/json;charset=utf-8",
+      );
+      setBackupPassphraseConfirm("");
+      setBackupStatus("Encrypted backup downloaded. Store it and the passphrase in two separate private places, and delete both by the data-deletion date.");
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : "The backup could not be prepared. Please try again.");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const restoreEncryptedBackup = async () => {
+    if (!restoreFile || restoreConfirmation !== "RESTORE WEDDING GUEST DATA" ||
+      backupPassphrase.length === 0 || backupBusy) return;
+    setBackupBusy(true);
+    setBackupStatus("Decrypting the backup on this device…");
+    try {
+      const plaintext = await decryptBackup(await restoreFile.text(), backupPassphrase);
+      const backup = JSON.parse(plaintext) as Record<string, unknown>;
+      setBackupStatus("Restoring guest data from the backup…");
+      const response = await fetch("/api/admin/restore", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmation: restoreConfirmation, backup }),
+      });
+      const result = (await response.json()) as { error?: string; households?: number; guests?: number };
+      if (!response.ok) throw new Error(result.error || "The backup could not be restored.");
+      setRestoreFile(null);
+      setRestoreConfirmation("");
+      setBackupStatus(`Restore complete: ${result.households ?? 0} households and ${result.guests ?? 0} guests. Review the guest list before sharing any links.`);
+      await refresh();
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : "The backup could not be restored.");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
   const purgeGuestData = async () => {
     if (!data?.deletionDate || purgeConfirmation !== "DELETE WEDDING GUEST DATA") return;
     setPurgeStatus("Deleting wedding guest data…");
@@ -425,6 +485,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           <a href="#responses">Responses</a>
           <a href="#guest-import">Import guests</a>
           <a href="#data-care">Data & exports</a>
+          <a href="#backups">Backups</a>
         </nav>
         <Link className="back-to-site" href="/">← View invitation</Link>
       </aside>
@@ -510,6 +571,68 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
             <button type="button" onClick={() => void downloadPlanningExport()}>Download planning export</button>
             <button type="button" className="secondary" onClick={() => void downloadDeliveryExport()}>Download invitation links</button>
           </div>
+        </section>
+
+        <section className="admin-tool-card backup-card" id="backups" aria-labelledby="backups-title">
+          <div className="admin-tool-heading"><div><p className="eyebrow">Data safety</p><h2 id="backups-title">Encrypted backups</h2></div><span>Encrypted on this device before download</span></div>
+          <p>Our hosting platform does not expose database backups, so this is the restorable copy of every household, guest, reply, meal option and setting, plus the most recent audit history. Take one before every import, migration or release. The file is useless without the passphrase; restoring <strong>replaces the entire database</strong> with the backup, including whether meal choices are open, the RSVP and deletion dates, and the audit history recorded since the backup was taken.</p>
+          <label htmlFor="backup-passphrase">Backup passphrase ({BACKUP_PASSPHRASE_MIN_LENGTH}+ characters, stored only in your head or a password manager)</label>
+          <input
+            id="backup-passphrase"
+            type="password"
+            value={backupPassphrase}
+            onChange={(event) => setBackupPassphrase(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
+          <label htmlFor="backup-passphrase-confirm">Confirm passphrase (a mistyped passphrase makes the backup permanently unreadable)</label>
+          <input
+            id="backup-passphrase-confirm"
+            type="password"
+            value={backupPassphraseConfirm}
+            onChange={(event) => setBackupPassphraseConfirm(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
+          <div className="admin-tool-actions">
+            <button
+              type="button"
+              onClick={() => void downloadEncryptedBackup()}
+              disabled={backupBusy || backupPassphrase.length < BACKUP_PASSPHRASE_MIN_LENGTH || backupPassphrase !== backupPassphraseConfirm}
+            >
+              {backupBusy ? "Working…" : "Download encrypted backup"}
+            </button>
+          </div>
+          <label htmlFor="restore-file">Restore from an encrypted backup (uses the passphrase above)</label>
+          <label className="guest-file-picker backup-restore-picker">
+            <span>{restoreFile?.name || "Choose .json.enc backup file"}</span>
+            <input
+              id="restore-file"
+              type="file"
+              accept=".enc,.json,application/json"
+              onChange={(event) => setRestoreFile(event.target.files?.[0] ?? null)}
+              disabled={backupBusy}
+            />
+          </label>
+          <label htmlFor="restore-confirmation">Type <strong>RESTORE WEDDING GUEST DATA</strong> to allow the restore</label>
+          <input
+            id="restore-confirmation"
+            value={restoreConfirmation}
+            onChange={(event) => setRestoreConfirmation(event.target.value)}
+            autoComplete="off"
+            disabled={backupBusy}
+          />
+          <div className="admin-tool-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void restoreEncryptedBackup()}
+              disabled={backupBusy || !restoreFile || restoreConfirmation !== "RESTORE WEDDING GUEST DATA" || backupPassphrase.length === 0}
+            >
+              {backupBusy ? "Working…" : "Restore this backup"}
+            </button>
+          </div>
+          <p className="import-status" role="status">{backupStatus}</p>
         </section>
       </section>
     </main>

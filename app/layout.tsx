@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-v4.png`;
+  const imageUrl = `${protocol}://${host}/og.jpg`;
 
   return {
     title: "Ekaterina & Dimitar | Our Wedding",
@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Forever starts today | Ekaterina & Dimitar",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
-      images: [{ url: imageUrl, width: 1536, height: 1024, alt: "Ekaterina and Dimitar's wedding invitation" }],
+      images: [{ url: imageUrl, width: 1200, height: 800, alt: "Ekaterina and Dimitar's wedding invitation" }],
     },
     twitter: {
       card: "summary_large_image",

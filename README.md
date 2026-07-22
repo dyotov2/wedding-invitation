@@ -95,6 +95,10 @@ steps and private-file handling are in [Guest-list import](docs/guest-list-impor
 
 ## Domain and QR warning
 
+Sites supports connecting a custom domain the couple already owns: it provides
+the DNS records, validates them, and issues SSL. It does not purchase the
+domain, so buy one first (for example `ekaterinaanddimitar.com`).
+
 An ampersand (`&`) is **not valid in a DNS hostname**. It may appear in page
 copy as “Ekaterina & Dimitar,” but never create a domain such as
 `ekaterina&dimitar.example`. Use a valid form such as
@@ -113,7 +117,13 @@ details and response sources are private data.
 - Use synthetic households in local development and staging.
 - Never log household codes, guest names, notes or meal choices.
 - Back up production before every migration, import or release that can affect
-  data.
+  data. Sites does not expose D1 export or restore controls, so use the admin
+  dashboard's Encrypted backups section: it snapshots every guest-data table,
+  encrypts the file in the browser with a passphrase before download, and can
+  restore a snapshot after a typed confirmation.
+- Do not import the real guest list until one encrypted backup has been taken
+  and a restore has been rehearsed, or production D1 moves into a Cloudflare
+  account the couple controls.
 - Delete guest records and every derived export/backup on 27 June 2027, unless
   a documented legal obligation requires a narrowly scoped exception.
 

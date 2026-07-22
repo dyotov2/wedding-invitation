@@ -51,7 +51,16 @@ class TestD1 {
   async batch(statements) {
     this.database.exec("BEGIN IMMEDIATE");
     try {
-      const results = statements.map((statement) => statement.runSync());
+      const results = statements.map((statement) => {
+        // Classify by write keyword so read queries (SELECT, or a WITH ... SELECT CTE)
+        // return rows like real D1 does, rather than only detecting a leading SELECT.
+        const isWrite = /^\s*(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER)\b/iu.test(statement.sql);
+        if (!isWrite) {
+          const rows = this.database.prepare(statement.sql).all(...statement.values);
+          return { success: true, results: rows, meta: { changes: 0 } };
+        }
+        return statement.runSync();
+      });
       this.database.exec("COMMIT");
       return results;
     } catch (error) {
@@ -451,6 +460,13 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
     body: { guestId: maria.id, attendance: "attending", responseSource: "phone", dietaryNotes: "", mealChoice: "" },
   });
   assert.equal(postPurgeReply.status, 410);
+  const postPurgeBackup = await apiRequest(worker, d1, "/api/admin/backup", { ...admin });
+  assert.equal(postPurgeBackup.status, 410);
+  const postPurgeRestore = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: { format: "wedding-backup", version: 1, tables: {} } },
+  });
+  assert.equal(postPurgeRestore.status, 410, "restore must not resurrect purged guest data");
 
   database.close();
 });
@@ -483,6 +499,187 @@ test("invitation lookup throttling blocks even a later valid credential", async 
     ip: "203.0.113.55",
   });
   assert.equal(validAfterLimit.status, 429);
+  database.close();
+});
+
+test("successful invitation opens never count toward the shared throttle", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name) VALUES (?, ?, ?, ?)`)
+    .run("GATHERING-HOUSEHOLD", "valid-gathering-token-abcdefgh1234567890", "VALIDGATH2", "Gathering Test");
+  const householdId = database.prepare("SELECT id FROM households WHERE external_id = 'GATHERING-HOUSEHOLD'").get().id;
+  database.prepare("INSERT INTO guests (external_id, household_id, name) VALUES (?, ?, ?)")
+    .run("GATHERING-GUEST", householdId, "Gathering Guest");
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const response = await apiRequest(worker, d1, "/api/invitation", {
+      method: "POST",
+      body: { credential: "valid-gathering-token-abcdefgh1234567890" },
+      origin: undefined,
+      ip: "203.0.113.99",
+    });
+    assert.equal(response.status, 200, `valid open ${attempt + 1} must not be throttled`);
+  }
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM invitation_lookup_limits").get().count, 0);
+
+  const invalidAfterSuccesses = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST",
+    body: { credential: "ABCDEFGH23" },
+    origin: undefined,
+    ip: "203.0.113.99",
+  });
+  assert.equal(invalidAfterSuccesses.status, 404);
+  database.close();
+});
+
+test("a few mistyped codes never block a valid open from the same venue IP", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name) VALUES (?, ?, ?, ?)`)
+    .run("VENUE-HOUSEHOLD", "valid-venue-token-abcdefgh1234567890", "VALIDVEN23", "Venue Test");
+  const householdId = database.prepare("SELECT id FROM households WHERE external_id = 'VENUE-HOUSEHOLD'").get().id;
+  database.prepare("INSERT INTO guests (external_id, household_id, name) VALUES (?, ?, ?)")
+    .run("VENUE-GUEST", householdId, "Venue Guest");
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const mistyped = await apiRequest(worker, d1, "/api/invitation", {
+      method: "POST", body: { credential: "WRNGCDEF23" }, origin: undefined, ip: "203.0.113.44",
+    });
+    assert.equal(mistyped.status, 404);
+  }
+  const validOpen = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", body: { credential: "valid-venue-token-abcdefgh1234567890" }, origin: undefined, ip: "203.0.113.44",
+  });
+  assert.equal(validOpen.status, 200, "10 failures (under the 24 cap) must not block a valid open");
+  database.close();
+});
+
+test("encrypted-backup snapshot restores households, guests and replies exactly", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  const admin = { email: "dyotov2@gmail.com", method: "POST" };
+
+  const preview = await (await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "preview", rows, sourceName: "guests.csv" },
+  })).json();
+  const importResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "commit", rows, sourceName: "guests.csv", sourceHash: preview.sourceHash, previewToken: preview.previewToken },
+  });
+  assert.equal(importResponse.status, 200);
+
+  const credential = database.prepare(`SELECT link_token AS linkToken
+    FROM households WHERE external_id = 'HOUSEHOLD-001'`).get();
+  const invitation = await (await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", body: { credential: credential.linkToken }, origin: undefined,
+  })).json();
+  const rsvp = await apiRequest(worker, d1, "/api/rsvp", {
+    method: "POST",
+    origin: undefined,
+    body: {
+      credential: credential.linkToken,
+      responseVersion: invitation.household.responseVersion,
+      guests: invitation.household.guests.map((guest, index) => ({
+        id: guest.id, attendance: index === 0 ? "attending" : "declined", dietaryNotes: index === 0 ? "No nuts" : "",
+      })),
+    },
+  });
+  assert.equal(rsvp.status, 200);
+
+  const deniedBackup = await apiRequest(worker, d1, "/api/admin/backup", { method: "POST", email: "someone@example.com" });
+  assert.equal(deniedBackup.status, 403);
+
+  const backupResponse = await apiRequest(worker, d1, "/api/admin/backup", { ...admin });
+  assert.equal(backupResponse.status, 200);
+  assert.match(backupResponse.headers.get("content-disposition") ?? "", /attachment/u);
+  const backup = await backupResponse.json();
+  assert.equal(backup.format, "wedding-backup");
+  assert.equal(backup.version, 1);
+  assert.equal(backup.tables.households.length, 2);
+  assert.equal(backup.tables.guests.length, 3);
+  assert.equal(backup.tables.households[0].link_token.length > 0, true);
+  // The snapshot is read through db.batch; assert it actually carries audit rows so a
+  // batched-SELECT regression (empty results) cannot ship green.
+  assert.ok(backup.tables.audit_events.length > 0, "backup must capture audit history");
+  assert.ok(backup.tables.audit_events.some((event) => event.action === "guest_list.imported"), "backup audit rows must carry real content");
+  assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'backup.exported'").get().count >= 1);
+
+  database.prepare("UPDATE guests SET name = 'Corrupted Guest', attendance = 'pending', dietary_notes = ''").run();
+  database.prepare("UPDATE households SET household_name = 'Corrupted Household'").run();
+
+  const wrongConfirmation = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "restore", backup },
+  });
+  assert.equal(wrongConfirmation.status, 400);
+  assert.equal(database.prepare("SELECT household_name AS name FROM households LIMIT 1").get().name, "Corrupted Household");
+
+  const restoreResponse = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup },
+  });
+  assert.equal(restoreResponse.status, 200);
+  const restored = await restoreResponse.json();
+  assert.equal(restored.households, 2);
+  assert.equal(restored.guests, 3);
+
+  const elenaAfterRestore = database.prepare(`SELECT name, attendance, dietary_notes AS dietaryNotes
+    FROM guests WHERE external_id = 'GUEST-001'`).get();
+  assert.deepEqual({ ...elenaAfterRestore }, { name: "Elena Sample", attendance: "attending", dietaryNotes: "No nuts" });
+  assert.equal(database.prepare("SELECT household_name AS name FROM households WHERE external_id = 'HOUSEHOLD-001'").get().name, "The Sample Family");
+  assert.ok(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'backup.restored'").get().count >= 1);
+
+  const reopened = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", body: { credential: credential.linkToken }, origin: undefined,
+  });
+  assert.equal(reopened.status, 200);
+  const reopenedInvitation = await reopened.json();
+  assert.equal(reopenedInvitation.household.guests[0].attendance, "attending");
+
+  const malformed = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: { format: "wedding-backup", version: 99, tables: {} } },
+  });
+  assert.equal(malformed.status, 400);
+
+  // A backup missing a whole table section must be rejected, never treated as an empty
+  // (data-wiping) restore.
+  const truncated = structuredClone(backup);
+  delete truncated.tables.guests;
+  const truncatedRestore = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: truncated },
+  });
+  assert.equal(truncatedRestore.status, 400);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM guests").get().count, 3, "a truncated backup must not wipe guests");
+
+  // wedding_settings round-trips: open the meal phase after the backup, restore, and the
+  // backup's closed phase must come back.
+  const openedAfterBackup = await apiRequest(worker, d1, "/api/admin/settings", { ...admin, body: { mealPhaseOpen: true } });
+  assert.equal(openedAfterBackup.status, 200);
+  assert.equal(database.prepare("SELECT meal_phase_open AS open FROM wedding_settings WHERE id = 1").get().open, 1);
+  const settingsRestore = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup },
+  });
+  assert.equal(settingsRestore.status, 200);
+  assert.equal(database.prepare("SELECT meal_phase_open AS open FROM wedding_settings WHERE id = 1").get().open, 0, "restore must revert wedding_settings");
+  assert.ok(database.prepare("SELECT COUNT(*) AS count FROM meal_options").get().count >= 3, "restore must repopulate meal_options");
+
+  // A tampered backup with a duplicate primary key must fail atomically: the batch rolls
+  // back and the live guest list is untouched, not half-wiped.
+  const duplicateIds = structuredClone(backup);
+  duplicateIds.tables.households.push({ ...duplicateIds.tables.households[0] });
+  const duplicateRestore = await apiRequest(worker, d1, "/api/admin/restore", {
+    ...admin,
+    body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: duplicateIds },
+  });
+  assert.equal(duplicateRestore.status, 409);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM households").get().count, 2, "a failed restore must not wipe households");
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM guests").get().count, 3, "a failed restore must not wipe guests");
   database.close();
 });
 
