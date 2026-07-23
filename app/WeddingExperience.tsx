@@ -715,7 +715,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           </div>
 
           <div className="rsvp-save">
-            {hasPending && <p className="rsvp-save-note">{outstanding.length} answer{outstanding.length > 1 ? "s" : ""} still needed — {outstanding.join(", ")}</p>}
+            {hasPending && <p className="rsvp-save-note">{outstanding.length} answer{outstanding.length > 1 ? "s" : ""} still needed for {outstanding.join(", ")}</p>}
             <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
               {saveLabel} <span aria-hidden="true">→</span>
             </button>
@@ -831,7 +831,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
             </div>
             <div className="stay-card">
               <span className="stay-card-eyebrow stay-card-eyebrow-muted">15 to 40 minutes away</span>
-              <strong>Nearby — Chirpan / Stara Zagora</strong>
+              <strong>Nearby: Chirpan &amp; Stara Zagora</strong>
               <small>A handful of guesthouses and small hotels, for those who would like their own base.</small>
             </div>
           </div>
