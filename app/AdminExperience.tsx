@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BACKUP_PASSPHRASE_MIN_LENGTH, decryptBackup, encryptBackup } from "../lib/backup-crypto.mjs";
 
@@ -12,6 +12,7 @@ type Guest = {
   externalId?: string;
   active?: boolean;
   name: string;
+  displayOrder: number;
   guestType: "adult" | "child" | "infant";
   attendance: Attendance;
   dietaryNotes: string;
@@ -24,6 +25,7 @@ type Household = {
   externalId?: string;
   active?: boolean;
   householdName: string;
+  greeting: string;
   guests: Guest[];
 };
 
@@ -82,6 +84,27 @@ type ImportResult = {
   }>;
   sourceHash?: string;
   previewToken?: string;
+};
+
+type EditableGuest = {
+  externalId: string;
+  name: string;
+  displayOrder: number;
+  guestType: Guest["guestType"];
+  persisted: boolean;
+};
+
+type EditableHousehold = {
+  externalId: string;
+  householdName: string;
+  greeting: string;
+  persisted: boolean;
+  guests: EditableGuest[];
+};
+
+type EditorIssue = {
+  id: string;
+  message: string;
 };
 
 const requiredHeaders = [
@@ -188,10 +211,99 @@ function formatPolicyDate(value: string | undefined, fallback: string): string {
     .format(new Date(`${value}T00:00:00Z`));
 }
 
+function newExternalId(prefix: "HOUSEHOLD" | "GUEST"): string {
+  return `${prefix}-${window.crypto.randomUUID().toUpperCase()}`;
+}
+
+function editableHouseholds(data: AdminData): EditableHousehold[] {
+  return data.households
+    .filter((household) => household.active !== false && household.externalId)
+    .map((household) => ({
+      externalId: household.externalId!,
+      householdName: household.householdName,
+      greeting: household.greeting ?? "",
+      persisted: true,
+      guests: household.guests
+        .filter((guest) => guest.active !== false && guest.externalId)
+        .sort((left, right) => left.displayOrder - right.displayOrder || left.id - right.id)
+        .map((guest) => ({
+          externalId: guest.externalId!,
+          name: guest.name,
+          displayOrder: guest.displayOrder,
+          guestType: guest.guestType,
+          persisted: true,
+        })),
+    }));
+}
+
+function rowsFromEditor(households: EditableHousehold[]): ImportRow[] {
+  return households.flatMap((household) => household.guests.map((guest) => ({
+    householdExternalId: household.externalId,
+    householdName: household.householdName,
+    householdGreeting: household.greeting,
+    guestExternalId: guest.externalId,
+    guestName: guest.name,
+    displayOrder: guest.displayOrder,
+    guestType: guest.guestType,
+  })));
+}
+
+function editorIssues(households: EditableHousehold[]): EditorIssue[] {
+  const issues: EditorIssue[] = [];
+  const importedTextIsUnsafe = (value: string) => /^[=+@-]/u.test(value.trim()) ||
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u.test(value);
+
+  if (households.length === 0) {
+    return [{ id: "household-editor-list", message: "Add at least one household." }];
+  }
+
+  let guestCount = 0;
+  households.forEach((household, householdIndex) => {
+    const householdNameId = `household-name-${household.externalId}`;
+    const greetingId = `household-greeting-${household.externalId}`;
+    if (!household.householdName.trim()) {
+      issues.push({ id: householdNameId, message: `Household ${householdIndex + 1} needs a name.` });
+    } else if (household.householdName.trim().length > 160 || importedTextIsUnsafe(household.householdName)) {
+      issues.push({ id: householdNameId, message: `Household ${householdIndex + 1} has an invalid name.` });
+    }
+    if (household.greeting.length > 240 || importedTextIsUnsafe(household.greeting)) {
+      issues.push({ id: greetingId, message: `Household ${householdIndex + 1} has an invalid greeting.` });
+    }
+    if (household.guests.length === 0) {
+      issues.push({ id: `household-${household.externalId}`, message: `Household ${householdIndex + 1} needs at least one person.` });
+    }
+    if (household.guests.length > 30) {
+      issues.push({ id: `household-${household.externalId}`, message: `Household ${householdIndex + 1} can contain at most 30 people.` });
+    }
+    household.guests.forEach((guest, guestIndex) => {
+      guestCount += 1;
+      const guestNameId = `guest-name-${guest.externalId}`;
+      if (!guest.name.trim()) {
+        issues.push({ id: guestNameId, message: `Person ${guestIndex + 1} in household ${householdIndex + 1} needs a name.` });
+      } else if (guest.name.trim().length > 160 || importedTextIsUnsafe(guest.name)) {
+        issues.push({ id: guestNameId, message: `Person ${guestIndex + 1} in household ${householdIndex + 1} has an invalid name.` });
+      }
+    });
+  });
+  if (guestCount > 400) issues.push({ id: "household-editor-list", message: "Save no more than 400 people at once." });
+  return issues;
+}
+
 export default function AdminExperience({ displayName, signOutPath }: { displayName: string; signOutPath: string }) {
   const [data, setData] = useState<AdminData | null>(null);
   const [filter, setFilter] = useState<Attendance | "all">("all");
   const [status, setStatus] = useState("Loading guest replies…");
+  const [editorHouseholds, setEditorHouseholds] = useState<EditableHousehold[]>([]);
+  const [editorHasChanges, setEditorHasChanges] = useState(false);
+  const [editorStatus, setEditorStatus] = useState("Changes are not saved until you review and confirm them.");
+  const [editorResult, setEditorResult] = useState<ImportResult | null>(null);
+  const [editorRows, setEditorRows] = useState<ImportRow[]>([]);
+  const [editorSourceHash, setEditorSourceHash] = useState("");
+  const [editorBusy, setEditorBusy] = useState(false);
+  const [editorValidationIssues, setEditorValidationIssues] = useState<EditorIssue[]>([]);
+  const editorReadyRef = useRef(false);
+  const editorDirtyRef = useRef(false);
+  const editorRevisionRef = useRef(0);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [sourceName, setSourceName] = useState("");
   const [sourceHash, setSourceHash] = useState("");
@@ -207,12 +319,25 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreConfirmation, setRestoreConfirmation] = useState("");
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (syncEditor = false) => {
     setStatus("Refreshing guest replies…");
     try {
       const response = await fetch("/api/admin", { cache: "no-store" });
       if (!response.ok) throw new Error("unauthorized");
-      setData((await response.json()) as AdminData);
+      const payload = (await response.json()) as AdminData;
+      setData(payload);
+      if (syncEditor || !editorReadyRef.current || !editorDirtyRef.current) {
+        setEditorHouseholds(editableHouseholds(payload));
+        setEditorHasChanges(false);
+        setEditorResult(null);
+        setEditorRows([]);
+        setEditorSourceHash("");
+        setEditorValidationIssues([]);
+        setEditorStatus("Changes are not saved until you review and confirm them.");
+        editorReadyRef.current = true;
+        editorDirtyRef.current = false;
+        editorRevisionRef.current += 1;
+      }
       setStatus("");
     } catch {
       setStatus("Planning data could not be opened. Please sign in with an approved wedding planning account and try again.");
@@ -223,6 +348,16 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     const initialLoad = window.setTimeout(() => void refresh(), 0);
     return () => window.clearTimeout(initialLoad);
   }, [refresh]);
+
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!editorDirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, []);
 
   const updateSetting = async () => {
     if (!data) return;
@@ -257,6 +392,204 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       return;
     }
     await refresh();
+  };
+
+  const markEditorChanged = () => {
+    editorDirtyRef.current = true;
+    editorRevisionRef.current += 1;
+    setEditorHasChanges(true);
+    setEditorResult(null);
+    setEditorRows([]);
+    setEditorSourceHash("");
+    setEditorValidationIssues([]);
+    setEditorStatus("You have unsaved changes.");
+  };
+
+  const updateHousehold = (
+    externalId: string,
+    field: "householdName" | "greeting",
+    value: string,
+  ) => {
+    setEditorHouseholds((current) => current.map((household) => household.externalId === externalId
+      ? { ...household, [field]: value }
+      : household));
+    markEditorChanged();
+  };
+
+  const updateGuest = (
+    householdExternalId: string,
+    guestExternalId: string,
+    field: "name" | "guestType",
+    value: string,
+  ) => {
+    setEditorHouseholds((current) => current.map((household) => household.externalId === householdExternalId
+      ? {
+        ...household,
+        guests: household.guests.map((guest) => guest.externalId === guestExternalId
+          ? { ...guest, [field]: value }
+          : guest),
+      }
+      : household));
+    markEditorChanged();
+  };
+
+  const addHousehold = () => {
+    const householdExternalId = newExternalId("HOUSEHOLD");
+    const guestExternalId = newExternalId("GUEST");
+    setEditorHouseholds((current) => [...current, {
+      externalId: householdExternalId,
+      householdName: "",
+      greeting: "",
+      persisted: false,
+      guests: [{
+        externalId: guestExternalId,
+        name: "",
+        displayOrder: 1,
+        guestType: "adult",
+        persisted: false,
+      }],
+    }]);
+    markEditorChanged();
+    window.requestAnimationFrame(() => document.getElementById(`household-name-${householdExternalId}`)?.focus());
+  };
+
+  const removeHousehold = (externalId: string) => {
+    setEditorHouseholds((current) => current.filter((household) =>
+      household.externalId !== externalId || household.persisted));
+    markEditorChanged();
+  };
+
+  const addGuest = (householdExternalId: string) => {
+    const guestExternalId = newExternalId("GUEST");
+    setEditorHouseholds((current) => current.map((household) => {
+      if (household.externalId !== householdExternalId) return household;
+      const displayOrder = Math.max(0, ...household.guests.map((guest) => guest.displayOrder)) + 1;
+      return {
+        ...household,
+        guests: [...household.guests, {
+          externalId: guestExternalId,
+          name: "",
+          displayOrder,
+          guestType: "adult",
+          persisted: false,
+        }],
+      };
+    }));
+    markEditorChanged();
+    window.requestAnimationFrame(() => document.getElementById(`guest-name-${guestExternalId}`)?.focus());
+  };
+
+  const removeGuest = (householdExternalId: string, guestExternalId: string) => {
+    setEditorHouseholds((current) => current.map((household) => household.externalId === householdExternalId
+      ? { ...household, guests: household.guests.filter((guest) => guest.externalId !== guestExternalId || guest.persisted) }
+      : household));
+    markEditorChanged();
+  };
+
+  const moveGuest = (householdExternalId: string, guestIndex: number, direction: -1 | 1) => {
+    setEditorHouseholds((current) => current.map((household) => {
+      if (household.externalId !== householdExternalId) return household;
+      const targetIndex = guestIndex + direction;
+      if (targetIndex < 0 || targetIndex >= household.guests.length) return household;
+      const guests = [...household.guests];
+      [guests[guestIndex], guests[targetIndex]] = [guests[targetIndex], guests[guestIndex]];
+      return {
+        ...household,
+        guests: guests.map((guest, index) => ({ ...guest, displayOrder: index + 1 })),
+      };
+    }));
+    markEditorChanged();
+  };
+
+  const resetEditor = () => {
+    if (!data) return;
+    if (editorHasChanges && !window.confirm("Discard all unsaved guest-list changes?")) return;
+    setEditorHouseholds(editableHouseholds(data));
+    setEditorHasChanges(false);
+    setEditorResult(null);
+    setEditorRows([]);
+    setEditorSourceHash("");
+    setEditorValidationIssues([]);
+    setEditorStatus("Unsaved changes reset.");
+    editorDirtyRef.current = false;
+    editorRevisionRef.current += 1;
+  };
+
+  const reviewEditor = async () => {
+    if (editorBusy) return;
+    const issues = editorIssues(editorHouseholds);
+    setEditorValidationIssues(issues);
+    if (issues.length > 0) {
+      setEditorStatus("Fix the highlighted fields before saving.");
+      document.getElementById(issues[0].id)?.focus();
+      return;
+    }
+    const rows = rowsFromEditor(editorHouseholds);
+    const reviewedRevision = editorRevisionRef.current;
+    setEditorBusy(true);
+    setEditorStatus("Checking the guest list…");
+    setEditorResult(null);
+    try {
+      const response = await fetch("/api/admin/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: "preview", rows, sourceName: "guest-list-editor.json" }),
+      });
+      const result = (await response.json()) as ImportResult & { error?: string };
+      if (!response.ok && !result.errors?.length) throw new Error(result.error || "The guest list could not be checked.");
+      if (reviewedRevision !== editorRevisionRef.current) return;
+      setEditorResult(result);
+      setEditorRows(rows);
+      setEditorSourceHash(result.sourceHash || "");
+      setEditorStatus(result.errors.length > 0
+        ? "Resolve the issues below before saving."
+        : "Review ready. Nothing has been saved yet.");
+    } catch (error) {
+      setEditorStatus(error instanceof Error ? error.message : "The guest list could not be checked.");
+    } finally {
+      setEditorBusy(false);
+    }
+  };
+
+  const saveEditor = async () => {
+    if (editorRows.length === 0 || editorBusy || !editorResult?.previewToken ||
+      editorResult.errors.length > 0 || !editorSourceHash) return;
+    const savedRevision = editorRevisionRef.current;
+    setEditorBusy(true);
+    setEditorStatus("Saving guest list…");
+    try {
+      const response = await fetch("/api/admin/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "commit",
+          rows: editorRows,
+          sourceName: "guest-list-editor.json",
+          sourceHash: editorSourceHash,
+          previewToken: editorResult.previewToken,
+        }),
+      });
+      const result = (await response.json()) as ImportResult & { error?: string };
+      if (!response.ok) throw new Error(result.error || "The guest list could not be saved.");
+      if (savedRevision !== editorRevisionRef.current) {
+        setEditorResult(null);
+        setEditorRows([]);
+        setEditorSourceHash("");
+        setEditorStatus("The reviewed version was saved. Your newer changes are still unsaved.");
+        await refresh(false);
+        return;
+      }
+      editorDirtyRef.current = false;
+      setEditorHasChanges(false);
+      await refresh(true);
+      setEditorStatus("Guest list saved. New invitation links and codes are ready in Data & exports.");
+    } catch (error) {
+      setEditorStatus(error instanceof Error
+        ? `${error.message} Your changes are still here.`
+        : "The guest list could not be saved. Your changes are still here.");
+    } finally {
+      setEditorBusy(false);
+    }
   };
 
   const previewImport = async (rows: ImportRow[], name: string, hash: string) => {
@@ -321,7 +654,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       setImportResult(result);
       setImportRows([]);
       setImportStatus("Guest list imported. Use “Download invitation links” in Data care when the final domain is configured.");
-      await refresh();
+      await refresh(true);
     } catch (error) {
       setImportStatus(error instanceof Error ? error.message : "The guest list was not imported.");
     } finally {
@@ -398,7 +731,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       setRestoreFile(null);
       setRestoreConfirmation("");
       setBackupStatus(`Restore complete: ${result.households ?? 0} households and ${result.guests ?? 0} guests. Review the guest list before sharing any links.`);
-      await refresh();
+      await refresh(true);
     } catch (error) {
       setBackupStatus(error instanceof Error ? error.message : "The backup could not be restored.");
     } finally {
@@ -482,12 +815,20 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         <div><p className="eyebrow">Wedding desk</p><h1>Guest replies</h1></div>
         <nav aria-label="Admin sections">
           <a className="active" href="#overview">Overview</a>
+          <a href="#guest-list">Guest list</a>
           <a href="#responses">Responses</a>
-          <a href="#guest-import">Import guests</a>
           <a href="#data-care">Data & exports</a>
           <a href="#backups">Backups</a>
         </nav>
-        <Link className="back-to-site" href="/">← View invitation</Link>
+        <Link
+          className="back-to-site"
+          href="/"
+          onClick={(event) => {
+            if (editorDirtyRef.current && !window.confirm("Leave without saving your guest-list changes?")) event.preventDefault();
+          }}
+        >
+          ← View invitation
+        </Link>
       </aside>
 
       <section className="admin-content">
@@ -507,6 +848,171 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           <div><strong>{pending}</strong><span>Awaiting reply</span></div>
           <div><strong>{declined}</strong><span>Cannot attend</span></div>
         </div>
+
+        <section className="admin-tool-card guest-editor" id="guest-list" aria-labelledby="guest-list-title">
+          <div className="admin-tool-heading">
+            <div><p className="eyebrow">Invitation households</p><h2 id="guest-list-title">Guest list</h2></div>
+            <span>{editorHouseholds.length} {editorHouseholds.length === 1 ? "household" : "households"}</span>
+          </div>
+          <p className="guest-editor-intro">Add each household, then list only the people invited in it. Everyone in one household shares a private invitation link and code.</p>
+          <p className={editorHasChanges ? "guest-editor-status unsaved" : "guest-editor-status"} role="status" aria-live="polite">{editorStatus}</p>
+
+          {editorValidationIssues.length > 0 && (
+            <div className="editor-error-summary" role="alert" aria-labelledby="editor-error-title">
+              <strong id="editor-error-title">Please check {editorValidationIssues.length === 1 ? "this field" : "these fields"}:</strong>
+              <ul>{editorValidationIssues.map((issue) => <li key={`${issue.id}-${issue.message}`}><a href={`#${issue.id}`}>{issue.message}</a></li>)}</ul>
+            </div>
+          )}
+
+          <div className="household-editor-list" id="household-editor-list" tabIndex={-1}>
+            {editorHouseholds.map((household, householdIndex) => {
+              const householdNameIssue = editorValidationIssues.find((issue) => issue.id === `household-name-${household.externalId}`);
+              const greetingIssue = editorValidationIssues.find((issue) => issue.id === `household-greeting-${household.externalId}`);
+              return (
+                <fieldset className="household-editor" id={`household-${household.externalId}`} key={household.externalId}>
+                  <legend>
+                    <span>{household.householdName.trim() || `Household ${householdIndex + 1}`}</span>
+                    <small>{household.persisted ? "Saved household" : "New household"}</small>
+                  </legend>
+                  <div className="household-editor-fields">
+                    <label className={householdNameIssue ? "editor-field editor-field-error" : "editor-field"} htmlFor={`household-name-${household.externalId}`}>
+                      <span>Household name</span>
+                      <input
+                        id={`household-name-${household.externalId}`}
+                        value={household.householdName}
+                        maxLength={160}
+                        disabled={editorBusy}
+                        aria-invalid={Boolean(householdNameIssue)}
+                        aria-describedby={householdNameIssue ? `household-name-error-${household.externalId}` : undefined}
+                        placeholder="e.g. The Ivanov family"
+                        onChange={(event) => updateHousehold(household.externalId, "householdName", event.target.value)}
+                      />
+                      {householdNameIssue && <small id={`household-name-error-${household.externalId}`}>{householdNameIssue.message}</small>}
+                    </label>
+                    <label className={greetingIssue ? "editor-field editor-field-error" : "editor-field"} htmlFor={`household-greeting-${household.externalId}`}>
+                      <span>Personal greeting <em>optional</em></span>
+                      <input
+                        id={`household-greeting-${household.externalId}`}
+                        value={household.greeting}
+                        maxLength={240}
+                        disabled={editorBusy}
+                        aria-invalid={Boolean(greetingIssue)}
+                        aria-describedby={greetingIssue ? `household-greeting-error-${household.externalId}` : undefined}
+                        placeholder="e.g. Dear Elena and Nikolay"
+                        onChange={(event) => updateHousehold(household.externalId, "greeting", event.target.value)}
+                      />
+                      {greetingIssue && <small id={`household-greeting-error-${household.externalId}`}>{greetingIssue.message}</small>}
+                    </label>
+                  </div>
+
+                  <div className="guest-editor-grid">
+                    <div className="guest-editor-head" aria-hidden="true">
+                      <span>Invited person</span>
+                      <span>Type</span>
+                      <span>Order</span>
+                      <span>Action</span>
+                    </div>
+                    {household.guests.map((guest, guestIndex) => {
+                      const guestNameIssue = editorValidationIssues.find((issue) => issue.id === `guest-name-${guest.externalId}`);
+                      return (
+                        <div className="guest-editor-row" key={guest.externalId}>
+                          <label className={guestNameIssue ? "editor-field editor-field-error" : "editor-field"} htmlFor={`guest-name-${guest.externalId}`}>
+                            <span className="editor-mobile-label">Invited person</span>
+                            <input
+                              id={`guest-name-${guest.externalId}`}
+                              value={guest.name}
+                              maxLength={160}
+                              disabled={editorBusy}
+                              aria-label={`Name for ${guest.name || `person ${guestIndex + 1}`} in ${household.householdName || `household ${householdIndex + 1}`}`}
+                              aria-invalid={Boolean(guestNameIssue)}
+                              aria-describedby={guestNameIssue ? `guest-name-error-${guest.externalId}` : undefined}
+                              placeholder="Full name"
+                              onChange={(event) => updateGuest(household.externalId, guest.externalId, "name", event.target.value)}
+                            />
+                            {guestNameIssue && <small id={`guest-name-error-${guest.externalId}`}>{guestNameIssue.message}</small>}
+                          </label>
+                          <label className="editor-field" htmlFor={`guest-type-${guest.externalId}`}>
+                            <span className="editor-mobile-label">Type</span>
+                            <select
+                              id={`guest-type-${guest.externalId}`}
+                              value={guest.guestType}
+                              disabled={editorBusy}
+                              aria-label={`Guest type for ${guest.name || `person ${guestIndex + 1}`}`}
+                              onChange={(event) => updateGuest(household.externalId, guest.externalId, "guestType", event.target.value)}
+                            >
+                              <option value="adult">Adult</option>
+                              <option value="child">Child</option>
+                              <option value="infant">Infant</option>
+                            </select>
+                          </label>
+                          <div className="editor-order" role="group" aria-label={`Invitation order for ${guest.name || `person ${guestIndex + 1}`}`}>
+                            <span className="editor-mobile-label">Order</span>
+                            <button type="button" aria-label={`Move ${guest.name || `person ${guestIndex + 1}`} up`} disabled={editorBusy || guestIndex === 0} onClick={() => moveGuest(household.externalId, guestIndex, -1)}>↑</button>
+                            <strong aria-hidden="true">{guestIndex + 1}</strong>
+                            <button type="button" aria-label={`Move ${guest.name || `person ${guestIndex + 1}`} down`} disabled={editorBusy || guestIndex === household.guests.length - 1} onClick={() => moveGuest(household.externalId, guestIndex, 1)}>↓</button>
+                          </div>
+                          <div className="editor-row-action">
+                            <span className="editor-mobile-label">Action</span>
+                            {guest.persisted
+                              ? <small className="editor-saved-label">Saved</small>
+                              : <button className="editor-remove-button" type="button" disabled={editorBusy} onClick={() => removeGuest(household.externalId, guest.externalId)}>Remove</button>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="household-editor-actions">
+                    <button className="editor-add-button" type="button" disabled={editorBusy} onClick={() => addGuest(household.externalId)}>+ Add person</button>
+                    {!household.persisted && <button className="editor-remove-button" type="button" disabled={editorBusy} onClick={() => removeHousehold(household.externalId)}>Remove household</button>}
+                  </div>
+                  <p className="household-sharing-note">One link and code will open this invitation for everyone listed above.</p>
+                </fieldset>
+              );
+            })}
+            {data && editorHouseholds.length === 0 && (
+              <div className="editor-empty">
+                <strong>Your guest list is ready to begin.</strong>
+                <p>Add your first household. Everyone in a household receives one shared invitation link and code.</p>
+              </div>
+            )}
+          </div>
+
+          {editorResult && (
+            <>
+              <div className="import-preview" aria-label="Guest-list change summary">
+                <div><strong>{editorResult.summary.householdsToCreate ?? 0}</strong><span>New households</span></div>
+                <div><strong>{editorResult.summary.householdsToUpdate ?? 0}</strong><span>Household updates</span></div>
+                <div><strong>{editorResult.summary.guestsToCreate ?? 0}</strong><span>New guests</span></div>
+                <div><strong>{editorResult.summary.guestsToUpdate ?? 0}</strong><span>Guest updates</span></div>
+                <div><strong>{editorResult.errors.length}</strong><span>Issues</span></div>
+              </div>
+              {(editorResult.households?.length ?? 0) > 0 && (
+                <div className="import-household-list" aria-label="Households in this save">
+                  {editorResult.households?.map((household) => (
+                    <article key={household.externalId}>
+                      <span className={`import-change ${household.change}`}>{household.change}</span>
+                      <div><strong>{household.householdName}</strong><small>{household.guestNames.join(" · ")}</small></div>
+                    </article>
+                  ))}
+                </div>
+              )}
+              {editorResult.errors.length > 0 && <ul className="import-errors">{editorResult.errors.map((error, index) => <li key={`${formatImportError(error)}-${index}`}>{formatImportError(error)}</li>)}</ul>}
+            </>
+          )}
+
+          <div className="editor-save-actions">
+            <div>
+              <button className="editor-add-button" type="button" onClick={addHousehold} disabled={editorBusy}>+ Add household</button>
+              <button className="editor-reset-button" type="button" onClick={resetEditor} disabled={!editorHasChanges || editorBusy}>Reset unsaved changes</button>
+            </div>
+            <div>
+              <button className="secondary" type="button" onClick={() => void reviewEditor()} disabled={!editorHasChanges || editorBusy}>{editorBusy && !editorResult ? "Checking…" : "Review changes"}</button>
+              <button type="button" onClick={() => void saveEditor()} disabled={editorBusy || editorRows.length === 0 || !editorResult?.previewToken || editorResult.errors.length > 0}>{editorBusy && editorResult ? "Saving…" : "Save guest list"}</button>
+            </div>
+          </div>
+          <p className="editor-safety-note">Saved people cannot be removed from this editor. This protects live invitation links and replies from accidental deletion. A reviewed save remains valid for 15 minutes.</p>
+        </section>
 
         <section className="guest-register" id="responses">
           <div className="register-heading">
@@ -529,40 +1035,49 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           </div>
         </section>
 
-        <section className="admin-tool-card" id="guest-import">
-          <div className="admin-tool-heading"><div><p className="eyebrow">Private import</p><h2>Add the guest list</h2></div><span>CSV · no guest records save before approval</span></div>
-          <p>Use one row per guest and group households with the same <code>household_external_id</code>. Uploads are checked in full before the import button becomes available.</p>
-          <label className="guest-file-picker">
-            <span>{sourceName || "Choose guest-list CSV"}</span>
-            <input type="file" accept=".csv,text/csv" onChange={(event) => void chooseGuestList(event)} disabled={importBusy} />
-          </label>
-          <p className="import-status" role="status">{importStatus}</p>
-          {importResult && (
-            <div className="import-preview">
-              <div><strong>{importResult.summary.householdsToCreate ?? 0}</strong><span>New households</span></div>
-              <div><strong>{importResult.summary.householdsToUpdate ?? 0}</strong><span>Household updates</span></div>
-              <div><strong>{importResult.summary.guestsToCreate ?? 0}</strong><span>New guests</span></div>
-              <div><strong>{importResult.summary.guestsToUpdate ?? 0}</strong><span>Guest updates</span></div>
-              <div><strong>{importResult.errors.length}</strong><span>Issues</span></div>
+        <section className="admin-tool-card csv-import-card" id="csv-import">
+          <details className="csv-fallback">
+            <summary>
+              <span><strong>Import a CSV instead</strong><small>Optional for very large guest lists</small></span>
+              <span aria-hidden="true">Open</span>
+            </summary>
+            <div className="csv-fallback-body">
+              <div className="admin-tool-heading"><div><p className="eyebrow">Private import</p><h2>Upload a guest list</h2></div><span>Nothing saves before approval</span></div>
+              <p>Use one row per guest and group households with the same <code>household_external_id</code>. Uploads are checked in full before the import button becomes available.</p>
+              {editorHasChanges && <p className="import-omission-note">Save or reset the unsaved changes in the guest-list editor before importing a CSV.</p>}
+              <label className="guest-file-picker">
+                <span>{sourceName || "Choose guest-list CSV"}</span>
+                <input type="file" accept=".csv,text/csv" onChange={(event) => void chooseGuestList(event)} disabled={importBusy || editorHasChanges} />
+              </label>
+              <p className="import-status" role="status">{importStatus}</p>
+              {importResult && (
+                <div className="import-preview">
+                  <div><strong>{importResult.summary.householdsToCreate ?? 0}</strong><span>New households</span></div>
+                  <div><strong>{importResult.summary.householdsToUpdate ?? 0}</strong><span>Household updates</span></div>
+                  <div><strong>{importResult.summary.guestsToCreate ?? 0}</strong><span>New guests</span></div>
+                  <div><strong>{importResult.summary.guestsToUpdate ?? 0}</strong><span>Guest updates</span></div>
+                  <div><strong>{importResult.errors.length}</strong><span>Issues</span></div>
+                </div>
+              )}
+              {importResult && ((importResult.summary.activeHouseholdsNotInFile ?? 0) > 0 || (importResult.summary.activeGuestsNotInFile ?? 0) > 0) && (
+                <p className="import-omission-note"><strong>This is a safe merge.</strong> Existing records not present in this file remain active: {importResult.summary.activeHouseholdsNotInFile ?? 0} households and {importResult.summary.activeGuestsNotInFile ?? 0} guests.</p>
+              )}
+              {(importResult?.households?.length ?? 0) > 0 && (
+                <div className="import-household-list" aria-label="Households in this import">
+                  {importResult?.households?.map((household) => (
+                    <article key={household.externalId}>
+                      <span className={`import-change ${household.change}`}>{household.change}</span>
+                      <div><strong>{household.householdName}</strong><small>{household.guestNames.join(" · ")}</small></div>
+                    </article>
+                  ))}
+                </div>
+              )}
+              {(importResult?.errors.length ?? 0) > 0 && <ul className="import-errors">{importResult?.errors.map((error, index) => <li key={`${formatImportError(error)}-${index}`}>{formatImportError(error)}</li>)}</ul>}
+              <div className="admin-tool-actions">
+                <button type="button" onClick={() => void commitImport()} disabled={importBusy || editorHasChanges || importRows.length === 0 || !importResult || importResult.errors.length > 0}>{importBusy ? "Working…" : "Import approved list"}</button>
+              </div>
             </div>
-          )}
-          {importResult && ((importResult.summary.activeHouseholdsNotInFile ?? 0) > 0 || (importResult.summary.activeGuestsNotInFile ?? 0) > 0) && (
-            <p className="import-omission-note"><strong>This is a safe merge.</strong> Existing records not present in this file remain active: {importResult.summary.activeHouseholdsNotInFile ?? 0} households and {importResult.summary.activeGuestsNotInFile ?? 0} guests.</p>
-          )}
-          {(importResult?.households?.length ?? 0) > 0 && (
-            <div className="import-household-list" aria-label="Households in this import">
-              {importResult?.households?.map((household) => (
-                <article key={household.externalId}>
-                  <span className={`import-change ${household.change}`}>{household.change}</span>
-                  <div><strong>{household.householdName}</strong><small>{household.guestNames.join(" · ")}</small></div>
-                </article>
-              ))}
-            </div>
-          )}
-          {(importResult?.errors.length ?? 0) > 0 && <ul className="import-errors">{importResult?.errors.map((error, index) => <li key={`${formatImportError(error)}-${index}`}>{formatImportError(error)}</li>)}</ul>}
-          <div className="admin-tool-actions">
-            <button type="button" onClick={() => void commitImport()} disabled={importBusy || importRows.length === 0 || !importResult || importResult.errors.length > 0}>{importBusy ? "Working…" : "Import approved list"}</button>
-          </div>
+          </details>
         </section>
 
         <section className="admin-tool-card data-care-card" id="data-care">

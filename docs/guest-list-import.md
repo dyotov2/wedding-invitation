@@ -1,10 +1,29 @@
-# Guest-list import
+# Guest-list editor and import
 
-This workflow turns a private spreadsheet into one household record, one
-personal link, and one invitation code per household. The guest list and every
-generated delivery file remain outside Git.
+The admin guest-list editor is the primary way to create one household record,
+one personal link, and one invitation code per household. A CSV importer remains
+available for optional bulk entry. The guest list and every generated delivery
+file remain outside Git.
 
-## File format
+## Web editor
+
+Open `/admin`, then use **Guest list**:
+
+1. Select **Add household**.
+2. Enter the private household label and an optional personal greeting.
+3. Add every invited person, choose Adult, Child or Infant, and adjust the
+   invitation order with the arrow buttons.
+4. Select **Review changes**. No household or guest data is saved at this point.
+5. Check the create/update summary, then select **Save guest list**.
+6. Download the private invitation delivery file from **Data & exports** when
+   the guest list and final domain are ready.
+
+Internal household and guest identifiers are generated automatically and are
+not editable. Existing invitation links and codes are preserved when names,
+greetings, guest types or display order change. Saved people cannot be removed
+in the editor because deletion requires a backup and explicit manual review.
+
+## Optional CSV format
 
 Use UTF-8 CSV with one row per invited person. These columns form the import
 contract:
@@ -80,7 +99,7 @@ An ampersand is invalid in a DNS hostname. Decide and test the final production
 domain before generating URLs or QR codes. Never encode a staging URL in a
 printed card.
 
-## Import procedure
+## CSV import procedure
 
 1. Copy the original spreadsheet into an encrypted working location outside
    the repository.
