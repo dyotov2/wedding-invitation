@@ -633,6 +633,44 @@ h1, h2, h3, p { margin-top: 0; }
   .meal-options button { min-height: 115px; }
 }
 
+/* The invitation is a phone-width card by design. On anything wider than a phone,
+   present it as a printed invitation resting on a soft garden-light surface, so the
+   margins read as an intentional frame rather than empty space. Phone view is untouched. */
+@media (min-width: 600px) {
+  body {
+    background:
+      radial-gradient(60% 50% at 16% 18%, oklch(93% 0.03 310 / .5), transparent 70%),
+      radial-gradient(55% 46% at 84% 82%, oklch(92% 0.038 132 / .46), transparent 70%),
+      radial-gradient(48% 40% at 82% 12%, oklch(94% 0.035 22 / .42), transparent 70%),
+      linear-gradient(160deg, oklch(95% 0.014 84), oklch(92% 0.022 86));
+    background-attachment: fixed;
+  }
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    top: -4vh;
+    bottom: -4vh;
+    width: min(30vw, 460px);
+    z-index: 0;
+    background-repeat: no-repeat;
+    background-size: contain;
+    opacity: .28;
+    filter: blur(1px) saturate(.9);
+    pointer-events: none;
+  }
+  body::before { left: 0; background-image: url("/botanical-cluster-v1.webp"); background-position: left bottom; }
+  body::after { right: 0; background-image: url("/botanical-corner-v1.webp"); background-position: right top; transform: scaleX(-1); }
+  .entry-page, .invitation-page {
+    position: relative;
+    z-index: 1;
+    margin-block: clamp(1.5rem, 5vh, 3.5rem);
+    border-radius: 20px;
+    box-shadow: 0 44px 120px oklch(34% 0.03 120 / .2), 0 12px 34px oklch(34% 0.03 120 / .1);
+  }
+  .entry-page { min-height: min(92vh, 760px); }
+  .entry-page::before { inset: 18px; border-radius: 12px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .floating-petals, .entry-petals { display: none; }
