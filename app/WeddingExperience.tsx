@@ -59,6 +59,7 @@ type StoredRsvpDraft = {
 
 const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const DATA_DELETION_TIME = new Date("2027-06-27T00:00:00Z").getTime();
+const CEREMONY_TIME = new Date("2027-06-20T15:30:00+03:00").getTime();
 
 function preserveCredential(invitation: InvitationResponse, credential: string): InvitationResponse {
   return {
@@ -124,10 +125,6 @@ function removeLegacyCredentialDrafts() {
   } catch {
     // Draft recovery is optional; privacy-safe failure is to leave it unused.
   }
-}
-
-function PetalMark({ small = false }: { small?: boolean }) {
-  return <span className={small ? "petal-mark small" : "petal-mark"} aria-hidden="true" />;
 }
 
 type BotanicalVariant = "cluster" | "sprig" | "corner";
@@ -300,7 +297,6 @@ function HeartVine() {
         const localProgress = Math.min(1, Math.max(0.12, (heartProgress - flower.fraction) * 8));
         drawFlower(point.x, point.y, Math.max(flower.size, width / 74), flower.color, localProgress, index * 0.43);
       });
-
     };
 
     const animate = (time: number) => {
@@ -317,68 +313,6 @@ function HeartVine() {
   }, []);
 
   return <canvas ref={canvasRef} className="heart-vine-canvas" aria-hidden="true" />;
-}
-
-function BotanicalFrame() {
-  return (
-    <div className="garden-frame" aria-hidden="true">
-      <div className="side-garden garden-left">
-        <span className="garden-stem" />
-        {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
-        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
-      </div>
-      <div className="side-garden garden-right">
-        <span className="garden-stem" />
-        {[1, 2, 3, 4, 5, 6].map((leaf) => <span key={leaf} className={`garden-leaf leaf-${leaf}`} />)}
-        <BotanicalPhoto variant="sprig" className="garden-botanical garden-botanical-low" />
-      </div>
-    </div>
-  );
-}
-
-function useLivingGarden() {
-  const pageRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const page = pageRef.current;
-    if (!page) return;
-    page.classList.add("motion-ready");
-    const blooms = Array.from(page.querySelectorAll<HTMLElement>("[data-bloom]"));
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add("is-blooming");
-      });
-    }, { threshold: 0.18, rootMargin: "0px 0px -8%" });
-    blooms.forEach((element) => observer.observe(element));
-
-    let scheduled = false;
-    const updateGarden = () => {
-      const rect = page.getBoundingClientRect();
-      const travel = Math.max(page.offsetHeight - window.innerHeight, 1);
-      const progress = Math.min(1, Math.max(0, -rect.top / travel));
-      page.style.setProperty("--garden-progress", progress.toFixed(4));
-      page.classList.toggle("garden-awake", progress > 0.025);
-      scheduled = false;
-    };
-    const onScroll = () => {
-      if (!scheduled) {
-        scheduled = true;
-        window.requestAnimationFrame(updateGarden);
-      }
-    };
-    updateGarden();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-
-    return () => {
-      observer.disconnect();
-      page.classList.remove("motion-ready");
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
-
-  return pageRef;
 }
 
 const contactPresentation = {
@@ -468,21 +402,31 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
         </form>
         <p className="privacy-note">We use your invitation details and reply only to plan our wedding. Guest data will be deleted by 27 June 2027.</p>
       </section>
-      <p className="entry-footer">Ekaterina & Dimitar · Midalidare Estate, Bulgaria</p>
+      <p className="entry-footer">Ekaterina &amp; Dimitar · Midalidare Estate, Bulgaria</p>
     </main>
   );
 }
 
+function statusLabel(attendance: Attendance): string {
+  if (attendance === "attending") return "Joyfully attending";
+  if (attendance === "declined") return "Unable to attend";
+  return "Choose an answer below";
+}
+
 function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest) => void }) {
   const select = (attendance: Attendance) => onChange({ ...guest, attendance });
+  const answered = guest.attendance !== "pending";
 
   return (
-    <article className={`guest-rsvp ${guest.attendance}`}>
-      <div className="guest-heading">
-        <span className="guest-number" aria-hidden="true">{guest.name.slice(0, 1)}</span>
-        <div>
+    <article className={`guest-card ${guest.attendance}`}>
+      <div className="guest-card-head">
+        <span className="guest-avatar" aria-hidden="true">
+          {guest.name.slice(0, 1)}
+          {guest.attendance === "attending" && <span className="guest-avatar-badge">✓</span>}
+        </span>
+        <div className="guest-card-name">
           <h3>{guest.name}</h3>
-          <p>{guest.attendance === "pending" ? "Awaiting a reply" : guest.attendance === "attending" ? "Joyfully attending" : "Unable to attend"}</p>
+          <p className={answered ? `is-${guest.attendance}` : "is-pending"}>{statusLabel(guest.attendance)}</p>
         </div>
       </div>
       <div className="attendance-buttons" role="group" aria-label={`Attendance for ${guest.name}`}>
@@ -502,13 +446,65 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
             onChange={(event) => onChange({ ...guest, dietaryNotes: event.target.value })}
             placeholder="Optional, tell us what would help you feel comfortable"
             maxLength={500}
-            rows={3}
+            rows={2}
           />
         </div>
       )}
     </article>
   );
 }
+
+function VenueScene() {
+  return (
+    <div className="venue-scene" aria-label="An abstract garden view of Midalidare Estate, from a warm afternoon into a starlit celebration">
+      <div className="scene-fade scene-fade-top" aria-hidden="true" />
+      <div className="scene-fade scene-fade-bottom" aria-hidden="true" />
+      <div className="scene-sky scene-sky-day" aria-hidden="true" />
+      <div className="scene-sky scene-sky-sunset" aria-hidden="true" />
+      <div className="scene-sky scene-sky-night" aria-hidden="true" />
+      <div className="scene-stars" aria-hidden="true">
+        {[[12, 14, 3, 2.6], [26, 9, 2, 3.4], [40, 20, 3, 2.7], [58, 12, 2, 3.1], [82, 16, 3, 2.9], [70, 26, 2, 3.6], [33, 32, 2, 3.2], [90, 30, 2, 2.6]].map(([left, top, size, dur], index) => (
+          <span key={index} style={{ left: `${left}%`, top: `${top}%`, width: `${size}px`, height: `${size}px`, animationDuration: `${dur}s`, animationDelay: `${-index * 0.4}s` }} />
+        ))}
+      </div>
+      <span className="scene-sun" aria-hidden="true" />
+      <span className="scene-moon" aria-hidden="true" />
+      <span className="scene-hill scene-hill-one" aria-hidden="true" />
+      <span className="scene-hill scene-hill-two" aria-hidden="true" />
+      <div className="scene-dusk" aria-hidden="true" />
+      <span className="scene-vine-row scene-row-one" aria-hidden="true" />
+      <span className="scene-vine-row scene-row-two" aria-hidden="true" />
+      <span className="scene-vine-row scene-row-three" aria-hidden="true" />
+      <div className="scene-lights" aria-hidden="true">
+        <span className="scene-lights-wire" />
+        {[[8, 19], [20, 24], [33, 28], [45, 30], [58, 30], [70, 28], [82, 24], [94, 19]].map(([left, top], index) => (
+          <span key={index} className="scene-bulb" style={{ left: `${left}%`, top: `${top}px`, animationDelay: `${-index * 0.3}s` }} />
+        ))}
+      </div>
+      <div className="scene-fireflies" aria-hidden="true">
+        {[[22, 52, 6, 7], [48, 60, 5, 8.2], [66, 54, 6, 6.6], [80, 62, 5, 7.6]].map(([left, top, size, dur], index) => (
+          <span key={index} style={{ left: `${left}%`, top: `${top}%`, width: `${size}px`, height: `${size}px`, animationDuration: `${dur}s`, animationDelay: `${-index * 0.7}s` }} />
+        ))}
+      </div>
+      <div className="scene-botanicals" aria-hidden="true">
+        <BotanicalPhoto className="scene-botanical scene-botanical-one" />
+        <BotanicalPhoto variant="corner" className="scene-botanical scene-botanical-two" />
+      </div>
+      <p className="scene-label">Midalidare<br /><small>Among the Bulgarian vines</small></p>
+    </div>
+  );
+}
+
+const faqItems = [
+  { q: "When should I arrive?", a: "The ceremony begins at 15:30. Please arrive 20 to 30 minutes early so we can start among the vines together." },
+  { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
+  { q: "Can we change our answer?", a: "Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
+  { q: "Lost your link or code?", a: "Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help." },
+  { q: "Is there parking at the estate?", a: "There is free guest parking at Midalidare Estate. Just follow the signs on arrival." },
+  { q: "Where can we stay?", a: "The estate has rooms on site, with more nearby in Chirpan and Stara Zagora. The Stay among the vines section above has the details." },
+  { q: "What will the weather be like?", a: "A warm Bulgarian summer evening, mostly outdoors. Bring a light layer for after sunset, and remember heels and lawns do not always agree." },
+  { q: "I have a dietary need.", a: "Tell us in your RSVP above. There is a note for each guest, and the kitchen will take care of the rest." },
+] as const;
 
 function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts, onExit }: {
   household: Household;
@@ -518,11 +514,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
   contacts: ContactAction[];
   onExit: () => void;
 }) {
-  const pageRef = useLivingGarden();
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
-  const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((new Date("2027-06-20T16:30:00+03:00").getTime() - Date.now()) / 86_400_000)));
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((CEREMONY_TIME - Date.now()) / 86_400_000)));
   const draftKey = `wedding-rsvp-draft:${household.id}`;
   const updateGuest = (next: Guest) => {
     if (saveState !== "conflict") {
@@ -531,9 +527,12 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
     }
     setDraft((current) => ({ ...current, guests: current.guests.map((guest) => guest.id === next.id ? next : guest) }));
   };
-  const hasPending = draft.guests.some((guest) => guest.attendance === "pending");
+  const pendingGuests = draft.guests.filter((guest) => guest.attendance === "pending");
+  const hasPending = pendingGuests.length > 0;
+  const answeredCount = draft.guests.length - pendingGuests.length;
   const isDirty = JSON.stringify(draft.guests) !== JSON.stringify(household.guests);
   const attendingNames = draft.guests.filter((guest) => guest.attendance === "attending").map((guest) => guest.name);
+  const outstanding = pendingGuests.map((guest) => guest.name.split(" ")[0]);
 
   useEffect(() => {
     const restoreDraft = window.setTimeout(() => {
@@ -632,13 +631,23 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
     }
   };
 
+  // The save bar is sticky, so its confirmation renders below the fold; bring the
+  // receipt into view once the server confirms. scrollIntoView with default behavior
+  // follows the page's scroll-behavior, which reduced-motion already sets to auto.
+  useEffect(() => {
+    if (saveState === "success") receiptRef.current?.scrollIntoView({ block: "nearest" });
+  }, [saveState]);
+
+  const saveLabel = saveState === "saving" ? "Saving…"
+    : saveState === "error" ? "Try saving again"
+    : saveState === "conflict" ? "Latest reply needed"
+    : "Save our reply";
+
   return (
-    <main className="invitation-page" ref={pageRef}>
-      <BotanicalFrame />
+    <main className="invitation-page">
       <nav className="invitation-nav" aria-label="Invitation navigation">
-        <button type="button" className="wordmark" onClick={onExit}>E <PetalMark small /> D</button>
-        <div className="invitation-nav-links"><a href="#program">The day</a><a href="#your-invitation">RSVP</a><a href="#questions">Questions</a></div>
-        <a className="mobile-rsvp-link" href="#your-invitation">RSVP</a>
+        <span aria-hidden="true" />
+        <a className="nav-rsvp" href="#rsvp">RSVP</a>
         <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
 
@@ -648,41 +657,56 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         <div className="hero-botanical-frame" aria-hidden="true">
           <BotanicalPhoto className="hero-botanical hero-botanical-left" />
         </div>
-        <div className="floating-petals" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
-        <p className="eyebrow hero-eyebrow">Please celebrate with us</p>
-          <p className="hero-love-note">Forever starts today</p>
-        <h1><span>Ekaterina</span><small>&</small><span>Dimitar</span></h1>
-        <p className="hero-message">Join us as we begin our forever.</p>
+        <div className="floating-petals" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <span key={index} />)}</div>
+        <p className="eyebrow hero-eyebrow">Celebrate with us</p>
+        <p className="hero-love-note">Forever starts today</p>
+        <h1><span>Ekaterina</span><small>&amp;</small><span>Dimitar</span></h1>
         <div className="event-line" aria-label="Wedding date and venue">
           <div><strong>Sunday</strong><span>20 June 2027</span></div>
-          <PetalMark />
+          <span className="event-divider" aria-hidden="true" />
           <div><strong>Midalidare Estate</strong><span>Bulgaria</span></div>
         </div>
         <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 1 January 2027</p>
-        <a className="scroll-prompt" href="#your-invitation">Your invitation <span aria-hidden="true">↓</span></a>
+        <a className="scroll-prompt" href="#rsvp">Your invitation <span aria-hidden="true">↓</span></a>
+        <div className="hero-fade" aria-hidden="true" />
       </header>
 
-      <section className="personal-section" id="your-invitation" data-bloom>
-        <div className="personal-intro">
+      <section className="rsvp-section" id="rsvp">
+        <div className="rsvp-intro">
           <p className="eyebrow">{household.greeting || `Dear ${household.householdName}`}</p>
           <h2>We would love to<br />celebrate with you.</h2>
-          <p>This invitation is especially for the people named below. Please let us know whether each guest can join us.</p>
+          <p>Please let us know whether you can join us.</p>
         </div>
         <div className="rsvp-column">
           <div className="rsvp-heading">
             <div><p className="eyebrow">Kindly reply</p><h2>Will you be there?</h2></div>
             <span className="reply-date">By 1 January 2027</span>
           </div>
+
+          <div className="rsvp-progress" aria-hidden="true">
+            <div className="rsvp-progress-labels">
+              <span>{answeredCount} of {draft.guests.length} answered</span>
+              {outstanding.length > 0 && <span className="rsvp-progress-outstanding">{outstanding.join(", ")} still to answer</span>}
+            </div>
+            <div className="rsvp-progress-track">
+              <div className="rsvp-progress-fill" style={{ width: `${draft.guests.length ? (answeredCount / draft.guests.length) * 100 : 0}%` }} />
+            </div>
+          </div>
+
           <div className="guest-list">
             {draft.guests.map((guest) => <GuestRsvp key={guest.id} guest={guest} onChange={updateGuest} />)}
           </div>
-          <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
-            {saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : saveState === "conflict" ? "Latest reply needed" : "Save our reply"} <span aria-hidden="true">→</span>
-          </button>
-          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
-          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
+
+          <div className="rsvp-save">
+            {hasPending && <p className="rsvp-save-note">{outstanding.length} answer{outstanding.length > 1 ? "s" : ""} still needed for {outstanding.join(", ")}</p>}
+            <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
+              {saveLabel} <span aria-hidden="true">→</span>
+            </button>
+            <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
+            {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
+          </div>
           {saveState === "success" && (
-            <div className="rsvp-receipt" aria-label="RSVP confirmation">
+            <div className="rsvp-receipt" aria-label="RSVP confirmation" ref={receiptRef}>
               <span className="receipt-mark" aria-hidden="true">✓</span>
               <div>
                 <strong>Reply confirmed for {household.householdName}</strong>
@@ -697,7 +721,29 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
       </section>
 
-      <section className="program-hero" id="program" data-bloom aria-labelledby="program-title">
+      {mealPhaseOpen ? (
+        <section className="meal-teaser">
+          <div>
+            <p className="eyebrow">The wedding table</p>
+            <h2>Meal choices are now open</h2>
+            <p>Choose a meal for each attending guest using this same private invitation.</p>
+          </div>
+          <button type="button" className="secondary-action" onClick={onOpenMeals}>Choose meals <span aria-hidden="true">→</span></button>
+        </section>
+      ) : (
+        <section className="meal-notice" aria-label="Meal choices">
+          <BotanicalPhoto variant="sprig" className="meal-notice-botanical" />
+          <div className="meal-notice-body">
+            <p className="eyebrow">The wedding table</p>
+            <h2>The menu is<br />still blooming</h2>
+            <p>There is nothing to do here just yet. Dinner choices open in <strong>October</strong>, and you will return to this same invitation to choose a meal for each guest.</p>
+            <span className="meal-notice-pill"><span className="meal-notice-dot" aria-hidden="true" />Menu opens later this year</span>
+            <p className="meal-notice-foot">For now, please just let us know who is coming.</p>
+          </div>
+        </section>
+      )}
+
+      <section className="program-section" id="program" aria-labelledby="program-title">
         <div className="program-canopy" aria-hidden="true">
           <span className="program-branch branch-left" /><span className="program-branch branch-right" />
           <BotanicalPhoto variant="corner" className="program-botanical program-botanical-one" />
@@ -710,45 +756,25 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
         <div className="program-path">
           <span className="program-vine" aria-hidden="true" />
-          <article className="program-stop stop-one">
-            <time>16:30</time><span className="program-bud" aria-hidden="true" />
-            <div><small>Gather</small><h3>Ceremony</h3><p>Our promises among the vines.</p></div>
+          <article className="program-stop">
+            <span className="program-bud" aria-hidden="true" />
+            <div><small>Gather</small><time>15:30</time><h3>Ceremony</h3><p>Our promises among the vines.</p></div>
           </article>
-          <article className="program-stop stop-two">
-            <time>18:00</time><span className="program-bud" aria-hidden="true" />
-            <div><small>Celebrate</small><h3>Dinner</h3><p>A long table, local wine, and summer light.</p></div>
+          <article className="program-stop">
+            <span className="program-bud" aria-hidden="true" />
+            <div><small>Celebrate</small><time>18:00</time><h3>Dinner</h3><p>A long table, local wine, and summer light.</p></div>
           </article>
-          <article className="program-stop stop-three">
-            <time>20:30</time><span className="program-bud" aria-hidden="true" />
-            <div><small>Stay awhile</small><h3>Dancing</h3><p>Music beneath the evening sky.</p></div>
+          <article className="program-stop">
+            <span className="program-bud" aria-hidden="true" />
+            <div><small>Stay awhile</small><time>20:30</time><h3>Dancing</h3><p>Music beneath the evening sky.</p></div>
           </article>
         </div>
       </section>
 
-      <section className="bloom-manifesto" data-bloom aria-label="Love blooms">
-        <span className="manifesto-seal">20 · 06 · 2027</span>
-        <p>Love</p><p>blooms</p>
-        <BotanicalPhoto variant="corner" className="manifesto-botanical manifesto-one" />
-        <span className="manifesto-note">Forever starts here</span>
-      </section>
-
-      <section className="estate-section" data-bloom>
-        <div className="estate-copy">
-          <p className="eyebrow">The celebration</p>
-          <h2>A summer day<br />among the vines</h2>
-          <p>We will gather at Midalidare Estate for a relaxed afternoon of ceremony, dinner, music, and dancing beneath the Bulgarian summer sky.</p>
-          <div className="dress-code-note">
-            <span>Dress code</span>
-            <strong>Pastels & Wildflowers</strong>
-            <small>Soft, sun-washed colours and romantic floral details.</small>
-          </div>
-        </div>
-        <div className="estate-art" aria-label="An abstract garden view inspired by Midalidare Estate">
-          <span className="sun" /><span className="hill hill-one" /><span className="hill hill-two" />
-          <span className="vine-row row-one" /><span className="vine-row row-two" /><span className="vine-row row-three" />
-          <div className="estate-botanicals" aria-hidden="true"><BotanicalPhoto className="estate-botanical estate-botanical-one" /><BotanicalPhoto variant="corner" className="estate-botanical estate-botanical-two" /></div>
-          <p>Midalidare<br /><small>Among the Bulgarian vines</small></p>
-        </div>
+      <section className="venue-section" id="venue">
+        <p className="eyebrow venue-eyebrow">The celebration</p>
+        <VenueScene />
+        <p className="venue-copy">We will gather at Midalidare Estate for an afternoon of ceremony, dinner, and dancing beneath the Bulgarian summer sky.</p>
         <div className="estate-map-shell">
           <iframe
             title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
@@ -762,54 +788,63 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
             <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
           </div>
         </div>
+        <div className="dress-code-note">
+          <span>Dress code</span>
+          <strong>Pastels &amp; Wildflowers</strong>
+          <div className="dress-code-swatches" aria-hidden="true">
+            <span className="swatch-sage" /><span className="swatch-lilac" /><span className="swatch-blush" /><span className="swatch-champagne" />
+          </div>
+          <small>Soft, sun-washed colours and romantic floral details.</small>
+        </div>
+      </section>
+
+      <section className="stay-section" id="stay" aria-label="Where to stay">
+        <BotanicalPhoto variant="sprig" className="stay-botanical" />
+        <div className="stay-body">
+          <p className="eyebrow">Rest your head</p>
+          <h2>Stay among<br />the vines</h2>
+          <p>Midalidare sits a little way from the nearest town, so most guests make a night of it among the vineyards. Rooms on the estate are limited, so we would book early.</p>
+          <div className="stay-cards">
+            <div className="stay-card stay-card-onsite">
+              <span className="stay-card-eyebrow">On site</span>
+              <strong>Midalidare Estate</strong>
+              <small>Vineyard rooms and suites, a short stroll from the celebration. Wake up where the party was.</small>
+              <a className="stay-reserve" href="#stay" aria-disabled="true">Reserve a room <span aria-hidden="true">↗</span></a>
+              <small className="stay-card-foot">Booking details to follow with your invitation.</small>
+            </div>
+            <div className="stay-card">
+              <span className="stay-card-eyebrow stay-card-eyebrow-muted">15 to 40 minutes away</span>
+              <strong>Nearby: Chirpan &amp; Stara Zagora</strong>
+              <small>A handful of guesthouses and small hotels, for those who would like their own base.</small>
+            </div>
+          </div>
+          <p className="stay-foot">Heading home the same night? There is free parking on the estate, with details in the questions below.</p>
+        </div>
+        <div className="stay-fade" aria-hidden="true" />
       </section>
 
       <section className="faq-section" id="questions" aria-labelledby="faq-title">
         <div className="faq-heading">
           <p className="eyebrow">Good to know</p>
-          <h2 id="faq-title">Questions, answered</h2>
+          <h2 id="faq-title">Questions<br />&amp; answers</h2>
         </div>
         <dl className="faq-list">
-          <div>
-            <dt>When should we reply?</dt>
-            <dd>Kindly reply by 1 January 2027. If the date slips past you, we would still love to hear from you, so please reach out.</dd>
-          </div>
-          <div>
-            <dt>What happens after we reply?</dt>
-            <dd>{mealPhaseOpen
-              ? "The menu is open. Return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details closer to the day."
-              : "For now, replying is everything. Closer to the day we will open the menu, and you can return here with this same link or printed code to choose a meal for each attending guest. We will share more practical details then."}</dd>
-          </div>
-          <div>
-            <dt>Can we change our answer?</dt>
-            <dd>Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts.</dd>
-          </div>
-          <div>
-            <dt>Lost your link or code?</dt>
-            <dd>Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help.</dd>
-          </div>
+          {faqItems.map((item) => (
+            <div key={item.q}>
+              <dt>{item.q}</dt>
+              <dd>{item.a}</dd>
+            </div>
+          ))}
         </dl>
       </section>
 
-      {mealPhaseOpen && (
-        <section className="meal-teaser" data-bloom>
-          <PetalMark />
-          <div>
-            <p className="eyebrow">The wedding table</p>
-            <h2>Meal choices are now open</h2>
-            <p>Choose a meal for each attending guest using this same private invitation.</p>
-          </div>
-          <button type="button" className="secondary-action" onClick={onOpenMeals}>Choose meals <span aria-hidden="true">→</span></button>
-        </section>
-      )}
-
-      <footer className="wedding-footer" data-bloom>
+      <footer className="wedding-footer">
         <BotanicalPhoto variant="corner" className="footer-botanical" />
         <div className="footer-copy">
           <p>Thank you for being part of our story.</p>
           <span>We cannot wait to celebrate among the vines with you.</span>
         </div>
-        <span>Ekaterina & Dimitar · 20 June 2027</span>
+        <span className="footer-sign">Ekaterina &amp; Dimitar · 20 June 2027</span>
       </footer>
     </main>
   );
