@@ -295,11 +295,10 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [status, setStatus] = useState("Loading guest replies…");
   const [editorHouseholds, setEditorHouseholds] = useState<EditableHousehold[]>([]);
   const [editorHasChanges, setEditorHasChanges] = useState(false);
-  const [editorStatus, setEditorStatus] = useState("Changes are not saved until you review and confirm them.");
+  const [editorStatus, setEditorStatus] = useState("Edit the list, then select Save guest list.");
   const [editorResult, setEditorResult] = useState<ImportResult | null>(null);
-  const [editorRows, setEditorRows] = useState<ImportRow[]>([]);
-  const [editorSourceHash, setEditorSourceHash] = useState("");
   const [editorBusy, setEditorBusy] = useState(false);
+  const [editorAction, setEditorAction] = useState<"review" | "save" | null>(null);
   const [editorValidationIssues, setEditorValidationIssues] = useState<EditorIssue[]>([]);
   const editorReadyRef = useRef(false);
   const editorDirtyRef = useRef(false);
@@ -330,10 +329,8 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         setEditorHouseholds(editableHouseholds(payload));
         setEditorHasChanges(false);
         setEditorResult(null);
-        setEditorRows([]);
-        setEditorSourceHash("");
         setEditorValidationIssues([]);
-        setEditorStatus("Changes are not saved until you review and confirm them.");
+        setEditorStatus("Edit the list, then select Save guest list.");
         editorReadyRef.current = true;
         editorDirtyRef.current = false;
         editorRevisionRef.current += 1;
@@ -399,10 +396,8 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     editorRevisionRef.current += 1;
     setEditorHasChanges(true);
     setEditorResult(null);
-    setEditorRows([]);
-    setEditorSourceHash("");
     setEditorValidationIssues([]);
-    setEditorStatus("You have unsaved changes.");
+    setEditorStatus("You have unsaved changes. Select Save guest list when ready.");
   };
 
   const updateHousehold = (
@@ -507,12 +502,23 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     setEditorHouseholds(editableHouseholds(data));
     setEditorHasChanges(false);
     setEditorResult(null);
-    setEditorRows([]);
-    setEditorSourceHash("");
     setEditorValidationIssues([]);
     setEditorStatus("Unsaved changes reset.");
     editorDirtyRef.current = false;
     editorRevisionRef.current += 1;
+  };
+
+  const requestEditorPreview = async (rows: ImportRow[]) => {
+    const response = await fetch("/api/admin/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "preview", rows, sourceName: "guest-list-editor.json" }),
+    });
+    const result = (await response.json()) as ImportResult & { error?: string };
+    if (!response.ok && !result.errors?.length) {
+      throw new Error(result.error || "The guest list could not be checked.");
+    }
+    return result;
   };
 
   const reviewEditor = async () => {
@@ -527,54 +533,67 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     const rows = rowsFromEditor(editorHouseholds);
     const reviewedRevision = editorRevisionRef.current;
     setEditorBusy(true);
+    setEditorAction("review");
     setEditorStatus("Checking the guest list…");
     setEditorResult(null);
     try {
-      const response = await fetch("/api/admin/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "preview", rows, sourceName: "guest-list-editor.json" }),
-      });
-      const result = (await response.json()) as ImportResult & { error?: string };
-      if (!response.ok && !result.errors?.length) throw new Error(result.error || "The guest list could not be checked.");
+      const result = await requestEditorPreview(rows);
       if (reviewedRevision !== editorRevisionRef.current) return;
       setEditorResult(result);
-      setEditorRows(rows);
-      setEditorSourceHash(result.sourceHash || "");
       setEditorStatus(result.errors.length > 0
         ? "Resolve the issues below before saving."
-        : "Review ready. Nothing has been saved yet.");
+        : "Review ready. Select Save guest list to confirm.");
     } catch (error) {
       setEditorStatus(error instanceof Error ? error.message : "The guest list could not be checked.");
     } finally {
       setEditorBusy(false);
+      setEditorAction(null);
     }
   };
 
   const saveEditor = async () => {
-    if (editorRows.length === 0 || editorBusy || !editorResult?.previewToken ||
-      editorResult.errors.length > 0 || !editorSourceHash) return;
+    if (editorBusy || !editorDirtyRef.current) return;
+    const issues = editorIssues(editorHouseholds);
+    setEditorValidationIssues(issues);
+    if (issues.length > 0) {
+      setEditorStatus("Fix the highlighted fields before saving.");
+      document.getElementById(issues[0].id)?.focus();
+      return;
+    }
+    const rows = rowsFromEditor(editorHouseholds);
     const savedRevision = editorRevisionRef.current;
     setEditorBusy(true);
-    setEditorStatus("Saving guest list…");
+    setEditorAction("save");
+    setEditorStatus("Checking and saving the guest list…");
     try {
+      const preview = await requestEditorPreview(rows);
+      if (savedRevision !== editorRevisionRef.current) return;
+      setEditorResult(preview);
+      if (preview.errors.length > 0) {
+        setEditorStatus("Resolve the issues below before saving.");
+        return;
+      }
+      if (!preview.previewToken || !preview.sourceHash) {
+        throw new Error("The guest list review could not be approved.");
+      }
       const response = await fetch("/api/admin/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           mode: "commit",
-          rows: editorRows,
+          rows,
           sourceName: "guest-list-editor.json",
-          sourceHash: editorSourceHash,
-          previewToken: editorResult.previewToken,
+          sourceHash: preview.sourceHash,
+          previewToken: preview.previewToken,
         }),
       });
       const result = (await response.json()) as ImportResult & { error?: string };
-      if (!response.ok) throw new Error(result.error || "The guest list could not be saved.");
+      if (!response.ok) {
+        const firstIssue = result.errors?.[0] ? formatImportError(result.errors[0]) : "";
+        throw new Error(result.error || firstIssue || "The guest list could not be saved.");
+      }
       if (savedRevision !== editorRevisionRef.current) {
         setEditorResult(null);
-        setEditorRows([]);
-        setEditorSourceHash("");
         setEditorStatus("The reviewed version was saved. Your newer changes are still unsaved.");
         await refresh(false);
         return;
@@ -589,6 +608,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         : "The guest list could not be saved. Your changes are still here.");
     } finally {
       setEditorBusy(false);
+      setEditorAction(null);
     }
   };
 
@@ -1007,11 +1027,11 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
               <button className="editor-reset-button" type="button" onClick={resetEditor} disabled={!editorHasChanges || editorBusy}>Reset unsaved changes</button>
             </div>
             <div>
-              <button className="secondary" type="button" onClick={() => void reviewEditor()} disabled={!editorHasChanges || editorBusy}>{editorBusy && !editorResult ? "Checking…" : "Review changes"}</button>
-              <button type="button" onClick={() => void saveEditor()} disabled={editorBusy || editorRows.length === 0 || !editorResult?.previewToken || editorResult.errors.length > 0}>{editorBusy && editorResult ? "Saving…" : "Save guest list"}</button>
+              <button className="secondary" type="button" onClick={() => void reviewEditor()} disabled={!editorHasChanges || editorBusy}>{editorAction === "review" ? "Checking…" : "Review changes"}</button>
+              <button type="button" onClick={() => void saveEditor()} disabled={!editorHasChanges || editorBusy}>{editorAction === "save" ? "Saving…" : "Save guest list"}</button>
             </div>
           </div>
-          <p className="editor-safety-note">Saved people cannot be removed from this editor. This protects live invitation links and replies from accidental deletion. A reviewed save remains valid for 15 minutes.</p>
+          <p className="editor-safety-note">Review changes is optional. Save guest list always checks the whole list before saving. Saved people cannot be removed here, which protects live invitation links and replies from accidental deletion.</p>
         </section>
 
         <section className="guest-register" id="responses">
