@@ -315,32 +315,6 @@ function HeartVine() {
   return <canvas ref={canvasRef} className="heart-vine-canvas" aria-hidden="true" />;
 }
 
-// Reveals sections as they scroll into view. Content is fully visible without JS or under
-// reduced motion; the class only triggers the bloom transition when motion is welcome.
-function useBloomOnScroll() {
-  const pageRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const page = pageRef.current;
-    if (!page) return;
-    page.classList.add("motion-ready");
-    const blooms = Array.from(page.querySelectorAll<HTMLElement>("[data-bloom]"));
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add("is-blooming");
-      });
-    }, { threshold: 0.18, rootMargin: "0px 0px -8%" });
-    blooms.forEach((element) => observer.observe(element));
-
-    return () => {
-      observer.disconnect();
-      page.classList.remove("motion-ready");
-    };
-  }, []);
-
-  return pageRef;
-}
-
 const contactPresentation = {
   whatsapp: { label: "WhatsApp", mark: "W" },
   viber: { label: "Viber", mark: "V" },
@@ -523,9 +497,11 @@ function VenueScene() {
 
 const faqItems = [
   { q: "When should I arrive?", a: "The ceremony begins at 15:30. Please arrive 20 to 30 minutes early so we can start among the vines together." },
-  { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. Add them when you reply so we can plan a meal for them too." },
+  { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
+  { q: "Can we change our answer?", a: "Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
+  { q: "Lost your link or code?", a: "Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help." },
   { q: "Is there parking at the estate?", a: "There is free guest parking at Midalidare Estate. Just follow the signs on arrival." },
-  { q: "Where can we stay?", a: "The estate has rooms on site, with more nearby in Chirpan. We will share a short list with guests closer to the day." },
+  { q: "Where can we stay?", a: "The estate has rooms on site, with more nearby in Chirpan and Stara Zagora. The Stay among the vines section above has the details." },
   { q: "What will the weather be like?", a: "A warm Bulgarian summer evening, mostly outdoors. Bring a light layer for after sunset, and remember heels and lawns do not always agree." },
   { q: "I have a dietary need.", a: "Tell us in your RSVP above. There is a note for each guest, and the kitchen will take care of the rest." },
 ] as const;
@@ -538,10 +514,10 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
   contacts: ContactAction[];
   onExit: () => void;
 }) {
-  const pageRef = useBloomOnScroll();
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState("");
+  const receiptRef = useRef<HTMLDivElement>(null);
   const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((CEREMONY_TIME - Date.now()) / 86_400_000)));
   const draftKey = `wedding-rsvp-draft:${household.id}`;
   const updateGuest = (next: Guest) => {
@@ -655,13 +631,20 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
     }
   };
 
+  // The save bar is sticky, so its confirmation renders below the fold; bring the
+  // receipt into view once the server confirms. scrollIntoView with default behavior
+  // follows the page's scroll-behavior, which reduced-motion already sets to auto.
+  useEffect(() => {
+    if (saveState === "success") receiptRef.current?.scrollIntoView({ block: "nearest" });
+  }, [saveState]);
+
   const saveLabel = saveState === "saving" ? "Saving…"
     : saveState === "error" ? "Try saving again"
     : saveState === "conflict" ? "Latest reply needed"
     : "Save our reply";
 
   return (
-    <main className="invitation-page" ref={pageRef}>
+    <main className="invitation-page">
       <nav className="invitation-nav" aria-label="Invitation navigation">
         <span aria-hidden="true" />
         <a className="nav-rsvp" href="#rsvp">RSVP</a>
@@ -688,7 +671,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         <div className="hero-fade" aria-hidden="true" />
       </header>
 
-      <section className="rsvp-section" id="rsvp" data-bloom>
+      <section className="rsvp-section" id="rsvp">
         <div className="rsvp-intro">
           <p className="eyebrow">{household.greeting || `Dear ${household.householdName}`}</p>
           <h2>We would love to<br />celebrate with you.</h2>
@@ -719,11 +702,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
             <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
               {saveLabel} <span aria-hidden="true">→</span>
             </button>
+            <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
+            {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
           </div>
-          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
-          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
           {saveState === "success" && (
-            <div className="rsvp-receipt" aria-label="RSVP confirmation">
+            <div className="rsvp-receipt" aria-label="RSVP confirmation" ref={receiptRef}>
               <span className="receipt-mark" aria-hidden="true">✓</span>
               <div>
                 <strong>Reply confirmed for {household.householdName}</strong>
@@ -739,7 +722,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       </section>
 
       {mealPhaseOpen ? (
-        <section className="meal-teaser" data-bloom>
+        <section className="meal-teaser">
           <div>
             <p className="eyebrow">The wedding table</p>
             <h2>Meal choices are now open</h2>
@@ -748,7 +731,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           <button type="button" className="secondary-action" onClick={onOpenMeals}>Choose meals <span aria-hidden="true">→</span></button>
         </section>
       ) : (
-        <section className="meal-notice" data-bloom aria-label="Meal choices">
+        <section className="meal-notice" aria-label="Meal choices">
           <BotanicalPhoto variant="sprig" className="meal-notice-botanical" />
           <div className="meal-notice-body">
             <p className="eyebrow">The wedding table</p>
@@ -760,7 +743,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </section>
       )}
 
-      <section className="program-section" id="program" data-bloom aria-labelledby="program-title">
+      <section className="program-section" id="program" aria-labelledby="program-title">
         <div className="program-canopy" aria-hidden="true">
           <span className="program-branch branch-left" /><span className="program-branch branch-right" />
           <BotanicalPhoto variant="corner" className="program-botanical program-botanical-one" />
@@ -788,7 +771,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
       </section>
 
-      <section className="venue-section" id="venue" data-bloom>
+      <section className="venue-section" id="venue">
         <p className="eyebrow venue-eyebrow">The celebration</p>
         <VenueScene />
         <p className="venue-copy">We will gather at Midalidare Estate for an afternoon of ceremony, dinner, and dancing beneath the Bulgarian summer sky.</p>
@@ -815,7 +798,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
       </section>
 
-      <section className="stay-section" id="stay" data-bloom aria-label="Where to stay">
+      <section className="stay-section" id="stay" aria-label="Where to stay">
         <BotanicalPhoto variant="sprig" className="stay-botanical" />
         <div className="stay-body">
           <p className="eyebrow">Rest your head</p>
@@ -840,7 +823,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         <div className="stay-fade" aria-hidden="true" />
       </section>
 
-      <section className="faq-section" id="questions" data-bloom aria-labelledby="faq-title">
+      <section className="faq-section" id="questions" aria-labelledby="faq-title">
         <div className="faq-heading">
           <p className="eyebrow">Good to know</p>
           <h2 id="faq-title">Questions<br />&amp; answers</h2>
@@ -855,7 +838,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </dl>
       </section>
 
-      <footer className="wedding-footer" data-bloom>
+      <footer className="wedding-footer">
         <BotanicalPhoto variant="corner" className="footer-botanical" />
         <div className="footer-copy">
           <p>Thank you for being part of our story.</p>
