@@ -344,6 +344,8 @@ h1, h2, h3, p { margin-top: 0; }
 /* Program timeline */
 .program-section { position: relative; z-index: 2; display: grid; align-content: center; overflow: hidden; padding: 6rem 39px; background: radial-gradient(circle at 50% 42%, var(--pastel-champagne), transparent 34%), radial-gradient(circle at 12% 82%, oklch(88% .04 132 / .72), transparent 32%), linear-gradient(145deg, var(--pastel-sage), var(--pastel-lilac)); color: var(--ink); }
 .program-section::after { content: ""; position: absolute; inset: 0; opacity: .16; background-image: radial-gradient(oklch(48% .025 122) .55px, transparent .75px); background-size: 7px 7px; pointer-events: none; }
+/* The chapter emerges from the cream of the meal notice above, like the hero fade. */
+.program-section::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 130px; z-index: 2; background: linear-gradient(180deg, var(--paper), transparent); pointer-events: none; }
 .program-canopy { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
 .program-branch { position: absolute; width: 44%; height: 72%; top: -24%; border: 2px solid oklch(61% .035 130); border-bottom-color: transparent; border-radius: 50%; opacity: .9; }
 .branch-left { left: -15%; transform: rotate(27deg); }
@@ -450,6 +452,8 @@ h1, h2, h3, p { margin-top: 0; }
 
 /* Footer */
 .wedding-footer { position: relative; z-index: 2; min-height: 523px; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2rem; overflow: hidden; padding: 64px 39px; background: radial-gradient(circle at 80% 20%, var(--pastel-sage), transparent 38%), linear-gradient(145deg, var(--pastel-lilac), var(--pastel-blush)); color: var(--ink); }
+/* Same cream veil between the paper FAQ and the lilac farewell. */
+.wedding-footer::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 132px; z-index: 1; background: linear-gradient(180deg, var(--paper), transparent); pointer-events: none; }
 .footer-copy { position: relative; z-index: 2; width: var(--inner); margin-inline: auto; }
 .footer-copy p { max-width: 12ch; margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.8rem, 11vw, 2.8rem); line-height: 0.9; }
 .footer-copy > span { display: block; max-width: 24ch; margin-top: 1.3rem; font-size: .9rem; line-height: 1.6; letter-spacing: .02em; }
