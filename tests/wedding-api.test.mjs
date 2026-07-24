@@ -508,6 +508,110 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
   database.close();
 });
 
+test("guest-editor saves only invalidate invitations for households that changed", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  const admin = { email: "dyotov2@gmail.com", method: "POST" };
+  const householdAToken = "version-token-household-a-1234567890";
+  const editorRows = [
+    {
+      householdExternalId: "VERSION-HOUSEHOLD-A",
+      householdName: "Household A",
+      householdGreeting: "Dear Household A",
+      guestExternalId: "VERSION-GUEST-A",
+      guestName: "Guest A",
+      displayOrder: 1,
+      guestType: "adult",
+    },
+    {
+      householdExternalId: "VERSION-HOUSEHOLD-B",
+      householdName: "Household B",
+      householdGreeting: "Dear Household B",
+      guestExternalId: "VERSION-GUEST-B",
+      guestName: "Guest B",
+      displayOrder: 1,
+      guestType: "adult",
+    },
+  ];
+
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name, greeting, response_version)
+    VALUES (?, ?, ?, ?, ?, ?)`)
+    .run("VERSION-HOUSEHOLD-A", householdAToken, "VERSIONA23", "Household A", "Dear Household A", 4);
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name, greeting, response_version)
+    VALUES (?, ?, ?, ?, ?, ?)`)
+    .run("VERSION-HOUSEHOLD-B", "version-token-household-b", "VERSIONB23", "Household B", "Dear Household B", 7);
+  const householdAId = database.prepare(
+    "SELECT id FROM households WHERE external_id = 'VERSION-HOUSEHOLD-A'",
+  ).get().id;
+  const householdBId = database.prepare(
+    "SELECT id FROM households WHERE external_id = 'VERSION-HOUSEHOLD-B'",
+  ).get().id;
+  database.prepare(`INSERT INTO guests
+    (external_id, household_id, name, display_order, guest_type)
+    VALUES (?, ?, ?, ?, ?)`)
+    .run("VERSION-GUEST-A", householdAId, "Guest A", 1, "adult");
+  database.prepare(`INSERT INTO guests
+    (external_id, household_id, name, display_order, guest_type)
+    VALUES (?, ?, ?, ?, ?)`)
+    .run("VERSION-GUEST-B", householdBId, "Guest B", 1, "adult");
+
+  const staleInvitationResponse = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST",
+    body: { credential: householdAToken },
+    origin: undefined,
+  });
+  assert.equal(staleInvitationResponse.status, 200);
+  const staleInvitation = await staleInvitationResponse.json();
+  assert.equal(staleInvitation.household.responseVersion, 4);
+
+  const editedRows = editorRows.map((row) => row.guestExternalId === "VERSION-GUEST-A"
+    ? { ...row, guestName: "Guest A Edited" }
+    : row);
+  const previewResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "preview", rows: editedRows, sourceName: "guest-editor.json" },
+  });
+  assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  const saveResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: {
+      mode: "commit",
+      rows: editedRows,
+      sourceName: "guest-editor.json",
+      sourceHash: preview.sourceHash,
+      previewToken: preview.previewToken,
+    },
+  });
+  assert.equal(saveResponse.status, 200);
+
+  const versions = database.prepare(`SELECT external_id AS externalId, response_version AS responseVersion
+    FROM households ORDER BY external_id`).all();
+  assert.deepEqual(versions.map((version) => ({ ...version })), [
+    { externalId: "VERSION-HOUSEHOLD-A", responseVersion: 5 },
+    { externalId: "VERSION-HOUSEHOLD-B", responseVersion: 7 },
+  ]);
+
+  const staleRsvp = await apiRequest(worker, d1, "/api/rsvp", {
+    method: "POST",
+    origin: undefined,
+    body: {
+      credential: householdAToken,
+      responseVersion: staleInvitation.household.responseVersion,
+      guests: staleInvitation.household.guests.map((guest) => ({
+        id: guest.id,
+        attendance: "attending",
+        dietaryNotes: "",
+      })),
+    },
+  });
+  assert.equal(staleRsvp.status, 409);
+
+  database.close();
+});
+
 test("invitation lookup throttling blocks even a later valid credential", async () => {
   const worker = await loadWorker();
   const { database, d1 } = await migratedDatabase();

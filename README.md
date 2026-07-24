@@ -3,7 +3,9 @@
 The private, phone-first wedding invitation and RSVP system for Ekaterina and
 Dimitar's celebration at Midalidare Estate on 20 June 2027.
 
-Guests open a household-specific link or enter the code printed on their card.
+Guests open a household-specific link directly or scan its QR code. The public
+root does not ask for a code; a missing or damaged link shows calm recovery
+guidance instead of exposing a credential form.
 They can reply for every invited person, leave dietary or accessibility notes,
 and reuse the same link when meal selection opens. The admin view combines
 website replies with replies received by phone, WhatsApp, Viber, or paper.
@@ -84,7 +86,9 @@ purge and the runbook covers removal of every external copy.
 ## Guest-list workflow
 
 Use the household editor in `/admin` for the normal workflow. Add a household,
-add its invited people, review the change summary, then save. The application
+add its invited people, then select **Save guest list**. The save action validates
+and shows the resulting change summary as it commits; **Review changes** remains
+available as an optional dry run. The application
 creates stable internal identifiers and generates one private URL and code per
 new household automatically. Editing names, greetings, guest type or order does
 not rotate an existing invitation credential.

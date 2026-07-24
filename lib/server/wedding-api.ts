@@ -1067,16 +1067,20 @@ async function handleAdminImport(request: Request, db: D1Database, email: string
     .bind(batchId, sourceName, sourceHash, validation.rows.length, grouped.size, validation.rows.length, email));
   for (const [externalId, row] of grouped) {
     const credential = credentials.get(externalId)!;
-    const persistedExternalId = existing.households.get(externalId)?.externalId ?? externalId;
+    const currentHousehold = existing.households.get(externalId);
+    const persistedExternalId = currentHousehold?.externalId ?? externalId;
+    const responseDataChanged = !householdImportMatches(row, currentHousehold) ||
+      validation.rows.some((guestRow) => guestRow.householdExternalId === externalId &&
+        !guestImportMatches(guestRow, existing.guests.get(guestRow.guestExternalId), currentHousehold));
     statements.push(db.prepare(`INSERT INTO households
       (external_id, link_token, short_code, household_name, greeting, active, import_batch_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(external_id) DO UPDATE SET household_name = excluded.household_name,
         greeting = excluded.greeting,
         import_batch_id = excluded.import_batch_id,
-        response_version = households.response_version + 1, updated_at = CURRENT_TIMESTAMP`)
+        response_version = households.response_version + ?, updated_at = CURRENT_TIMESTAMP`)
       .bind(persistedExternalId, credential.linkToken, credential.shortCode, row.householdName,
-        row.householdGreeting, 1, batchId));
+        row.householdGreeting, 1, batchId, responseDataChanged ? 1 : 0));
   }
   for (const row of validation.rows) {
     const persistedGuestExternalId = existing.guests.get(row.guestExternalId)?.externalId ?? row.guestExternalId;
