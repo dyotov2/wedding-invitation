@@ -83,14 +83,17 @@ purge and the runbook covers removal of every external copy.
 
 ## Guest-list workflow
 
-Use one CSV row per invited person and group people with a stable
-`household_external_id`. Every person also needs a stable `guest_external_id`.
-The importer validates the file, shows a dry-run summary,
-then upserts households and guests idempotently. Imports are safe merges: an
-omitted existing record remains active and is clearly reported. It exports one personal
-URL and code per household plus the value used to generate its QR code.
+Use the household editor in `/admin` for the normal workflow. Add a household,
+add its invited people, review the change summary, then save. The application
+creates stable internal identifiers and generates one private URL and code per
+new household automatically. Editing names, greetings, guest type or order does
+not rotate an existing invitation credential.
 
-The complete column contract, example template, validation rules, reconciliation
+CSV remains available as an optional bulk-import fallback. Both paths use the
+same validated preview-and-commit API and safe-merge rules: an omitted existing
+record remains active and is clearly reported.
+
+The complete editor workflow, CSV contract, validation rules, reconciliation
 steps and private-file handling are in [Guest-list import](docs/guest-list-import.md).
 
 ## Domain and QR warning
