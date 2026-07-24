@@ -13,8 +13,10 @@ Open `/admin`, then use **Guest list**:
 2. Enter the private household label and an optional personal greeting.
 3. Add every invited person, choose Adult, Child or Infant, and adjust the
    invitation order with the arrow buttons.
-4. Select **Review changes**. No household or guest data is saved at this point.
-5. Check the create/update summary, then select **Save guest list**.
+4. Select **Save guest list**. The editor validates, previews and commits the
+   approved rows in one action. Use **Review changes** first only when you want
+   a dry run; it never saves household or guest data.
+5. Check the create/update summary and the saved confirmation.
 6. Download the private invitation delivery file from **Data & exports** when
    the guest list and final domain are ready.
 

@@ -60,7 +60,9 @@ controlled import or admin workflow.
 
 ## Request and data flow
 
-1. A guest scans a QR code, opens a personal link, or enters a printed code.
+1. A guest scans a QR code or opens the household's personal link. A request
+   without a valid personal credential receives private recovery guidance and
+   no public code-entry form.
 2. The Worker normalizes the credential, applies abuse controls, and returns
    only the matching household and invited people.
 3. The guest submits one response for every invited person.

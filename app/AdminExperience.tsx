@@ -107,6 +107,9 @@ type EditorIssue = {
   message: string;
 };
 
+type ManualReplyDraft = Pick<Guest, "attendance" | "responseSource" | "dietaryNotes" | "mealChoice">;
+type ManualReplySaveState = "draft" | "saving" | "saved" | "error";
+
 const requiredHeaders = [
   "household_external_id",
   "household_name",
@@ -236,6 +239,15 @@ function editableHouseholds(data: AdminData): EditableHousehold[] {
     }));
 }
 
+function manualReplyDraftFromGuest(guest: Guest): ManualReplyDraft {
+  return {
+    attendance: guest.attendance,
+    responseSource: guest.responseSource,
+    dietaryNotes: guest.dietaryNotes,
+    mealChoice: guest.mealChoice,
+  };
+}
+
 function rowsFromEditor(households: EditableHousehold[]): ImportRow[] {
   return households.flatMap((household) => household.guests.map((guest) => ({
     householdExternalId: household.externalId,
@@ -303,6 +315,12 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const editorReadyRef = useRef(false);
   const editorDirtyRef = useRef(false);
   const editorRevisionRef = useRef(0);
+  const [replyRefreshBusy, setReplyRefreshBusy] = useState(false);
+  const [manualReplyDrafts, setManualReplyDrafts] = useState<Record<number, ManualReplyDraft>>({});
+  const manualReplyDraftsRef = useRef<Record<number, ManualReplyDraft>>({});
+  const [manualReplySaveStates, setManualReplySaveStates] = useState<Record<number, ManualReplySaveState>>({});
+  const manualReplyQueuesRef = useRef(new Map<number, Promise<void>>());
+  const manualNoteDirtyRef = useRef(new Set<number>());
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [sourceName, setSourceName] = useState("");
   const [sourceHash, setSourceHash] = useState("");
@@ -336,8 +354,10 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         editorRevisionRef.current += 1;
       }
       setStatus("");
+      return true;
     } catch {
       setStatus("Planning data could not be opened. Please sign in with an approved wedding planning account and try again.");
+      return false;
     }
   }, []);
 
@@ -371,24 +391,81 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
     await refresh();
   };
 
-  const manualReply = async (
-    guestId: number,
-    attendance: Attendance,
-    responseSource: ReplySource,
-    dietaryNotes: string,
-    mealChoice: string,
-  ) => {
-    setStatus("Saving manual reply…");
-    const response = await fetch("/api/admin/reply", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ guestId, attendance, responseSource, dietaryNotes, mealChoice }),
-    });
-    if (!response.ok) {
-      setStatus("That reply could not be saved. Please try again.");
-      return;
+  const refreshReplies = async () => {
+    if (replyRefreshBusy) return;
+    const preservingGuestListChanges = editorDirtyRef.current;
+    setReplyRefreshBusy(true);
+    try {
+      const refreshed = await refresh(false);
+      if (refreshed) {
+        setStatus(preservingGuestListChanges
+          ? "Replies refreshed. Your unsaved guest-list changes are still here."
+          : "Replies refreshed.");
+      }
+    } finally {
+      setReplyRefreshBusy(false);
     }
-    await refresh();
+  };
+
+  const updateManualReplyDraft = (
+    guest: Guest,
+    changes: Partial<ManualReplyDraft>,
+    noteIsDirty = false,
+  ): ManualReplyDraft => {
+    const nextDraft = {
+      ...(manualReplyDraftsRef.current[guest.id] ?? manualReplyDraftFromGuest(guest)),
+      ...changes,
+    };
+    const nextDrafts = { ...manualReplyDraftsRef.current, [guest.id]: nextDraft };
+    manualReplyDraftsRef.current = nextDrafts;
+    setManualReplyDrafts(nextDrafts);
+    if (noteIsDirty) {
+      manualNoteDirtyRef.current.add(guest.id);
+      setManualReplySaveStates((current) => ({ ...current, [guest.id]: "draft" }));
+    }
+    return nextDraft;
+  };
+
+  const queueManualReply = (guest: Guest, draft: ManualReplyDraft) => {
+    manualNoteDirtyRef.current.delete(guest.id);
+    setStatus(`Saving reply for ${guest.name}…`);
+    setManualReplySaveStates((current) => ({ ...current, [guest.id]: "saving" }));
+
+    const previous = manualReplyQueuesRef.current.get(guest.id) ?? Promise.resolve();
+    const operation = previous
+      .catch(() => undefined)
+      .then(async () => {
+        const response = await fetch("/api/admin/reply", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ guestId: guest.id, ...draft }),
+        });
+        if (!response.ok) throw new Error("manual reply save failed");
+      });
+    manualReplyQueuesRef.current.set(guest.id, operation);
+
+    void operation.then(async () => {
+      if (manualReplyQueuesRef.current.get(guest.id) !== operation) return;
+      const refreshed = await refresh(false);
+      if (manualReplyQueuesRef.current.get(guest.id) !== operation) return;
+      manualReplyQueuesRef.current.delete(guest.id);
+
+      if (refreshed) {
+        const nextDrafts = { ...manualReplyDraftsRef.current };
+        delete nextDrafts[guest.id];
+        manualReplyDraftsRef.current = nextDrafts;
+        setManualReplyDrafts(nextDrafts);
+      }
+      setManualReplySaveStates((current) => ({ ...current, [guest.id]: "saved" }));
+      setStatus(refreshed
+        ? `Reply saved for ${guest.name}.`
+        : `Reply saved for ${guest.name}, but the latest replies could not be refreshed. Select Refresh replies.`);
+    }).catch(() => {
+      if (manualReplyQueuesRef.current.get(guest.id) !== operation) return;
+      manualReplyQueuesRef.current.delete(guest.id);
+      setManualReplySaveStates((current) => ({ ...current, [guest.id]: "error" }));
+      setStatus(`The reply for ${guest.name} could not be saved. Your changes are still here; try again.`);
+    });
   };
 
   const markEditorChanged = () => {
@@ -601,7 +678,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       editorDirtyRef.current = false;
       setEditorHasChanges(false);
       await refresh(true);
-      setEditorStatus("Guest list saved. New invitation links and codes are ready in Data & exports.");
+      setEditorStatus("Guest list saved. New personal invitation links are ready in Data & exports.");
     } catch (error) {
       setEditorStatus(error instanceof Error
         ? `${error.message} Your changes are still here.`
@@ -874,7 +951,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
             <div><p className="eyebrow">Invitation households</p><h2 id="guest-list-title">Guest list</h2></div>
             <span>{editorHouseholds.length} {editorHouseholds.length === 1 ? "household" : "households"}</span>
           </div>
-          <p className="guest-editor-intro">Add each household, then list only the people invited in it. Everyone in one household shares a private invitation link and code.</p>
+          <p className="guest-editor-intro">Add each household, then list only the people invited in it. Everyone in one household shares one private invitation link.</p>
           <p className={editorHasChanges ? "guest-editor-status unsaved" : "guest-editor-status"} role="status" aria-live="polite">{editorStatus}</p>
 
           {editorValidationIssues.length > 0 && (
@@ -986,14 +1063,14 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
                     <button className="editor-add-button" type="button" disabled={editorBusy} onClick={() => addGuest(household.externalId)}>+ Add person</button>
                     {!household.persisted && <button className="editor-remove-button" type="button" disabled={editorBusy} onClick={() => removeHousehold(household.externalId)}>Remove household</button>}
                   </div>
-                  <p className="household-sharing-note">One link and code will open this invitation for everyone listed above.</p>
+                  <p className="household-sharing-note">One private link will open this invitation for everyone listed above.</p>
                 </fieldset>
               );
             })}
             {data && editorHouseholds.length === 0 && (
               <div className="editor-empty">
                 <strong>Your guest list is ready to begin.</strong>
-                <p>Add your first household. Everyone in a household receives one shared invitation link and code.</p>
+                <p>Add your first household. Everyone in a household receives one shared personal invitation link.</p>
               </div>
             )}
           </div>
@@ -1037,20 +1114,100 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         <section className="guest-register" id="responses">
           <div className="register-heading">
             <div><p className="eyebrow">Live guest list</p><h2>Responses</h2></div>
-            <div className="filter-buttons">{(["all", "attending", "pending", "declined"] as const).map((item) => <button type="button" key={item} aria-pressed={filter === item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "All guests" : item === "declined" ? "Not attending" : item}</button>)}</div>
+            <div className="filter-buttons">
+              <button className="response-refresh" type="button" disabled={!data || replyRefreshBusy} onClick={() => void refreshReplies()}>
+                {replyRefreshBusy ? "Refreshing…" : "Refresh replies"}
+              </button>
+              {(["all", "attending", "pending", "declined"] as const).map((item) => <button type="button" key={item} aria-pressed={filter === item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "All guests" : item === "declined" ? "Not attending" : item}</button>)}
+            </div>
           </div>
           <div className="guest-table" role="table" aria-label="Guest responses">
             <div className="table-row table-head" role="row"><span>Guest</span><span>Household</span><span>Reply</span><span>Source</span><span>Notes</span><span>Meal</span></div>
-            {visible.map((guest) => (
-              <div className="table-row" role="row" key={guest.id}>
-                <span data-label="Guest"><strong>{guest.name}</strong><small>{guest.externalId || "Invited guest"}</small></span>
-                <span data-label="Household">{guest.household.householdName}</span>
-                <span data-label="Reply"><select aria-label={`Reply for ${guest.name}`} value={guest.attendance} onChange={(event) => void manualReply(guest.id, event.target.value as Attendance, guest.responseSource, guest.dietaryNotes, guest.mealChoice)}><option value="pending">Pending</option><option value="attending">Attending</option><option value="declined">Cannot attend</option></select></span>
-                <span data-label="Source"><select aria-label={`Reply source for ${guest.name}`} value={guest.responseSource} onChange={(event) => void manualReply(guest.id, guest.attendance, event.target.value as ReplySource, guest.dietaryNotes, guest.mealChoice)}><option value="website">Website</option><option value="phone">Phone</option><option value="whatsapp">WhatsApp</option><option value="viber">Viber</option><option value="paper">Paper</option></select></span>
-                <span data-label="Notes" className="notes-cell"><textarea aria-label={`Dietary or accessibility notes for ${guest.name}`} defaultValue={guest.dietaryNotes} maxLength={500} placeholder="No notes" onBlur={(event) => { if (event.target.value !== guest.dietaryNotes) void manualReply(guest.id, guest.attendance, guest.responseSource, event.target.value, guest.mealChoice); }} /></span>
-                <span data-label="Meal" className="notes-cell"><select aria-label={`Meal choice for ${guest.name}`} value={guest.mealChoice} disabled={!data?.mealPhaseOpen || guest.attendance !== "attending"} onChange={(event) => void manualReply(guest.id, guest.attendance, guest.responseSource, guest.dietaryNotes, event.target.value)}><option value="">Not chosen</option>{data?.mealOptions.filter((option) => option.guestType === "all" || option.guestType === guest.guestType).map((option) => <option key={option.optionKey} value={option.optionKey}>{option.name}</option>)}</select></span>
-              </div>
-            ))}
+            {visible.map((guest) => {
+              const replyDraft = manualReplyDrafts[guest.id] ?? manualReplyDraftFromGuest(guest);
+              const replySaveState = manualReplySaveStates[guest.id];
+              const replyIsSaving = replySaveState === "saving";
+              const replySaveLabel = replySaveState === "draft"
+                ? "Notes not saved"
+                : replySaveState === "saving"
+                  ? "Saving reply…"
+                  : replySaveState === "saved"
+                    ? "Reply saved"
+                    : replySaveState === "error"
+                      ? "Save failed"
+                      : "";
+
+              return (
+                <div className="table-row" role="row" key={guest.id} aria-busy={replyIsSaving}>
+                  <span data-label="Guest">
+                    <strong>{guest.name}</strong>
+                    <small>{guest.externalId || "Invited guest"}</small>
+                    {replySaveLabel && <small className={`manual-reply-status ${replySaveState}`} role="status">{replySaveLabel}</small>}
+                  </span>
+                  <span data-label="Household">{guest.household.householdName}</span>
+                  <span data-label="Reply">
+                    <select
+                      aria-label={`Reply for ${guest.name}`}
+                      value={replyDraft.attendance}
+                      disabled={replyIsSaving}
+                      onChange={(event) => {
+                        const nextDraft = updateManualReplyDraft(guest, { attendance: event.target.value as Attendance });
+                        queueManualReply(guest, nextDraft);
+                      }}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="attending">Attending</option>
+                      <option value="declined">Cannot attend</option>
+                    </select>
+                  </span>
+                  <span data-label="Source">
+                    <select
+                      aria-label={`Reply source for ${guest.name}`}
+                      value={replyDraft.responseSource}
+                      disabled={replyIsSaving}
+                      onChange={(event) => {
+                        const nextDraft = updateManualReplyDraft(guest, { responseSource: event.target.value as ReplySource });
+                        queueManualReply(guest, nextDraft);
+                      }}
+                    >
+                      <option value="website">Website</option>
+                      <option value="phone">Phone</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="viber">Viber</option>
+                      <option value="paper">Paper</option>
+                    </select>
+                  </span>
+                  <span data-label="Notes" className="notes-cell">
+                    <textarea
+                      aria-label={`Dietary or accessibility notes for ${guest.name}`}
+                      value={replyDraft.dietaryNotes}
+                      disabled={replyIsSaving}
+                      maxLength={500}
+                      placeholder="No notes"
+                      onChange={(event) => updateManualReplyDraft(guest, { dietaryNotes: event.target.value }, true)}
+                      onBlur={() => {
+                        if (!manualNoteDirtyRef.current.has(guest.id)) return;
+                        queueManualReply(guest, manualReplyDraftsRef.current[guest.id] ?? replyDraft);
+                      }}
+                    />
+                  </span>
+                  <span data-label="Meal" className="notes-cell">
+                    <select
+                      aria-label={`Meal choice for ${guest.name}`}
+                      value={replyDraft.mealChoice}
+                      disabled={replyIsSaving || !data?.mealPhaseOpen || replyDraft.attendance !== "attending"}
+                      onChange={(event) => {
+                        const nextDraft = updateManualReplyDraft(guest, { mealChoice: event.target.value });
+                        queueManualReply(guest, nextDraft);
+                      }}
+                    >
+                      <option value="">Not chosen</option>
+                      {data?.mealOptions.filter((option) => option.guestType === "all" || option.guestType === guest.guestType).map((option) => <option key={option.optionKey} value={option.optionKey}>{option.name}</option>)}
+                    </select>
+                  </span>
+                </div>
+              );
+            })}
             {data && visible.length === 0 && <p className="admin-empty">No guests match this filter.</p>}
           </div>
         </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 
 type Attendance = "pending" | "attending" | "declined";
@@ -47,6 +47,12 @@ type MealOption = {
 };
 
 type SaveState = "idle" | "saving" | "success" | "error" | "conflict";
+type InvitationGateState = "checking" | "missing" | "invalid" | "unavailable";
+type InvitationGateFailure = {
+  credential: string;
+  retryAttempt: number;
+  state: Extract<InvitationGateState, "invalid" | "unavailable">;
+};
 
 type StoredGuestDraft = Pick<Guest, "id" | "attendance" | "dietaryNotes" | "mealChoice">;
 
@@ -60,6 +66,13 @@ type StoredRsvpDraft = {
 const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const DATA_DELETION_TIME = new Date("2027-06-27T00:00:00Z").getTime();
 const CEREMONY_TIME = new Date("2027-06-20T15:30:00+03:00").getTime();
+const SERVER_CREDENTIAL_SNAPSHOT = "__invitation_location_pending__";
+
+class InvitationRequestError extends Error {
+  constructor(readonly status: number) {
+    super("invitation unavailable");
+  }
+}
 
 function preserveCredential(invitation: InvitationResponse, credential: string): InvitationResponse {
   return {
@@ -75,7 +88,7 @@ async function fetchInvitation(credential: string): Promise<InvitationResponse> 
     body: JSON.stringify({ credential }),
   });
 
-  if (!response.ok) throw new Error("invitation unavailable");
+  if (!response.ok) throw new InvitationRequestError(response.status);
 
   return preserveCredential((await response.json()) as InvitationResponse, credential);
 }
@@ -94,10 +107,23 @@ function credentialFromLocation(): string {
   return legacyCode ?? "";
 }
 
-function setCredentialInAddressBar(credential?: string) {
+function subscribeToCredentialChange(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+  };
+}
+
+function serverCredentialSnapshot() {
+  return SERVER_CREDENTIAL_SNAPSHOT;
+}
+
+function setCredentialInAddressBar(credential: string) {
   const url = new URL(window.location.href);
   url.searchParams.delete("code");
-  url.hash = credential ? `invite=${encodeURIComponent(credential)}` : "";
+  url.hash = `invite=${encodeURIComponent(credential)}`;
   const search = url.searchParams.toString();
   window.history.replaceState(window.history.state, "", `${url.pathname}${search ? `?${search}` : ""}${url.hash}`);
 }
@@ -161,160 +187,6 @@ function BotanicalPhoto({ variant = "cluster", className = "", priority = false 
   );
 }
 
-function HeartVine() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let frame = 0;
-    let startedAt = 0;
-    let currentProgress = reducedMotion ? 1 : 0;
-
-    const pointAt = (angle: number, width: number, height: number) => {
-      const horizontalScale = width / 36.5;
-      const verticalScale = height / 34;
-      const x = 16 * Math.sin(angle) ** 3;
-      const y = 13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3 * angle) - Math.cos(4 * angle);
-      return { x: width / 2 + x * horizontalScale, y: height * 0.37 - y * verticalScale };
-    };
-
-    const drawLeaf = (x: number, y: number, rotation: number, size: number, tone: number) => {
-      context.save();
-      context.translate(x, y);
-      context.rotate(rotation);
-      context.beginPath();
-      context.ellipse(0, 0, size * 0.42, size, 0, 0, Math.PI * 2);
-      context.fillStyle = tone % 2 ? "rgba(111, 139, 98, 0.94)" : "rgba(80, 111, 73, 0.94)";
-      context.fill();
-      context.beginPath();
-      context.moveTo(0, -size * 0.7);
-      context.lineTo(0, size * 0.72);
-      context.strokeStyle = "rgba(235, 239, 222, 0.52)";
-      context.lineWidth = 0.8;
-      context.stroke();
-      context.restore();
-    };
-
-    const drawFlower = (x: number, y: number, size: number, color: string, bloom: number, turn: number) => {
-      context.save();
-      context.translate(x, y);
-      context.rotate(turn);
-      context.scale(bloom, bloom);
-      for (let petal = 0; petal < 5; petal += 1) {
-        context.save();
-        context.rotate((petal / 5) * Math.PI * 2 + (petal % 2 ? 0.06 : -0.04));
-        context.beginPath();
-        context.moveTo(0, 0);
-        context.bezierCurveTo(-size * 0.24, -size * 0.28, -size * 0.34, -size * 0.92, 0, -size * (1 + petal * 0.015));
-        context.bezierCurveTo(size * 0.38, -size * 0.88, size * 0.29, -size * 0.27, 0, 0);
-        context.fillStyle = color;
-        context.globalAlpha = 0.84 + petal * 0.025;
-        context.fill();
-        context.restore();
-      }
-      context.globalAlpha = 1;
-      context.beginPath();
-      context.arc(0, 0, size * 0.19, 0, Math.PI * 2);
-      context.fillStyle = "rgba(205, 165, 108, 0.96)";
-      context.fill();
-      context.restore();
-    };
-
-    const draw = (progress: number) => {
-      currentProgress = progress;
-      const rect = canvas.getBoundingClientRect();
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      const width = Math.max(rect.width, 1);
-      const height = Math.max(rect.height, 1);
-      const pixelWidth = Math.round(width * ratio);
-      const pixelHeight = Math.round(height * ratio);
-      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-        canvas.width = pixelWidth;
-        canvas.height = pixelHeight;
-      }
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.clearRect(0, 0, width, height);
-      context.lineCap = "round";
-      context.lineJoin = "round";
-
-      const stemEnd = pointAt(Math.PI, width, height);
-      const stemProgress = Math.min(1, progress / 0.2);
-      context.beginPath();
-      context.moveTo(width / 2, height - 2);
-      context.bezierCurveTo(
-        width / 2 - width * 0.015,
-        height - (height - stemEnd.y) * 0.46 * stemProgress,
-        width / 2 + width * 0.018,
-        height - (height - stemEnd.y) * 0.76 * stemProgress,
-        stemEnd.x,
-        height - (height - stemEnd.y) * stemProgress,
-      );
-      context.strokeStyle = "rgba(79, 106, 70, 0.95)";
-      context.lineWidth = Math.max(2, width / 310);
-      context.stroke();
-
-      const heartProgress = Math.max(0, Math.min(1, (progress - 0.12) / 0.88));
-      context.beginPath();
-      const pointsToDraw = Math.floor(300 * heartProgress);
-      for (let index = 0; index <= pointsToDraw; index += 1) {
-        const angle = Math.PI + (index / 300) * Math.PI * 2;
-        const point = pointAt(angle, width, height);
-        if (index === 0) context.moveTo(point.x, point.y);
-        else context.lineTo(point.x, point.y);
-      }
-      context.strokeStyle = "rgba(78, 107, 70, 0.96)";
-      context.lineWidth = Math.max(2.2, width / 285);
-      context.shadowColor = "rgba(49, 69, 42, 0.12)";
-      context.shadowBlur = 4;
-      context.stroke();
-      context.shadowBlur = 0;
-
-      const leaves = [0.07, 0.14, 0.25, 0.34, 0.43, 0.57, 0.65, 0.74, 0.84, 0.93];
-      leaves.forEach((fraction, index) => {
-        if (fraction > heartProgress) return;
-        const angle = Math.PI + fraction * Math.PI * 2;
-        const point = pointAt(angle, width, height);
-        const next = pointAt(angle + 0.02, width, height);
-        const rotation = Math.atan2(next.y - point.y, next.x - point.x) + (index % 2 ? -0.92 : 0.92);
-        drawLeaf(point.x, point.y, rotation, Math.max(8, width / 82), index);
-      });
-
-      const flowers = [
-        { fraction: 0.03, color: "rgba(231, 197, 205, 0.98)", size: 13 },
-        { fraction: 0.22, color: "rgba(189, 174, 205, 0.96)", size: 11 },
-        { fraction: 0.48, color: "rgba(239, 217, 219, 0.98)", size: 14 },
-        { fraction: 0.7, color: "rgba(196, 181, 211, 0.96)", size: 11 },
-        { fraction: 0.89, color: "rgba(232, 198, 207, 0.98)", size: 12 },
-      ];
-      flowers.forEach((flower, index) => {
-        if (flower.fraction > heartProgress) return;
-        const angle = Math.PI + flower.fraction * Math.PI * 2;
-        const point = pointAt(angle, width, height);
-        const localProgress = Math.min(1, Math.max(0.12, (heartProgress - flower.fraction) * 8));
-        drawFlower(point.x, point.y, Math.max(flower.size, width / 74), flower.color, localProgress, index * 0.43);
-      });
-    };
-
-    const animate = (time: number) => {
-      if (!startedAt) startedAt = time;
-      const elapsed = (time - startedAt) / 1800;
-      const progress = reducedMotion ? 1 : 1 - Math.pow(1 - Math.min(elapsed, 1), 4);
-      draw(progress);
-      if (progress < 1) frame = window.requestAnimationFrame(animate);
-    };
-    const observer = new ResizeObserver(() => draw(currentProgress));
-    observer.observe(canvas);
-    frame = window.requestAnimationFrame(animate);
-    return () => { observer.disconnect(); window.cancelAnimationFrame(frame); };
-  }, []);
-
-  return <canvas ref={canvasRef} className="heart-vine-canvas" aria-hidden="true" />;
-}
-
 const contactPresentation = {
   whatsapp: { label: "WhatsApp", mark: "W" },
   viber: { label: "Viber", mark: "V" },
@@ -338,71 +210,45 @@ function ContactActions({ contacts }: { contacts: ContactAction[] }) {
   );
 }
 
-function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
-  onFound: (response: InvitationResponse) => void;
-  linkStatus?: "idle" | "loading";
-  linkError?: string;
-}) {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) {
-      setError("Please enter the code printed on your invitation.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const invitation = await fetchInvitation(normalized);
-      onFound(invitation);
-    } catch {
-      setError("We could not find that invitation. Please check the code and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+function InvitationGate({ state, onRetry }: { state: InvitationGateState; onRetry: () => void }) {
+  const checking = state === "checking";
+  const title = state === "missing"
+    ? "This invitation has a personal address."
+    : state === "invalid"
+      ? "We could not open this invitation."
+      : state === "unavailable"
+        ? "The invitation garden is resting."
+        : "Opening your private invitation…";
+  const message = state === "missing"
+    ? "Please use the personal link sent to your household. It opens your invitation directly, with only the people invited with you."
+    : state === "invalid"
+      ? "The link may be incomplete or out of date. Please ask Ekaterina or Dimitar to resend your personal invitation."
+      : state === "unavailable"
+        ? "Please check your connection and try again in a moment. Your invitation and any saved reply are safe."
+        : "A little patience while your household invitation blooms.";
 
   return (
-    <main className="entry-page">
-      <BotanicalPhoto className="entry-botanical entry-botanical-one" priority />
-      <BotanicalPhoto variant="sprig" className="entry-botanical entry-botanical-two" />
-      <div className="entry-petals" aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
-      <section className="entry-panel" aria-labelledby="entry-title">
-        <div className="entry-heart-stage">
-          <div className="entry-heart-vine" aria-hidden="true"><HeartVine /></div>
-          <p className="entry-love-note">our forever begins</p>
-          <div className="entry-names" aria-label="Ekaterina and Dimitar"><span>Ekaterina</span><small>+</small><span>Dimitar</span></div>
+    <main className={`invitation-gate gate-${state}`} aria-busy={checking}>
+      <BotanicalPhoto className="gate-botanical gate-botanical-one" priority />
+      <BotanicalPhoto variant="sprig" className="gate-botanical gate-botanical-two" />
+      <section className="gate-card" aria-labelledby="gate-title">
+        <p className="eyebrow">Private invitation</p>
+        <p className="gate-names" aria-label="Ekaterina and Dimitar">
+          <span>Ekaterina</span><small>&amp;</small><span>Dimitar</span>
+        </p>
+        <p className="gate-date">20 · 06 · 2027</p>
+        <div className="gate-divider" aria-hidden="true"><span /></div>
+        <div className="gate-message" role={checking ? "status" : "alert"} aria-live="polite">
+          {checking && <span className="gate-loader" aria-hidden="true" />}
+          <h1 id="gate-title">{title}</h1>
+          <p>{message}</p>
         </div>
-        <p className="date-line">20 · 06 · 2027</p>
-        <h1 id="entry-title">Forever<br />starts today</h1>
-        <p className="entry-copy">Your personal invitation is waiting.</p>
-
-        <form className="code-form" onSubmit={submit} noValidate aria-busy={loading || linkStatus === "loading"}>
-          <label htmlFor="invitation-code">Invitation code</label>
-          <div className="code-row">
-            <input
-              id="invitation-code"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="e.g. K7MP9Q2XWD"
-              autoCapitalize="characters"
-              autoComplete="off"
-              aria-describedby="code-hint code-error"
-            />
-            <button type="submit" disabled={loading || linkStatus === "loading"}>{loading || linkStatus === "loading" ? "Opening…" : "Open invitation"}</button>
-          </div>
-          <p id="code-hint" className="form-hint">You will find this short code on your printed card.</p>
-          <p id="code-error" className="form-error" role="alert">{error}</p>
-          {linkStatus === "loading" && <p className="link-status" role="status">Opening your personal invitation…</p>}
-          {linkError && <p className="form-error" role="alert">{linkError}</p>}
-        </form>
+        {(state === "invalid" || state === "unavailable") && (
+          <button className="gate-retry" type="button" onClick={onRetry}>Try the link again</button>
+        )}
         <p className="privacy-note">We use your invitation details and reply only to plan our wedding. Guest data will be deleted by 27 June 2027.</p>
       </section>
-      <p className="entry-footer">Ekaterina &amp; Dimitar · Midalidare Estate, Bulgaria</p>
+      <p className="gate-footer">Midalidare Estate · Bulgaria</p>
     </main>
   );
 }
@@ -498,21 +344,20 @@ function VenueScene() {
 const faqItems = [
   { q: "When should I arrive?", a: "The ceremony begins at 15:30. Please arrive 20 to 30 minutes early so we can start among the vines together." },
   { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
-  { q: "Can we change our answer?", a: "Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
-  { q: "Lost your link or code?", a: "Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help." },
+  { q: "Can we change our answer?", a: "Of course. Open the same personal link at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
+  { q: "Lost your invitation link?", a: "Get in touch with us and we will happily resend your household's personal invitation." },
   { q: "Is there parking at the estate?", a: "There is free guest parking at Midalidare Estate. Just follow the signs on arrival." },
   { q: "Where can we stay?", a: "The estate has rooms on site, with more nearby in Chirpan and Stara Zagora. The Stay among the vines section above has the details." },
   { q: "What will the weather be like?", a: "A warm Bulgarian summer evening, mostly outdoors. Bring a light layer for after sunset, and remember heels and lawns do not always agree." },
   { q: "I have a dietary need.", a: "Tell us in your RSVP above. There is a note for each guest, and the kitchen will take care of the rest." },
 ] as const;
 
-function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts, onExit }: {
+function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts }: {
   household: Household;
   onUpdate: (invitation: InvitationResponse) => void;
   onOpenMeals: () => void;
   mealPhaseOpen: boolean;
   contacts: ContactAction[];
-  onExit: () => void;
 }) {
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -608,7 +453,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       onUpdate(saved);
       safeRemoveStoredDraft(draftKey);
       setSaveState("success");
-      setStatus("Your reply is confirmed. You can return with the same code if anything changes.");
+      setStatus("Your reply is confirmed. You can return with the same personal link if anything changes.");
     } catch {
       setSaveState("error");
       setStatus("We could not save your reply. Your choices are safe on this phone. Please try again.");
@@ -646,9 +491,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
   return (
     <main className="invitation-page">
       <nav className="invitation-nav" aria-label="Invitation navigation">
-        <span aria-hidden="true" />
         <a className="nav-rsvp" href="#rsvp">RSVP</a>
-        <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
       </nav>
 
       <header className="invitation-hero">
@@ -713,7 +556,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
                 <p>{attendingNames.length > 0 ? `${attendingNames.join(" and ")} will join us on 20 June 2027.` : "We will miss you, and we are grateful you let us know."}</p>
                 {attendingNames.length > 0 && (mealPhaseOpen
                   ? <p>The menu is open. <button type="button" className="receipt-link" onClick={onOpenMeals}>Choose a meal for each guest</button> with this same invitation.</p>
-                  : <p>Closer to the day we will open the menu. Come back with this same link or printed code to choose a meal for each guest.</p>)}
+                  : <p>Closer to the day we will open the menu. Come back with this same personal link to choose a meal for each guest.</p>)}
               </div>
             </div>
           )}
@@ -968,27 +811,29 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
 }
 
 export default function WeddingExperience() {
+  const credentialSnapshot = useSyncExternalStore(
+    subscribeToCredentialChange,
+    credentialFromLocation,
+    serverCredentialSnapshot,
+  );
+  const credential = credentialSnapshot === SERVER_CREDENTIAL_SNAPSHOT ? "" : credentialSnapshot;
   const [household, setHousehold] = useState<Household | null>(null);
-  const [view, setView] = useState<"entry" | "invitation" | "meals">("entry");
+  const [view, setView] = useState<"invitation" | "meals">("invitation");
   const [mealPhaseOpen, setMealPhaseOpen] = useState(false);
   const [mealOptions, setMealOptions] = useState<MealOption[]>([]);
   const [contacts, setContacts] = useState<ContactAction[]>([]);
-  const [linkStatus, setLinkStatus] = useState<"idle" | "loading">("idle");
-  const [linkError, setLinkError] = useState("");
+  const [gateFailure, setGateFailure] = useState<InvitationGateFailure | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   useEffect(() => {
     removeLegacyCredentialDrafts();
-    const credential = credentialFromLocation();
-    if (!credential) return;
+  }, []);
+
+  useEffect(() => {
+    if (!credential || credentialSnapshot === SERVER_CREDENTIAL_SNAPSHOT) return;
     setCredentialInAddressBar(credential);
 
     let cancelled = false;
-    const loadingTimer = window.setTimeout(() => {
-      if (!cancelled) {
-        setLinkStatus("loading");
-        setLinkError("");
-      }
-    }, 0);
     fetchInvitation(credential)
       .then((invitation) => {
         if (cancelled) return;
@@ -999,22 +844,17 @@ export default function WeddingExperience() {
         setView("invitation");
         setCredentialInAddressBar(invitation.household.credential);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setCredentialInAddressBar();
-          setLinkError("This personal link could not be opened. Enter the code from your printed invitation below.");
+          const invalid = error instanceof InvitationRequestError && [400, 404, 410].includes(error.status);
+          setGateFailure({ credential, retryAttempt, state: invalid ? "invalid" : "unavailable" });
         }
-      })
-      .finally(() => {
-        window.clearTimeout(loadingTimer);
-        if (!cancelled) setLinkStatus("idle");
       });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(loadingTimer);
     };
-  }, []);
+  }, [credential, credentialSnapshot, retryAttempt]);
 
   const updateInvitation = (invitation: InvitationResponse) => {
     setHousehold(invitation.household);
@@ -1023,9 +863,19 @@ export default function WeddingExperience() {
     setContacts(invitation.contacts);
   };
 
-  if (!household || view === "entry") {
-    return <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { updateInvitation(found); setView("invitation"); setCredentialInAddressBar(found.household.credential); }} />;
+  const failureMatchesCurrentAttempt = gateFailure?.credential === credential && gateFailure.retryAttempt === retryAttempt;
+  const gateState: InvitationGateState = credentialSnapshot === SERVER_CREDENTIAL_SNAPSHOT
+    ? "checking"
+    : !credential
+      ? "missing"
+      : failureMatchesCurrentAttempt
+        ? gateFailure.state
+        : "checking";
+  const invitationMatchesCredential = Boolean(household && household.credential === credential);
+
+  if (!invitationMatchesCredential || !household) {
+    return <InvitationGate state={gateState} onRetry={() => setRetryAttempt((attempt) => attempt + 1)} />;
   }
   if (view === "meals") return <MealSelection household={household} open={mealPhaseOpen} mealOptions={mealOptions} onBack={() => setView("invitation")} onUpdate={updateInvitation} />;
-  return <Invitation household={household} onUpdate={updateInvitation} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} contacts={contacts} onExit={() => { setHousehold(null); setView("entry"); setCredentialInAddressBar(); }} />;
+  return <Invitation household={household} onUpdate={updateInvitation} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} contacts={contacts} />;
 }
