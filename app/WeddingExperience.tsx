@@ -495,6 +495,535 @@ function VenueScene() {
   );
 }
 
+// --- Our love story ("4A") ---------------------------------------------------
+// A scroll-grown vine of milestones ending in an engagement photo framed by a
+// procedurally drawn floral arch. Flower/vine/arch geometry is generated in an
+// effect (ported from the design prototype), scoped to this section, no-JS-safe
+// (copy + photo stay visible without JS), reduced-motion aware, and the loop
+// only runs while the section is near the viewport.
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function lsPetalPath(type: "rose" | "tulip", h: number): string {
+  const w = h / 2;
+  if (type === "rose") return `M 0,0 C ${-w / 1.5},${-h / 3} ${-w},${-h} 0,${-h} C ${w},${-h} ${w / 1.5},${-h / 3} 0,0`;
+  if (type === "tulip") return `M 0,0 C ${-w / 2},${-h / 2} ${-w / 3},${-h} 0,${-h * 1.2} C ${w / 3},${-h} ${w / 2},${-h / 2} 0,0`;
+  return `M 0,0 C ${-w / 2},${-h / 2} ${-w / 2},${-h} 0,${-h} C ${w},${-h} ${w / 2},${-h / 2} 0,0`;
+}
+
+// [left, top, size, hue] per flower in a milestone's cluster.
+const LS_MILESTONES: Array<{ year: string; label: string; text: string; cluster: [number, number, number, number][] }> = [
+  { year: "2015", label: "We met", text: "We met in the summer of 2015 and instantly fell in love.", cluster: [[0, 0, 58, 22], [26, 60, 34, 22], [2, 92, 26, 82]] },
+  { year: "2017", label: "Vienna", text: "We moved to Vienna together.", cluster: [[0, 0, 58, 309], [24, 58, 34, 309], [0, 90, 26, 22]] },
+  { year: "2023", label: "London", text: "We set London as our next adventure.", cluster: [[0, 0, 58, 82], [26, 60, 34, 82], [2, 92, 26, 309]] },
+  { year: "2025", label: "The big question", text: "She said yes.", cluster: [[0, 0, 62, 18], [26, 62, 34, 22], [2, 94, 26, 18]] },
+];
+
+// [hue, size, at, side, off] for each bloom seated on the photo arch.
+const LS_ARCH_FLOWERS: [number, number, number, number, number][] = [
+  [18, 64, 0.985, 0, 0], [22, 34, 0.94, 1, 9], [309, 26, 0.9, -1, -8], [22, 46, 0.16, -1, -7],
+  [82, 30, 0.23, -1, 8], [309, 24, 0.1, -1, 7], [309, 40, 0.66, 1, 10], [22, 28, 0.72, 1, -6], [82, 22, 0.6, 1, 9],
+];
+
+function LoveStory() {
+  const rootRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+    let running = false;
+    let raf = 0;
+    let timer = 0;
+    let dirty = true;
+    let lastKey = "";
+    let frames = 0;
+    let forceOpen = reduce;
+    let archProgress = 0;
+
+    if (!reduce) root.classList.add("ls-animate");
+
+    const buildFlowers = () => {
+      root.querySelectorAll<HTMLElement>("[data-flower]").forEach((host) => {
+        if (host.dataset.built) return;
+        host.dataset.built = "1";
+        const size = Number(host.getAttribute("data-size")) || 48;
+        const hue = host.getAttribute("data-hue") || "22";
+        const outerH = size * 0.42, innerH = size * 0.27, pad = size * 0.1;
+        const half = outerH + pad;
+        const svg = document.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", `${-half} ${-half} ${half * 2} ${half * 2}`);
+        svg.setAttribute("width", String(size));
+        svg.setAttribute("height", String(size));
+        svg.style.display = "block";
+        svg.style.overflow = "visible";
+        const outerCount = size > 44 ? 8 : 6;
+        for (let i = 0; i < outerCount; i += 1) {
+          const p = document.createElementNS(SVG_NS, "path");
+          p.setAttribute("d", lsPetalPath("rose", outerH));
+          p.setAttribute("data-petal", "outer");
+          p.setAttribute("data-a", String((360 / outerCount) * i));
+          p.setAttribute("data-i", String(i));
+          p.setAttribute("transform", `rotate(${(360 / outerCount) * i}) scale(0)`);
+          p.setAttribute("fill", `oklch(95% 0.012 ${hue})`);
+          svg.appendChild(p);
+        }
+        for (let i = 0; i < 5; i += 1) {
+          const a = (360 / 5) * i + 18;
+          const p = document.createElementNS(SVG_NS, "path");
+          p.setAttribute("d", lsPetalPath("tulip", innerH));
+          p.setAttribute("data-petal", "inner");
+          p.setAttribute("data-a", String(a));
+          p.setAttribute("data-i", String(i));
+          p.setAttribute("transform", `rotate(${a}) scale(0)`);
+          p.setAttribute("fill", `oklch(96% 0.015 ${hue})`);
+          svg.appendChild(p);
+        }
+        const ring = document.createElementNS(SVG_NS, "circle");
+        ring.setAttribute("data-pistil", "");
+        ring.setAttribute("r", String(size * 0.1));
+        ring.setAttribute("fill", "oklch(78% 0.085 86)");
+        ring.setAttribute("transform", "scale(0)");
+        svg.appendChild(ring);
+        const eye = document.createElementNS(SVG_NS, "circle");
+        eye.setAttribute("data-pistil", "");
+        eye.setAttribute("r", String(size * 0.05));
+        eye.setAttribute("fill", "oklch(90% 0.05 92)");
+        eye.setAttribute("transform", "scale(0)");
+        svg.appendChild(eye);
+        host.appendChild(svg);
+        host.style.transformOrigin = "50% 80%";
+      });
+    };
+
+    const buildVines = () => {
+      root.querySelectorAll<SVGSVGElement>("[data-vine]").forEach((svg) => {
+        if (svg.dataset.built) return;
+        const stems = svg.querySelectorAll<SVGPathElement>("[data-stem]");
+        if (!stems.length) return;
+        let ok = true;
+        stems.forEach((stem) => { if (!stem.getTotalLength || stem.getTotalLength() < 10) ok = false; });
+        if (!ok) return;
+        svg.dataset.built = "1";
+        stems.forEach((stem) => {
+          const total = stem.getTotalLength();
+          stem.style.strokeDasharray = String(total);
+          stem.style.strokeDashoffset = String(total);
+          stem.style.transition = "stroke-dashoffset 120ms linear";
+          stem.dataset.len = String(total);
+          const count = Math.max(5, Math.round(total / 78));
+          for (let i = 0; i < count; i += 1) {
+            const t = (i + 0.6) / (count + 0.4);
+            const at = total * t;
+            const p = stem.getPointAtLength(at);
+            const q = stem.getPointAtLength(Math.min(total, at + 1.5));
+            const tangent = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
+            const side = i % 2 ? 1 : -1;
+            const len = 15 + (i % 3) * 3.5;
+            const leaf = document.createElementNS(SVG_NS, "path");
+            leaf.setAttribute("d", `M 0,0 C ${-len * 0.42},${-len * 0.3} ${-len * 0.252},${-len} 0,${-len} C ${len * 0.252},${-len} ${len * 0.42},${-len * 0.3} 0,0`);
+            leaf.setAttribute("fill", i % 2 ? "oklch(56% 0.062 134)" : "oklch(49% 0.058 132)");
+            leaf.setAttribute("data-grow", String(t));
+            leaf.setAttribute("data-base", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 52})`);
+            leaf.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 52}) scale(0)`);
+            svg.appendChild(leaf);
+            if (i % 3 === 1) {
+              const c = document.createElementNS(SVG_NS, "path");
+              let d = "M 0,0";
+              for (let s = 1; s <= 22; s += 1) {
+                const ang = s * 0.62, rad = 1.6 + s * 0.52;
+                d += ` L ${(Math.cos(ang) * rad * side).toFixed(2)},${(-Math.sin(ang) * rad * 0.62 - s * 0.22).toFixed(2)}`;
+              }
+              c.setAttribute("d", d);
+              c.setAttribute("fill", "none");
+              c.setAttribute("stroke", "oklch(52% 0.055 133)");
+              c.setAttribute("stroke-width", "1.5");
+              c.setAttribute("stroke-linecap", "round");
+              c.setAttribute("data-grow", String(t));
+              c.setAttribute("data-base", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 24})`);
+              c.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 24}) scale(0)`);
+              svg.appendChild(c);
+            }
+          }
+        });
+      });
+    };
+
+    const buildArch = () => {
+      const host = root.querySelector<HTMLElement>("[data-arch-host]");
+      if (!host || host.dataset.built) return;
+      const frame = host.parentElement && host.parentElement.parentElement;
+      const card = frame && frame.querySelector<HTMLElement>("[data-locket]");
+      if (!card) return;
+      const hb = host.getBoundingClientRect(), cb = card.getBoundingClientRect();
+      if (hb.width < 40 || cb.width < 40) return;
+      host.dataset.built = "1";
+      const w = hb.width, h = hb.height;
+      const x0 = cb.left - hb.left, y0 = cb.top - hb.top, cw = cb.width, ch = cb.height;
+      const cx = x0 + cw / 2, y1 = y0 + ch, r = Math.min(cw / 2, 150), m = 13;
+
+      const svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+      svg.setAttribute("width", String(w));
+      svg.setAttribute("height", String(h));
+      svg.style.cssText = "display:block;width:100%;height:100%;overflow:visible";
+      const gUnder = document.createElementNS(SVG_NS, "g");
+      const gStem = document.createElementNS(SVG_NS, "g");
+      const gOver = document.createElementNS(SVG_NS, "g");
+      svg.appendChild(gUnder); svg.appendChild(gStem); svg.appendChild(gOver);
+      host.appendChild(svg);
+
+      let seed = 7;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+      const GREENS = ["oklch(41% 0.05 133)", "oklch(47% 0.058 132)", "oklch(53% 0.062 134)", "oklch(59% 0.055 131)", "oklch(64% 0.038 146)"];
+      type Pt = { x: number; y: number };
+      const spline = (pts: Pt[]) => {
+        let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+        for (let i = 0; i < pts.length - 1; i += 1) {
+          const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+          d += ` C ${(p1.x + (p2.x - p0.x) / 6).toFixed(2)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(2)}`
+            + ` ${(p2.x - (p3.x - p1.x) / 6).toFixed(2)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(2)}`
+            + ` ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+        }
+        return d;
+      };
+      const centreline = (dir: number, lift: number): Pt[] => {
+        const pts: Pt[] = [];
+        pts.push({ x: cx - dir * cw * 0.05, y: y1 + m * 1.05 });
+        pts.push({ x: x0 + (dir < 0 ? -m * 0.3 : cw + m * 0.3), y: y1 + m * 0.5 });
+        for (let i = 0; i <= 5; i += 1) {
+          const t = i / 5;
+          pts.push({ x: x0 + (dir < 0 ? -m : cw + m) + dir * lift * t, y: y1 - (ch - r) * t * 0.98 });
+        }
+        const from = dir < 0 ? 180 : 0;
+        for (let i = 1; i <= 12; i += 1) {
+          const ang = ((from + (90 - from) * (i / 12)) * Math.PI) / 180;
+          const rr = r + m + lift * 0.6;
+          pts.push({ x: cx + Math.cos(ang) * rr, y: y0 + r - Math.sin(ang) * rr });
+        }
+        return pts.map((p, i, arr) => {
+          if (i === 0 || i === arr.length - 1) return p;
+          const prev = arr[i - 1], next = arr[i + 1];
+          const nx = -(next.y - prev.y), ny = next.x - prev.x;
+          const len = Math.hypot(nx, ny) || 1;
+          const wob = Math.sin(i * 1.05 + (dir < 0 ? 0 : 2.1)) * 3.4 + (rnd() - 0.5) * 1.6;
+          return { x: p.x + (nx / len) * wob, y: p.y + (ny / len) * wob };
+        });
+      };
+      const ghost = (d: string) => { const p = document.createElementNS(SVG_NS, "path"); p.setAttribute("d", d); p.setAttribute("fill", "none"); p.setAttribute("stroke", "none"); svg.appendChild(p); return p; };
+      const leafAt = (p: Pt, tan: number, angle: number, len: number, tone: string, grow: number, layer: Element, round: boolean) => {
+        const el = document.createElementNS(SVG_NS, "path");
+        const wdt = len * (round ? 0.72 : 0.4);
+        el.setAttribute("d", `M 0,0 C ${-wdt},${-len * 0.28} ${-wdt * (round ? 0.8 : 0.58)},${-len} 0,${-len} C ${wdt * (round ? 0.8 : 0.58)},${-len} ${wdt},${-len * 0.28} 0,0`);
+        el.setAttribute("fill", tone);
+        el.setAttribute("data-grow", String(grow));
+        el.setAttribute("data-base", `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(tan + 90 + angle).toFixed(1)})`);
+        el.setAttribute("transform", `${el.getAttribute("data-base")} scale(0)`);
+        layer.appendChild(el);
+      };
+
+      const archPaths: Array<{ path: SVGPathElement; dir: number }> = [];
+      [-1, 1].forEach((dir) => {
+        const heavyLow = dir < 0;
+        [0, 5.5].forEach((lift, strand) => {
+          const line = ghost(spline(centreline(dir, lift)));
+          const total = line.getTotalLength();
+          if (strand === 0) archPaths.push({ path: line, dir });
+          const segs = 8;
+          for (let s = 0; s < segs; s += 1) {
+            const a = (s / segs) * total, b = ((s + 1) / segs) * total;
+            const sub: Pt[] = [];
+            for (let i = 0; i <= 14; i += 1) sub.push(line.getPointAtLength(a + ((b - a) * i) / 14));
+            const seg = document.createElementNS(SVG_NS, "path");
+            seg.setAttribute("d", spline(sub));
+            seg.setAttribute("fill", "none");
+            seg.setAttribute("stroke", strand ? "oklch(45% 0.05 133)" : "oklch(39% 0.05 133)");
+            seg.setAttribute("stroke-width", ((strand ? 2.1 : 3.1) - (s / (segs - 1)) * (strand ? 1.1 : 1.8)).toFixed(2));
+            seg.setAttribute("stroke-linecap", "round");
+            const len = seg.getTotalLength();
+            seg.dataset.len = String(len);
+            seg.dataset.segStart = String(s / segs);
+            seg.dataset.segEnd = String((s + 1) / segs);
+            seg.style.strokeDasharray = String(len);
+            seg.style.strokeDashoffset = String(len);
+            seg.style.transition = "stroke-dashoffset 110ms linear";
+            seg.setAttribute("data-arch-seg", "");
+            gStem.appendChild(seg);
+          }
+          const nodes = 13;
+          for (let i = 0; i < nodes; i += 1) {
+            const t = 0.05 + (i / nodes) * 0.93 + (rnd() - 0.5) * 0.035;
+            const at = total * Math.min(0.995, Math.max(0.02, t));
+            const p = line.getPointAtLength(at);
+            const q = line.getPointAtLength(Math.min(total, at + 1.5));
+            const tan = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
+            const weight = heavyLow ? 1.25 - t * 0.5 : 0.78 + t * 0.55;
+            const count = Math.max(2, Math.round((2 + rnd() * 2.4) * weight));
+            for (let k = 0; k < count; k += 1) {
+              const out = k % 2 ? 1 : -1;
+              const fan = out * (26 + k * 15 + rnd() * 22);
+              const len = (9 + rnd() * 11) * (0.85 + weight * 0.3) * (strand ? 0.82 : 1);
+              const round = rnd() > 0.62;
+              const toneIdx = Math.min(GREENS.length - 1, Math.floor(rnd() * GREENS.length));
+              const under = k < 2;
+              leafAt(p, tan, fan, len, GREENS[under ? Math.max(0, toneIdx - 1) : toneIdx], t, under ? gUnder : gOver, round);
+            }
+            if (i % 4 === 2 && strand === 0) {
+              const dirOut = i % 8 === 2 ? 1 : -1;
+              const blen = 16 + rnd() * 16;
+              const br = document.createElementNS(SVG_NS, "path");
+              br.setAttribute("d", `M 0,0 Q ${dirOut * blen * 0.35},${-blen * 0.55} ${dirOut * blen * 0.75},${-blen}`);
+              br.setAttribute("fill", "none");
+              br.setAttribute("stroke", "oklch(46% 0.05 133)");
+              br.setAttribute("stroke-width", "1.5");
+              br.setAttribute("stroke-linecap", "round");
+              br.setAttribute("data-grow", String(t));
+              br.setAttribute("data-base", `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(tan + 90 + dirOut * 40).toFixed(1)})`);
+              br.setAttribute("transform", `${br.getAttribute("data-base")} scale(0)`);
+              gOver.appendChild(br);
+              for (let b = 1; b <= 3; b += 1) {
+                const bp = { x: p.x + Math.cos(((tan + 90 + dirOut * 40 - 90) * Math.PI) / 180) * blen * 0.28 * b, y: p.y + Math.sin(((tan + 90 + dirOut * 40 - 90) * Math.PI) / 180) * blen * 0.28 * b };
+                leafAt(bp, tan, dirOut * (40 + b * 12), 8 + rnd() * 5, GREENS[3], t, gOver, rnd() > 0.5);
+              }
+            }
+            if (i % 5 === 3 && t < 0.78 && strand === 0) {
+              const out = dir;
+              const c = document.createElementNS(SVG_NS, "path");
+              let d = "M 0,0";
+              for (let s2 = 1; s2 <= 16; s2 += 1) {
+                const ang = s2 * 0.52, rad = 1.3 + s2 * 0.42;
+                d += ` L ${(Math.cos(ang) * rad * out).toFixed(2)},${(-Math.sin(ang) * rad * 0.58 - s2 * 0.2).toFixed(2)}`;
+              }
+              c.setAttribute("d", d);
+              c.setAttribute("fill", "none");
+              c.setAttribute("stroke", "oklch(55% 0.05 133)");
+              c.setAttribute("stroke-width", "1.3");
+              c.setAttribute("stroke-linecap", "round");
+              c.setAttribute("data-grow", String(t));
+              c.setAttribute("data-base", `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)}) rotate(${(tan + 90 + out * 20).toFixed(1)})`);
+              c.setAttribute("transform", `${c.getAttribute("data-base")} scale(0)`);
+              gOver.appendChild(c);
+            }
+          }
+        });
+      });
+
+      host.parentElement?.querySelectorAll<HTMLElement>("[data-flower][data-at]").forEach((f) => {
+        const fdir = Number(f.getAttribute("data-side"));
+        const entry = archPaths.find((p) => (fdir === 0 ? p.dir === -1 : p.dir === fdir)) || archPaths[0];
+        const total = entry.path.getTotalLength();
+        const at = Number(f.getAttribute("data-at"));
+        const off = Number(f.getAttribute("data-off") || 0);
+        const p = entry.path.getPointAtLength(total * Math.min(at, 0.999));
+        const q = entry.path.getPointAtLength(Math.min(total, total * Math.min(at, 0.999) + 2));
+        const nx = -(q.y - p.y), ny = q.x - p.x;
+        const nl = Math.hypot(nx, ny) || 1;
+        const size = Number(f.getAttribute("data-size")) || 40;
+        f.style.left = `${(p.x + (nx / nl) * off - size / 2).toFixed(1)}px`;
+        f.style.top = `${(p.y + (ny / nl) * off - size / 2).toFixed(1)}px`;
+        f.dataset.archAt = String(at);
+      });
+    };
+
+    const paintFlower = (host: HTMLElement, progress: number) => {
+      const hue = host.getAttribute("data-hue") || "22";
+      const back = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 + 1.9 * Math.pow(t - 1, 3) + 1.05 * Math.pow(t - 1, 2));
+      host.querySelectorAll<SVGPathElement>("[data-petal]").forEach((petal) => {
+        const inner = petal.getAttribute("data-petal") === "inner";
+        const i = Number(petal.getAttribute("data-i")) || 0;
+        const a = Number(petal.getAttribute("data-a")) || 0;
+        const cfg = inner
+          ? { p0: 0.24, span: 0.3, step: 0.035, l0: 96, l1: 72, c0: 0.015, c1: 0.135 }
+          : { p0: 0.42, span: 0.32, step: 0.028, l0: 95, l1: 83, c0: 0.012, c1: 0.088 };
+        const local = clamp((progress - (cfg.p0 + i * cfg.step)) / cfg.span);
+        petal.setAttribute("transform", `rotate(${a}) scale(${back(local).toFixed(3)})`);
+        petal.setAttribute("fill", `oklch(${(cfg.l0 + (cfg.l1 - cfg.l0) * local).toFixed(1)}% ${(cfg.c0 + (cfg.c1 - cfg.c0) * local).toFixed(3)} ${hue})`);
+      });
+      const pistilScale = back(clamp((progress - 0.32) / 0.36));
+      host.querySelectorAll<SVGCircleElement>("[data-pistil]").forEach((p) => p.setAttribute("transform", `scale(${pistilScale.toFixed(3)})`));
+      if (progress > 0.99 && !host.dataset.swaying && !reduce) {
+        host.dataset.swaying = "1";
+        host.style.animation = "ls-sway 8s ease-in-out infinite";
+        host.style.animationDelay = (Math.random() * 2.5).toFixed(2) + "s";
+      }
+    };
+
+    const scrub = () => {
+      const vh = window.innerHeight || 800;
+      const open = forceOpen;
+      root.querySelectorAll<SVGSVGElement>("[data-vine]").forEach((svg) => {
+        const rect = svg.getBoundingClientRect();
+        const denom = rect.height * 0.7 + vh * 0.28;
+        const progress = open ? 1 : clamp((vh * 0.86 - rect.top) / denom);
+        svg.querySelectorAll<SVGPathElement>("[data-stem]").forEach((stem) => {
+          const len = Number(stem.dataset.len) || 0;
+          if (len) stem.style.strokeDashoffset = String((len * (1 - progress)).toFixed(1));
+        });
+        svg.querySelectorAll<SVGPathElement>("[data-grow]").forEach((part) => {
+          const at = Number(part.getAttribute("data-grow")) || 0;
+          const local = clamp((progress - at) / 0.16);
+          const eased = local <= 0 ? 0 : local >= 1 ? 1 : 1 + 1.7 * Math.pow(local - 1, 3) + 0.9 * Math.pow(local - 1, 2);
+          part.setAttribute("transform", `${part.getAttribute("data-base")} scale(${eased.toFixed(3)})`);
+        });
+      });
+      const archHost = root.querySelector<HTMLElement>("[data-arch-host]");
+      if (archHost && archHost.dataset.built) {
+        const rect = archHost.getBoundingClientRect();
+        archProgress = open ? 1 : clamp((vh * 0.84 - rect.top) / (rect.height * 0.52 + vh * 0.26));
+        archHost.querySelectorAll<SVGPathElement>("[data-arch-seg]").forEach((seg) => {
+          const a = Number(seg.dataset.segStart), b = Number(seg.dataset.segEnd);
+          const len = Number(seg.dataset.len) || 0;
+          const local = clamp((archProgress - a) / (b - a));
+          seg.style.strokeDashoffset = String((len * (1 - local)).toFixed(1));
+        });
+        archHost.querySelectorAll<SVGPathElement>("[data-grow]").forEach((part) => {
+          const at = Number(part.getAttribute("data-grow")) || 0;
+          const local = clamp((archProgress - at) / 0.14);
+          const eased = local <= 0 ? 0 : local >= 1 ? 1 : 1 + 1.7 * Math.pow(local - 1, 3) + 0.9 * Math.pow(local - 1, 2);
+          part.setAttribute("transform", `${part.getAttribute("data-base")} scale(${eased.toFixed(3)})`);
+        });
+      }
+      root.querySelectorAll<HTMLElement>("[data-flower]").forEach((host) => {
+        const rect = host.getBoundingClientRect();
+        const onArch = host.dataset.archAt !== undefined;
+        const progress = open ? 1 : onArch
+          ? clamp((archProgress - Number(host.dataset.archAt) * 0.85) / 0.15)
+          : clamp((vh * 0.9 - rect.top) / (vh * 0.4));
+        paintFlower(host, progress);
+      });
+      root.querySelectorAll<HTMLElement>("[data-milestone]").forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (open || rect.top < vh * 0.88) {
+          el.querySelectorAll<HTMLElement>("[data-copy]").forEach((c) => { c.style.opacity = "1"; c.style.transform = "translateY(0)"; });
+          el.querySelectorAll<HTMLElement>("[data-locket]").forEach((c) => { c.style.opacity = "1"; c.style.transform = "translateY(0) scale(1)"; });
+        }
+      });
+      root.querySelectorAll<HTMLElement>("[data-copy]").forEach((c) => {
+        if (open || c.getBoundingClientRect().top < vh * 0.9) { c.style.opacity = "1"; c.style.transform = "translateY(0)"; }
+      });
+    };
+
+    const failOpen = () => {
+      forceOpen = true;
+      root.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((el) => { el.style.opacity = "1"; el.style.transform = "none"; });
+      root.querySelectorAll<SVGElement>("[data-arch-seg],[data-stem]").forEach((s) => { (s as SVGPathElement).style.strokeDashoffset = "0"; });
+      root.querySelectorAll<SVGElement>("[data-grow]").forEach((p) => {
+        const base = p.getAttribute("data-base");
+        if (base) p.setAttribute("transform", `${base} scale(1)`);
+      });
+      root.querySelectorAll<SVGElement>("[data-petal]").forEach((p) => p.setAttribute("transform", `rotate(${p.getAttribute("data-a")}) scale(1)`));
+      root.querySelectorAll<SVGElement>("[data-pistil]").forEach((p) => p.setAttribute("transform", "scale(1)"));
+    };
+
+    const pulse = () => {
+      if (!running) return;
+      try {
+        buildFlowers();
+        buildVines();
+        buildArch();
+        const key = `${Math.round(window.scrollY)}|${window.innerHeight}|${document.documentElement.clientWidth}`;
+        if (dirty || key !== lastKey || frames < 40) {
+          dirty = false;
+          lastKey = key;
+          frames += 1;
+          scrub();
+        }
+      } catch {
+        failOpen();
+      }
+    };
+
+    const start = () => {
+      if (running) return;
+      running = true;
+      if (!reduce) {
+        const loop = () => { if (!running) return; pulse(); raf = window.requestAnimationFrame(loop); };
+        loop();
+      }
+      timer = window.setInterval(pulse, 200);
+    };
+    const stop = () => {
+      running = false;
+      if (raf) window.cancelAnimationFrame(raf);
+      if (timer) window.clearInterval(timer);
+      raf = 0;
+      timer = 0;
+    };
+
+    const onScroll = () => { dirty = true; if (running) pulse(); };
+    const onResize = () => {
+      const host = root.querySelector<HTMLElement>("[data-arch-host]");
+      if (host) { delete host.dataset.built; host.innerHTML = ""; }
+      dirty = true;
+      if (running) pulse();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onScroll);
+
+    // Only animate while the section is near the viewport (older-phone battery).
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => { if (entry.isIntersecting) start(); else stop(); });
+    }, { rootMargin: "100% 0px 100% 0px" });
+    io.observe(root);
+
+    return () => {
+      stop();
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onScroll);
+    };
+  }, []);
+
+  return (
+    <section className="love-story-section" ref={rootRef} aria-labelledby="ls-title">
+      <BotanicalPhoto variant="sprig" className="ls-sprig" />
+      <div className="ls-head">
+        <p className="eyebrow ls-eyebrow">Our love story</p>
+        <h2 id="ls-title">A story<br />in bloom</h2>
+      </div>
+      <div className="ls-timeline">
+        <div className="ls-vine-holder" aria-hidden="true">
+          <svg data-vine viewBox="0 0 64 800" preserveAspectRatio="none" className="ls-vine-svg">
+            <path data-stem d="M32 0 C10 96 52 178 32 272 C12 366 54 448 32 542 C14 622 40 700 32 800" fill="none" stroke="oklch(46% 0.058 133)" strokeWidth="2.6" strokeLinecap="round" />
+          </svg>
+        </div>
+        {LS_MILESTONES.map((milestone) => (
+          <article data-milestone className="ls-milestone" key={milestone.year}>
+            <span data-cluster aria-hidden="true" className="ls-cluster">
+              {milestone.cluster.map(([left, top, size, hue], index) => (
+                <span data-flower data-hue={hue} data-size={size} key={index} style={{ position: "absolute", left: `${left}px`, top: `${top}px`, display: "block" }} />
+              ))}
+            </span>
+            <div data-copy className="ls-copy">
+              <p className="ls-year">{milestone.year}</p>
+              <p className="ls-label">{milestone.label}</p>
+              <p className="ls-text">{milestone.text}</p>
+            </div>
+          </article>
+        ))}
+        <div data-milestone className="ls-finale">
+          <div className="ls-locket-wrap">
+            <div aria-hidden="true" className="ls-arch-layer">
+              <div data-arch-host className="ls-arch-host" />
+              {LS_ARCH_FLOWERS.map(([hue, size, at, side, off], index) => (
+                <span data-flower data-hue={hue} data-size={size} data-at={at} data-side={side} data-off={off} key={index} style={{ position: "absolute", left: 0, top: 0, display: "block" }} />
+              ))}
+            </div>
+            <div data-locket className="ls-locket">
+              <div className="ls-locket-inner" role="img" aria-label="A photo of Ekaterina and Dimitar">
+                <span className="ls-locket-hint">Your engagement photo</span>
+              </div>
+            </div>
+          </div>
+          <p data-copy className="ls-finale-line">and 2027, the part with all of you in it</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const faqItems = [
   { q: "When should I arrive?", a: "The ceremony begins at 15:30. Please arrive 20 to 30 minutes early so we can start among the vines together." },
   { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
@@ -822,6 +1351,8 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
         <div className="stay-fade" aria-hidden="true" />
       </section>
+
+      <LoveStory />
 
       <section className="faq-section" id="questions" aria-labelledby="faq-title">
         <div className="faq-heading">

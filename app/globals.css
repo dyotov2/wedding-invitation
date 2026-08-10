@@ -440,6 +440,45 @@ h1, h2, h3, p { margin-top: 0; }
 .stay-foot { position: relative; margin: 1.6rem 0 0; max-width: 42ch; color: oklch(48% 0.022 120); font-size: .82rem; line-height: 1.5; }
 .stay-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(180deg, transparent, var(--paper)); pointer-events: none; }
 
+/* Our love story */
+.love-story-section {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  padding: 3.6rem 1.5rem 4rem;
+  background:
+    radial-gradient(circle at 88% 2%, oklch(94% 0.03 310), transparent 42%),
+    radial-gradient(circle at 2% 58%, oklch(94% 0.028 132), transparent 36%),
+    var(--paper);
+}
+.ls-sprig { --botanical-size: 150px; --r: -12deg; right: -16%; top: -3%; z-index: 0; opacity: .42; transform: rotate(-12deg); animation: ls-breathe 10s ease-in-out infinite; }
+.ls-head { position: relative; z-index: 2; text-align: center; margin-bottom: 2.6rem; }
+.ls-eyebrow { color: var(--lavender); font-size: .72rem; letter-spacing: .24em; }
+.ls-head h2 { margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.9rem, 13vw, 3.375rem); font-weight: 400; letter-spacing: -.05em; line-height: .88; }
+.ls-timeline { position: relative; z-index: 2; padding-left: 5rem; }
+.ls-vine-holder { position: absolute; left: .5rem; top: 0; bottom: 1rem; width: 64px; pointer-events: none; }
+.ls-vine-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.ls-milestone { position: relative; margin-bottom: 2.7rem; }
+.ls-timeline article.ls-milestone:last-of-type { margin-bottom: 1.6rem; }
+.ls-cluster { position: absolute; left: -4.15rem; top: -10px; width: 62px; height: 160px; pointer-events: none; }
+.ls-year { margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.5rem, 11vw, 2.875rem); line-height: .95; letter-spacing: -.04em; }
+.ls-label { margin: .25rem 0 .45rem; color: var(--lavender); font-size: .66rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.ls-text { margin: 0; max-width: 26ch; color: oklch(43% 0.024 60); font-size: 1rem; line-height: 1.5; text-wrap: pretty; }
+.ls-finale { position: relative; z-index: 2; margin-top: 3.6rem; }
+.ls-locket-wrap { position: relative; width: 66%; margin: 0 auto; }
+.ls-arch-layer { position: absolute; z-index: 2; inset: -40px -38px -34px; pointer-events: none; }
+.ls-arch-host { position: absolute; inset: 0; }
+.ls-locket { position: relative; z-index: 1; overflow: hidden; border-radius: 150px 150px 14px 14px; background: oklch(99% 0.008 80); border: 1px solid oklch(72% 0.045 82 / .8); box-shadow: 0 20px 44px oklch(40% 0.05 82 / .18); aspect-ratio: 3 / 4; }
+.ls-locket-inner { width: 100%; height: 100%; display: grid; place-items: center; padding: 1rem; text-align: center; background: linear-gradient(160deg, oklch(97% 0.012 84), oklch(93% 0.02 82)); }
+.ls-locket-hint { color: var(--mulberry); font-size: .74rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.ls-finale-line { margin: 4rem auto 0; max-width: 24ch; text-align: center; color: var(--mulberry); font-family: var(--font-display), serif; font-size: 1.4rem; line-height: 1.25; }
+.love-story-section [data-copy] { transition: opacity 800ms ease 200ms, transform 800ms var(--ease-out) 200ms; }
+.love-story-section [data-locket] { transition: opacity 900ms ease, transform 900ms var(--ease-out); }
+.love-story-section.ls-animate [data-copy] { opacity: 0; transform: translateY(14px); }
+.love-story-section.ls-animate [data-locket] { opacity: 0; transform: translateY(18px) scale(.96); }
+@keyframes ls-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes ls-breathe { 0%, 100% { transform: rotate(var(--r, 0deg)) scale(1); } 50% { transform: rotate(var(--r, 0deg)) scale(1.03); } }
+
 /* FAQ */
 .faq-section { position: relative; z-index: 2; padding: clamp(2.5rem, 7vw, 3rem) clamp(1.25rem, 8vw, 1.4rem) 4rem; }
 .faq-heading { width: var(--inner); margin: 0 auto 1.4rem; text-align: center; }
