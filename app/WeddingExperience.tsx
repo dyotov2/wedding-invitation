@@ -513,7 +513,7 @@ function lsPetalPath(type: "rose" | "tulip", h: number): string {
 // [left, top, size, hue] per flower in a milestone's cluster.
 const LS_MILESTONES: Array<{ year: string; label: string; text: string; cluster: [number, number, number, number][] }> = [
   { year: "2015", label: "We met", text: "We met in the summer of 2015 and instantly fell in love.", cluster: [[0, 0, 58, 22], [26, 60, 34, 22], [2, 92, 26, 82]] },
-  { year: "2017", label: "Vienna", text: "We moved to Vienna together.", cluster: [[0, 0, 58, 309], [24, 58, 34, 309], [0, 90, 26, 22]] },
+  { year: "2018", label: "Vienna", text: "We moved to Vienna together.", cluster: [[0, 0, 58, 309], [24, 58, 34, 309], [0, 90, 26, 22]] },
   { year: "2023", label: "London", text: "We set London as our next adventure.", cluster: [[0, 0, 58, 82], [26, 60, 34, 82], [2, 92, 26, 309]] },
   { year: "2025", label: "The big question", text: "She said yes.", cluster: [[0, 0, 62, 18], [26, 62, 34, 22], [2, 94, 26, 18]] },
 ];
