@@ -462,20 +462,36 @@ h1, h2, h3, p { margin-top: 0; }
 .ls-timeline article.ls-milestone:last-of-type { margin-bottom: 1.6rem; }
 .ls-cluster { position: absolute; left: -4.15rem; top: -10px; width: 62px; height: 160px; pointer-events: none; }
 .ls-year { margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.5rem, 11vw, 2.875rem); line-height: .95; letter-spacing: -.04em; }
-.ls-label { margin: .25rem 0 .45rem; color: var(--lavender); font-size: .66rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
-.ls-text { margin: 0; max-width: 26ch; color: oklch(43% 0.024 60); font-size: 1rem; line-height: 1.5; text-wrap: pretty; }
+.ls-label { margin: .3rem 0 .45rem; color: oklch(48% 0.062 309); font-size: .72rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+.ls-text { margin: 0; max-width: 26ch; color: oklch(42% 0.026 60); font-size: 1rem; line-height: 1.5; text-wrap: pretty; }
 .ls-finale { position: relative; z-index: 2; margin-top: 3.6rem; }
 .ls-locket-wrap { position: relative; width: 66%; margin: 0 auto; }
 .ls-arch-layer { position: absolute; z-index: 2; inset: -40px -38px -34px; pointer-events: none; }
 .ls-arch-host { position: absolute; inset: 0; }
 .ls-locket { position: relative; z-index: 1; overflow: hidden; border-radius: 150px 150px 14px 14px; background: oklch(99% 0.008 80); border: 1px solid oklch(72% 0.045 82 / .8); box-shadow: 0 20px 44px oklch(40% 0.05 82 / .18); aspect-ratio: 3 / 4; }
-.ls-locket-inner { width: 100%; height: 100%; display: grid; place-items: center; padding: 1rem; text-align: center; background: linear-gradient(160deg, oklch(97% 0.012 84), oklch(93% 0.02 82)); }
-.ls-locket-hint { color: var(--mulberry); font-size: .74rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.ls-locket-inner { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .55rem; padding: 1rem; text-align: center; background: radial-gradient(circle at 50% 34%, oklch(97.5% 0.012 84), oklch(93% 0.022 82)); }
+.ls-locket-inner::after { content: ""; position: absolute; inset: 10px; border: 1px solid oklch(72% 0.045 82 / .55); border-radius: 140px 140px 8px 8px; pointer-events: none; }
+.ls-locket-mark { position: relative; }
+.ls-locket-mark::before { background: var(--mulberry); }
+.ls-locket-mark::after { background: var(--sage); }
+.ls-locket-hint { color: var(--mulberry); font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .ls-finale-line { margin: 4rem auto 0; max-width: 24ch; text-align: center; color: var(--mulberry); font-family: var(--font-display), serif; font-size: 1.4rem; line-height: 1.25; }
-.love-story-section [data-copy] { transition: opacity 800ms ease 200ms, transform 800ms var(--ease-out) 200ms; }
-.love-story-section [data-locket] { transition: opacity 900ms ease, transform 900ms var(--ease-out); }
-.love-story-section.ls-animate [data-copy] { opacity: 0; transform: translateY(14px); }
-.love-story-section.ls-animate [data-locket] { opacity: 0; transform: translateY(18px) scale(.96); }
+/* Reveal: the copy block fades while its lines cascade up in sequence; once shown
+   they stay (JS latches an .is-in class), so nothing flickers on scroll-up. */
+.love-story-section [data-copy] { transition: opacity 750ms ease; }
+.love-story-section.ls-animate [data-copy] { opacity: 0; }
+.love-story-section [data-copy].is-in { opacity: 1; }
+.love-story-section .ls-locket { transition: opacity 900ms ease, transform 900ms var(--ease-out); }
+.love-story-section.ls-animate .ls-locket { opacity: 0; transform: translateY(18px) scale(.96); }
+.love-story-section .ls-locket.is-in { opacity: 1; transform: none; }
+.love-story-section.ls-animate .ls-copy .ls-year,
+.love-story-section.ls-animate .ls-copy .ls-label,
+.love-story-section.ls-animate .ls-copy .ls-text,
+.love-story-section.ls-animate .ls-finale-line { transform: translateY(14px); transition: transform 800ms var(--ease-out); }
+.love-story-section .ls-copy.is-in .ls-year { transform: none; transition-delay: 40ms; }
+.love-story-section .ls-copy.is-in .ls-label { transform: none; transition-delay: 130ms; }
+.love-story-section .ls-copy.is-in .ls-text { transform: none; transition-delay: 220ms; }
+.love-story-section .ls-finale-line.is-in { transform: none; }
 @keyframes ls-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes ls-breathe { 0%, 100% { transform: rotate(var(--r, 0deg)) scale(1); } 50% { transform: rotate(var(--r, 0deg)) scale(1.03); } }
 

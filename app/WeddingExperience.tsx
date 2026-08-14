@@ -848,6 +848,14 @@ function LoveStory() {
       }
     };
 
+    // Growth is one-way: once an element reaches full bloom it is marked done and
+    // skipped on every later frame, so the garden grows and stays (never un-blooms
+    // on scroll-up) and per-frame work collapses to only what is still opening.
+    const grow = (part: SVGElement, local: number) => {
+      const eased = local <= 0 ? 0 : local >= 1 ? 1 : 1 + 1.7 * Math.pow(local - 1, 3) + 0.9 * Math.pow(local - 1, 2);
+      part.setAttribute("transform", `${part.getAttribute("data-base")} scale(${eased.toFixed(3)})`);
+      if (local >= 1) part.dataset.done = "1";
+    };
     const scrub = () => {
       const vh = window.innerHeight || 800;
       const open = forceOpen;
@@ -856,63 +864,62 @@ function LoveStory() {
         const denom = rect.height * 0.7 + vh * 0.28;
         const progress = open ? 1 : clamp((vh * 0.86 - rect.top) / denom);
         svg.querySelectorAll<SVGPathElement>("[data-stem]").forEach((stem) => {
+          if (stem.dataset.done) return;
           const len = Number(stem.dataset.len) || 0;
           if (len) stem.style.strokeDashoffset = String((len * (1 - progress)).toFixed(1));
+          if (progress >= 1) stem.dataset.done = "1";
         });
-        svg.querySelectorAll<SVGPathElement>("[data-grow]").forEach((part) => {
-          const at = Number(part.getAttribute("data-grow")) || 0;
-          const local = clamp((progress - at) / 0.16);
-          const eased = local <= 0 ? 0 : local >= 1 ? 1 : 1 + 1.7 * Math.pow(local - 1, 3) + 0.9 * Math.pow(local - 1, 2);
-          part.setAttribute("transform", `${part.getAttribute("data-base")} scale(${eased.toFixed(3)})`);
+        svg.querySelectorAll<SVGPathElement>("[data-grow]:not([data-done])").forEach((part) => {
+          grow(part, clamp((progress - (Number(part.getAttribute("data-grow")) || 0)) / 0.16));
         });
       });
       const archHost = root.querySelector<HTMLElement>("[data-arch-host]");
       if (archHost && archHost.dataset.built) {
         const rect = archHost.getBoundingClientRect();
         archProgress = open ? 1 : clamp((vh * 0.84 - rect.top) / (rect.height * 0.52 + vh * 0.26));
-        archHost.querySelectorAll<SVGPathElement>("[data-arch-seg]").forEach((seg) => {
+        archHost.querySelectorAll<SVGPathElement>("[data-arch-seg]:not([data-done])").forEach((seg) => {
           const a = Number(seg.dataset.segStart), b = Number(seg.dataset.segEnd);
           const len = Number(seg.dataset.len) || 0;
           const local = clamp((archProgress - a) / (b - a));
           seg.style.strokeDashoffset = String((len * (1 - local)).toFixed(1));
+          if (local >= 1) seg.dataset.done = "1";
         });
-        archHost.querySelectorAll<SVGPathElement>("[data-grow]").forEach((part) => {
-          const at = Number(part.getAttribute("data-grow")) || 0;
-          const local = clamp((archProgress - at) / 0.14);
-          const eased = local <= 0 ? 0 : local >= 1 ? 1 : 1 + 1.7 * Math.pow(local - 1, 3) + 0.9 * Math.pow(local - 1, 2);
-          part.setAttribute("transform", `${part.getAttribute("data-base")} scale(${eased.toFixed(3)})`);
+        archHost.querySelectorAll<SVGPathElement>("[data-grow]:not([data-done])").forEach((part) => {
+          grow(part, clamp((archProgress - (Number(part.getAttribute("data-grow")) || 0)) / 0.14));
         });
       }
-      root.querySelectorAll<HTMLElement>("[data-flower]").forEach((host) => {
+      root.querySelectorAll<HTMLElement>("[data-flower]:not([data-done])").forEach((host) => {
         const rect = host.getBoundingClientRect();
         const onArch = host.dataset.archAt !== undefined;
         const progress = open ? 1 : onArch
           ? clamp((archProgress - Number(host.dataset.archAt) * 0.85) / 0.15)
           : clamp((vh * 0.9 - rect.top) / (vh * 0.4));
         paintFlower(host, progress);
+        if (progress >= 0.999) host.dataset.done = "1";
       });
-      root.querySelectorAll<HTMLElement>("[data-milestone]").forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        if (open || rect.top < vh * 0.88) {
-          el.querySelectorAll<HTMLElement>("[data-copy]").forEach((c) => { c.style.opacity = "1"; c.style.transform = "translateY(0)"; });
-          el.querySelectorAll<HTMLElement>("[data-locket]").forEach((c) => { c.style.opacity = "1"; c.style.transform = "translateY(0) scale(1)"; });
+      root.querySelectorAll<HTMLElement>("[data-milestone]:not([data-revealed])").forEach((el) => {
+        if (open || el.getBoundingClientRect().top < vh * 0.88) {
+          el.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((c) => c.classList.add("is-in"));
+          el.dataset.revealed = "1";
         }
       });
-      root.querySelectorAll<HTMLElement>("[data-copy]").forEach((c) => {
-        if (open || c.getBoundingClientRect().top < vh * 0.9) { c.style.opacity = "1"; c.style.transform = "translateY(0)"; }
+      root.querySelectorAll<HTMLElement>("[data-copy]:not(.is-in)").forEach((c) => {
+        if (open || c.getBoundingClientRect().top < vh * 0.9) c.classList.add("is-in");
       });
     };
 
     const failOpen = () => {
       forceOpen = true;
-      root.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((el) => { el.style.opacity = "1"; el.style.transform = "none"; });
-      root.querySelectorAll<SVGElement>("[data-arch-seg],[data-stem]").forEach((s) => { (s as SVGPathElement).style.strokeDashoffset = "0"; });
+      root.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((el) => el.classList.add("is-in"));
+      root.querySelectorAll<SVGElement>("[data-arch-seg],[data-stem]").forEach((s) => { (s as SVGPathElement).style.strokeDashoffset = "0"; s.setAttribute("data-done", "1"); });
       root.querySelectorAll<SVGElement>("[data-grow]").forEach((p) => {
         const base = p.getAttribute("data-base");
         if (base) p.setAttribute("transform", `${base} scale(1)`);
+        p.setAttribute("data-done", "1");
       });
       root.querySelectorAll<SVGElement>("[data-petal]").forEach((p) => p.setAttribute("transform", `rotate(${p.getAttribute("data-a")}) scale(1)`));
       root.querySelectorAll<SVGElement>("[data-pistil]").forEach((p) => p.setAttribute("transform", "scale(1)"));
+      root.querySelectorAll<HTMLElement>("[data-flower]").forEach((f) => { f.dataset.done = "1"; });
     };
 
     const pulse = () => {
@@ -1013,6 +1020,7 @@ function LoveStory() {
             </div>
             <div data-locket className="ls-locket">
               <div className="ls-locket-inner" role="img" aria-label="A photo of Ekaterina and Dimitar">
+                <span className="petal-mark ls-locket-mark" aria-hidden="true" />
                 <span className="ls-locket-hint">Your engagement photo</span>
               </div>
             </div>
