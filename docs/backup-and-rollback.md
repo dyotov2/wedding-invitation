@@ -6,7 +6,7 @@ back code must not erase valid RSVPs received after a deployment.
 ## Roles and dates
 
 - Production administrator: `dyotov2@gmail.com`.
-- RSVP deadline: 1 January 2027.
+- RSVP deadline: 1 December 2026.
 - Wedding: 20 June 2027.
 - Guest-data and derived-artifact deletion: 27 June 2027.
 

@@ -34,7 +34,7 @@ Use large readable type, strong contrast, generous touch targets, visible focus 
 
 ## Operational Policy
 
-- The RSVP deadline is 1 January 2027 (`2027-01-01`).
+- The RSVP deadline is 1 December 2026 (`2026-12-01`).
 - The only production admin email is `dyotov2@gmail.com` until an explicit, reviewed allowlist change is made.
 - Guest records and every derived import, export, backup, personal-link sheet, and QR pack must be deleted on 27 June 2027 (`2027-06-27`).
 - D1 is the authoritative data store. Airtable is not the RSVP system of record, and browser storage is only for recoverable unsaved drafts.

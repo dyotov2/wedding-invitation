@@ -10,7 +10,7 @@ website replies with replies received by phone, WhatsApp, Viber, or paper.
 
 ## Important dates and ownership
 
-- RSVP deadline: **1 January 2027** (`2027-01-01`).
+- RSVP deadline: **1 December 2026** (`2026-12-01`).
 - Wedding: **20 June 2027**.
 - Guest-data deletion date: **27 June 2027** (`2027-06-27`).
 - Production administrator: **dyotov2@gmail.com**. Authentication alone is not

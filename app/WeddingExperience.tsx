@@ -1196,14 +1196,14 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <span key={index} />)}</div>
         <p className="eyebrow hero-eyebrow">Celebrate with us</p>
-        <p className="hero-love-note">Forever starts today</p>
         <h1><span>Ekaterina</span><small>&amp;</small><span>Dimitar</span></h1>
+        <p className="hero-subtitle">as we marry among the vines</p>
         <div className="event-line" aria-label="Wedding date and venue">
           <div><strong>Sunday</strong><span>20 June 2027</span></div>
           <span className="event-divider" aria-hidden="true" />
           <div><strong>Midalidare Estate</strong><span>Bulgaria</span></div>
         </div>
-        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 1 January 2027</p>
+        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 1 December 2026</p>
         <a className="scroll-prompt" href="#rsvp">Your invitation <span aria-hidden="true">↓</span></a>
         <div className="hero-fade" aria-hidden="true" />
       </header>
@@ -1217,7 +1217,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
         <div className="rsvp-column">
           <div className="rsvp-heading">
             <div><p className="eyebrow">Kindly reply</p><h2>Will you be there?</h2></div>
-            <span className="reply-date">By 1 January 2027</span>
+            <span className="reply-date">By 1 December 2026</span>
           </div>
 
           <div className="rsvp-progress" aria-hidden="true">

@@ -72,7 +72,7 @@ type NormalizedImportRow = {
 
 const DEFAULT_SETTINGS: SettingsRow = {
   mealPhaseOpen: 0,
-  rsvpDeadline: "2027-01-01",
+  rsvpDeadline: "2026-12-01",
   weddingDate: "2027-06-20",
   deletionDate: "2027-06-27",
 };

@@ -59,6 +59,6 @@ Use the full pastel palette in large atmospheric fields. Use dark sage or mulber
 
 - Primary phrase: “Forever starts today.”
 - Use “Love blooms” once as the central scroll interlude.
-- The RSVP deadline shown to guests is “Kindly reply by 1 January 2027.”
+- The RSVP deadline shown to guests is “Kindly reply by 1 December 2026.”
 - Prefer warm, plain English. Avoid technical words and email-first instructions.
 - Never claim a reply is saved until the server confirms it.
