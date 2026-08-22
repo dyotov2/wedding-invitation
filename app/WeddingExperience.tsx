@@ -1032,8 +1032,16 @@ function LoveStory() {
   );
 }
 
+const programStops: Array<{ time: string; name: string; desc: string }> = [
+  { time: "15:00", name: "Arrival", desc: "The stealing of the bride, a Bulgarian tradition you won't want to miss. Be on time; it starts at 15:30, and there's something cold to drink while you wait." },
+  { time: "16:30", name: "Ceremony", desc: "Our vows among the vines." },
+  { time: "17:30", name: "Drinks", desc: "A glass of the estate's own wine, something to eat, and the best view on the property." },
+  { time: "19:30", name: "Dinner", desc: "Your chosen dish, a few Bulgarian traditions, and no shortage of wine. Menu choices open in October." },
+  { time: "21:00", name: "Dancing", desc: "Our favourite songs and at least one hora. No experience needed, hold hands and follow whoever's on your right." },
+];
+
 const faqItems = [
-  { q: "When should I arrive?", a: "The ceremony begins at 15:30. Please arrive 20 to 30 minutes early so we can start among the vines together." },
+  { q: "When should I arrive?", a: "Please arrive by 15:00. The day opens with a Bulgarian bride-stealing tradition at 15:30, and the ceremony follows at 16:30." },
   { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
   { q: "Can we change our answer?", a: "Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
   { q: "Lost your link or code?", a: "Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help." },
@@ -1287,24 +1295,17 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           <BotanicalPhoto variant="sprig" className="program-botanical program-botanical-two" />
         </div>
         <div className="program-heading">
-          <p className="eyebrow">The day in bloom</p>
-          <h2 id="program-title">Our wedding day</h2>
-          <p>A gentle rhythm for a long summer celebration.</p>
+          <h2 id="program-title">How the day unfolds</h2>
+          <p>The day begins with a Bulgarian ritual you wouldn&apos;t want to miss.</p>
         </div>
         <div className="program-path">
           <span className="program-vine" aria-hidden="true" />
-          <article className="program-stop">
-            <span className="program-bud" aria-hidden="true" />
-            <div><small>Gather</small><time>15:30</time><h3>Ceremony</h3><p>Our promises among the vines.</p></div>
-          </article>
-          <article className="program-stop">
-            <span className="program-bud" aria-hidden="true" />
-            <div><small>Celebrate</small><time>18:00</time><h3>Dinner</h3><p>A long table, local wine, and summer light.</p></div>
-          </article>
-          <article className="program-stop">
-            <span className="program-bud" aria-hidden="true" />
-            <div><small>Stay awhile</small><time>20:30</time><h3>Dancing</h3><p>Music beneath the evening sky.</p></div>
-          </article>
+          {programStops.map((stop) => (
+            <article className="program-stop" key={stop.time}>
+              <span className="program-bud" aria-hidden="true" />
+              <div><time>{stop.time}</time><h3>{stop.name}</h3><p>{stop.desc}</p></div>
+            </article>
+          ))}
         </div>
       </section>
 
