@@ -1040,17 +1040,6 @@ const programStops: Array<{ time: string; name: string; desc: string }> = [
   { time: "21:00", name: "Dancing", desc: "Our favourite songs and at least one hora. No experience needed, hold hands and follow whoever's on your right." },
 ];
 
-const faqItems = [
-  { q: "When should I arrive?", a: "Please arrive by 15:00. The day opens with a Bulgarian bride-stealing tradition at 15:30, and the ceremony follows at 16:30." },
-  { q: "Can we bring our children?", a: "Yes, little ones are warmly welcome. If they are not already named on your invitation, mention them in the notes when you reply or message us, and we will add them so the kitchen can plan a meal for them too." },
-  { q: "Can we change our answer?", a: "Of course. Open the same link or enter the same code at any time, change your reply, and save it again. The latest reply you save is the one that counts." },
-  { q: "Lost your link or code?", a: "Your personal link and the code on your printed card open the same invitation. If neither is at hand, get in touch with us and we will happily help." },
-  { q: "Is there parking at the estate?", a: "There is free guest parking at Midalidare Estate. Just follow the signs on arrival." },
-  { q: "Where can we stay?", a: "The estate has rooms on site, with more nearby in Chirpan and Stara Zagora. The Stay among the vines section above has the details." },
-  { q: "What will the weather be like?", a: "A warm Bulgarian summer evening, mostly outdoors. Bring a light layer for after sunset, and remember heels and lawns do not always agree." },
-  { q: "I have a dietary need.", a: "Tell us in your RSVP above. There is a note for each guest, and the kitchen will take care of the rest." },
-] as const;
-
 function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts, onExit }: {
   household: Household;
   onUpdate: (invitation: InvitationResponse) => void;
@@ -1338,9 +1327,8 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       <section className="stay-section" id="stay" aria-label="Where to stay">
         <BotanicalPhoto variant="sprig" className="stay-botanical" />
         <div className="stay-body">
-          <p className="eyebrow">Rest your head</p>
           <h2>Stay among<br />the vines</h2>
-          <p>Midalidare sits a little way from the nearest town, so most guests make a night of it among the vineyards. Rooms on the estate are limited, so we would book early.</p>
+          <p>Midalidare is a wine estate in the countryside, about half an hour from Stara Zagora, and most guests will stay the night. Rooms on the estate are few, so once you&apos;ve replied we&apos;ll make sure you have somewhere to stay, on the estate or close by.</p>
           <div className="stay-cards">
             <div className="stay-card stay-card-onsite">
               <span className="stay-card-eyebrow">On site</span>
@@ -1355,27 +1343,12 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
               <small>A handful of guesthouses and small hotels, for those who would like their own base.</small>
             </div>
           </div>
-          <p className="stay-foot">Heading home the same night? There is free parking on the estate, with details in the questions below.</p>
+          <p className="stay-foot">Heading home the same night? There is free parking on the estate.</p>
         </div>
         <div className="stay-fade" aria-hidden="true" />
       </section>
 
       <LoveStory />
-
-      <section className="faq-section" id="questions" aria-labelledby="faq-title">
-        <div className="faq-heading">
-          <p className="eyebrow">Good to know</p>
-          <h2 id="faq-title">Questions<br />&amp; answers</h2>
-        </div>
-        <dl className="faq-list">
-          {faqItems.map((item) => (
-            <div key={item.q}>
-              <dt>{item.q}</dt>
-              <dd>{item.a}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
 
       <footer className="wedding-footer">
         <BotanicalPhoto variant="corner" className="footer-botanical" />
