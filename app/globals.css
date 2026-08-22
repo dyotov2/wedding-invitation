@@ -200,6 +200,7 @@ h1, h2, h3, p { margin-top: 0; }
   gap: .75rem;
   align-items: center;
   padding: 0 clamp(1rem, 5vw, 2.5rem);
+  padding-right: calc(clamp(1rem, 5vw, 2.5rem) + 96px); /* clear the fixed language pill */
   border-bottom: 1px solid var(--line);
   background: var(--paper);
   color: var(--sage-dark);
@@ -379,14 +380,7 @@ h1, h2, h3, p { margin-top: 0; }
 .estate-map-caption small { display: block; margin-top: .2rem; color: oklch(44% .022 120); font-size: .74rem; }
 .estate-map-caption a { margin-top: .9rem; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: .6rem; border: 1px solid var(--mulberry); border-radius: 999px; color: var(--mulberry); font-size: .74rem; font-weight: 750; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 .dress-code-note { width: calc(100% - 2.5rem); max-width: 640px; margin: 1.4rem auto 0; border: 1px solid var(--line); border-radius: 12px; background: oklch(99% 0.008 80); padding: 1.1rem 1.2rem; }
-.dress-code-note > span { display: block; color: var(--lavender); font-size: .67rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
-.dress-code-note strong { display: block; margin-top: .3rem; color: var(--mulberry); font-family: var(--font-display), serif; font-size: 1.75rem; font-weight: 400; line-height: 1; }
-.dress-code-swatches { display: flex; gap: .45rem; margin-top: .7rem; }
-.dress-code-swatches span { width: 18px; height: 18px; border-radius: 50%; border: 1px solid oklch(80% 0.02 100 / .6); }
-.swatch-sage { background: var(--pastel-sage); }
-.swatch-lilac { background: var(--pastel-lilac); }
-.swatch-blush { background: var(--pastel-blush); }
-.swatch-champagne { background: var(--pastel-champagne); }
+.dress-code-note > span { display: block; color: var(--lavender); font-size: 1rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
 .dress-code-note small { display: block; margin-top: .6rem; max-width: 42ch; color: oklch(45% .022 120); font-size: .78rem; }
 
 /* Animated venue scene */
@@ -429,15 +423,6 @@ h1, h2, h3, p { margin-top: 0; }
 .stay-body > .eyebrow { color: var(--lavender); font-size: .74rem; letter-spacing: .24em; }
 .stay-body h2 { margin: 0 0 1.1rem; font-family: var(--font-display), serif; font-size: clamp(3rem, 12vw, 3.25rem); font-weight: 400; letter-spacing: -.045em; line-height: .86; }
 .stay-body > p:first-of-type { margin: 0 0 1.8rem; max-width: 40ch; color: oklch(43% 0.026 60); }
-.stay-cards { display: grid; gap: .8rem; }
-.stay-card { border: 1px solid var(--line); border-radius: 14px; background: oklch(99% 0.008 80 / .6); padding: 1.15rem 1.2rem; }
-.stay-card-onsite { border-color: oklch(72% 0.03 60 / .5); background: oklch(99% 0.008 80 / .8); }
-.stay-card-eyebrow { display: block; color: var(--sage-dark); font-size: .64rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
-.stay-card-eyebrow-muted { color: oklch(48% 0.03 300); }
-.stay-card strong { display: block; margin-top: .35rem; font-family: var(--font-display), serif; font-size: 1.5rem; font-weight: 400; line-height: 1.05; }
-.stay-card small { display: block; margin: .35rem 0 0; color: oklch(45% 0.024 42); font-size: .86rem; line-height: 1.45; }
-.stay-reserve { margin-top: .95rem; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; border: 1px solid var(--mulberry); border-radius: 999px; color: var(--mulberry); font-size: .74rem; font-weight: 750; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
-.stay-card-foot { text-align: center; margin-top: .6rem; color: oklch(50% 0.02 100); font-size: .7rem; }
 .stay-foot { position: relative; margin: 1.6rem 0 0; max-width: 42ch; color: oklch(48% 0.022 120); font-size: .82rem; line-height: 1.5; }
 .stay-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(180deg, transparent, var(--paper)); pointer-events: none; }
 
@@ -472,10 +457,7 @@ h1, h2, h3, p { margin-top: 0; }
 .ls-locket { position: relative; z-index: 1; overflow: hidden; border-radius: 150px 150px 14px 14px; background: oklch(99% 0.008 80); border: 1px solid oklch(72% 0.045 82 / .8); box-shadow: 0 20px 44px oklch(40% 0.05 82 / .18); aspect-ratio: 3 / 4; }
 .ls-locket-inner { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .55rem; padding: 1rem; text-align: center; background: radial-gradient(circle at 50% 34%, oklch(97.5% 0.012 84), oklch(93% 0.022 82)); }
 .ls-locket-inner::after { content: ""; position: absolute; inset: 10px; border: 1px solid oklch(72% 0.045 82 / .55); border-radius: 140px 140px 8px 8px; pointer-events: none; }
-.ls-locket-mark { position: relative; }
-.ls-locket-mark::before { background: var(--mulberry); }
-.ls-locket-mark::after { background: var(--sage); }
-.ls-locket-hint { color: var(--mulberry); font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.ls-locket-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ls-finale-line { margin: 4rem auto 0; max-width: 24ch; text-align: center; color: var(--mulberry); font-family: var(--font-display), serif; font-size: 1.4rem; line-height: 1.25; }
 /* Reveal: the copy block fades while its lines cascade up in sequence; once shown
    they stay (JS latches an .is-in class), so nothing flickers on scroll-up. */
@@ -493,6 +475,8 @@ h1, h2, h3, p { margin-top: 0; }
 .love-story-section .ls-copy.is-in .ls-label { transform: none; transition-delay: 130ms; }
 .love-story-section .ls-copy.is-in .ls-text { transform: none; transition-delay: 220ms; }
 .love-story-section .ls-finale-line.is-in { transform: none; }
+.love-story-section.ls-animate .ls-rustle { transform-box: fill-box; transform-origin: 50% 96%; animation: ls-leaf-rustle 6.5s ease-in-out infinite; }
+@keyframes ls-leaf-rustle { 0%, 100% { transform: rotate(-2.2deg); } 50% { transform: rotate(2.6deg); } }
 @keyframes ls-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes ls-breathe { 0%, 100% { transform: rotate(var(--r, 0deg)) scale(1); } 50% { transform: rotate(var(--r, 0deg)) scale(1.03); } }
 
@@ -767,3 +751,39 @@ h1, h2, h3, p { margin-top: 0; }
   .venue-scene { background: #8fa07e; }
   .scene-sky-sunset, .scene-sky-night, .scene-stars, .scene-moon, .scene-dusk, .scene-lights, .scene-fireflies { display: none; }
 }
+
+/* --- Language toggle + Bulgarian font swap ------------------------------- */
+/* Italiana/Figtree have no Cyrillic; in Bulgarian the whole page moves to the
+   Cyrillic-capable companions so Latin and Cyrillic never mix mid-word. */
+html[lang="bg"] body { --font-display: var(--font-display-bg); --font-body: var(--font-body-bg); }
+
+.lang-toggle {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: 12px;
+  z-index: 80;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: oklch(99% 0.008 80 / .8);
+  border: 1px solid oklch(72% 0.045 82 / .7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px oklch(40% 0.05 82 / .14);
+}
+.lang-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  min-height: 30px;
+  padding: .2rem .58rem;
+  border-radius: 999px;
+  font-family: var(--font-body), sans-serif;
+  font-size: .66rem;
+  font-weight: 750;
+  letter-spacing: .1em;
+  color: oklch(45% 0.035 100);
+  cursor: pointer;
+}
+.lang-toggle button[aria-pressed="true"] { background: var(--sage-dark); color: var(--white-tint); }

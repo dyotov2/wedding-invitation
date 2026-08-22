@@ -1,7 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { createContext, FormEvent, ReactNode, useContext, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+
+import { COPY, type Copy, type Lang, type StatusKey } from "./copy";
+
+const LANG_STORAGE_KEY = "wedding-lang";
+const LangContext = createContext<Lang>("en");
+const useCopy = () => COPY[useContext(LangContext)];
+
+function LangToggle({ lang, onChange }: { lang: Lang; onChange: (lang: Lang) => void }) {
+  const c = useCopy();
+  return (
+    <div className="lang-toggle" role="group" aria-label={c.toggle.aria}>
+      <button type="button" aria-pressed={lang === "en"} onClick={() => onChange("en")}>EN</button>
+      <button type="button" aria-pressed={lang === "bg"} onClick={() => onChange("bg")}>БГ</button>
+    </div>
+  );
+}
 
 type Attendance = "pending" | "attending" | "declined";
 type ReplySource = "website" | "phone" | "whatsapp" | "viber" | "paper";
@@ -315,22 +331,19 @@ function HeartVine() {
   return <canvas ref={canvasRef} className="heart-vine-canvas" aria-hidden="true" />;
 }
 
-const contactPresentation = {
-  whatsapp: { label: "WhatsApp", mark: "W" },
-  viber: { label: "Viber", mark: "V" },
-  phone: { label: "Call us", mark: "☎" },
-} as const;
+const contactMarks = { whatsapp: "W", viber: "V", phone: "☎" } as const;
 
 function ContactActions({ contacts }: { contacts: ContactAction[] }) {
+  const c = useCopy();
   if (contacts.length === 0) return null;
 
   return (
     <div className="contact-area">
-      <p className="eyebrow">Prefer to reply personally?</p>
-      <div className="contact-actions" aria-label="Contact options">
+      <p className="eyebrow">{c.contacts.prompt}</p>
+      <div className="contact-actions" aria-label={c.contacts.aria}>
         {contacts.map((contact) => (
           <a key={contact.key} className={`contact-button ${contact.key}`} href={contact.href} rel="noreferrer">
-            <span aria-hidden="true">{contactPresentation[contact.key].mark}</span> {contactPresentation[contact.key].label}
+            <span aria-hidden="true">{contactMarks[contact.key]}</span> {contact.key === "phone" ? c.contacts.phone : contact.key === "whatsapp" ? "WhatsApp" : "Viber"}
           </a>
         ))}
       </div>
@@ -343,15 +356,16 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
   linkStatus?: "idle" | "loading";
   linkError?: string;
 }) {
+  const c = useCopy();
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<"" | "emptyCode" | "notFound">("");
   const [loading, setLoading] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const normalized = code.trim().toUpperCase();
     if (!normalized) {
-      setError("Please enter the code printed on your invitation.");
+      setError("emptyCode");
       return;
     }
     setLoading(true);
@@ -360,7 +374,7 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
       const invitation = await fetchInvitation(normalized);
       onFound(invitation);
     } catch {
-      setError("We could not find that invitation. Please check the code and try again.");
+      setError("notFound");
     } finally {
       setLoading(false);
     }
@@ -374,46 +388,47 @@ function CodeEntry({ onFound, linkStatus = "idle", linkError = "" }: {
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="entry-heart-stage">
           <div className="entry-heart-vine" aria-hidden="true"><HeartVine /></div>
-          <p className="entry-love-note">our forever begins</p>
-          <div className="entry-names" aria-label="Ekaterina and Dimitar"><span>Ekaterina</span><small>+</small><span>Dimitar</span></div>
+          <p className="entry-love-note">{c.entry.loveNote}</p>
+          <div className="entry-names" aria-label={c.names.coupleAria}><span>{c.names.her}</span><small>+</small><span>{c.names.him}</span></div>
         </div>
         <p className="date-line">20 · 06 · 2027</p>
-        <h1 id="entry-title">Forever<br />starts today</h1>
-        <p className="entry-copy">Your personal invitation is waiting.</p>
+        <h1 id="entry-title">{c.entry.titleLines[0]}<br />{c.entry.titleLines[1]}</h1>
+        <p className="entry-copy">{c.entry.copyLine}</p>
 
         <form className="code-form" onSubmit={submit} noValidate aria-busy={loading || linkStatus === "loading"}>
-          <label htmlFor="invitation-code">Invitation code</label>
+          <label htmlFor="invitation-code">{c.entry.codeLabel}</label>
           <div className="code-row">
             <input
               id="invitation-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              placeholder="e.g. K7MP9Q2XWD"
+              placeholder={c.entry.codePlaceholder}
               autoCapitalize="characters"
               autoComplete="off"
               aria-describedby="code-hint code-error"
             />
-            <button type="submit" disabled={loading || linkStatus === "loading"}>{loading || linkStatus === "loading" ? "Opening…" : "Open invitation"}</button>
+            <button type="submit" disabled={loading || linkStatus === "loading"}>{loading || linkStatus === "loading" ? c.entry.openingBtn : c.entry.openBtn}</button>
           </div>
-          <p id="code-hint" className="form-hint">You will find this short code on your printed card.</p>
-          <p id="code-error" className="form-error" role="alert">{error}</p>
-          {linkStatus === "loading" && <p className="link-status" role="status">Opening your personal invitation…</p>}
-          {linkError && <p className="form-error" role="alert">{linkError}</p>}
+          <p id="code-hint" className="form-hint">{c.entry.hint}</p>
+          <p id="code-error" className="form-error" role="alert">{error === "emptyCode" ? c.entry.errEmpty : error === "notFound" ? c.entry.errNotFound : ""}</p>
+          {linkStatus === "loading" && <p className="link-status" role="status">{c.entry.linkOpening}</p>}
+          {linkError && <p className="form-error" role="alert">{c.entry.linkError}</p>}
         </form>
-        <p className="privacy-note">We use your invitation details and reply only to plan our wedding. Guest data will be deleted by 27 June 2027.</p>
+        <p className="privacy-note">{c.entry.privacy}</p>
       </section>
-      <p className="entry-footer">Ekaterina &amp; Dimitar · Midalidare Estate, Bulgaria</p>
+      <p className="entry-footer">{c.entry.footer}</p>
     </main>
   );
 }
 
-function statusLabel(attendance: Attendance): string {
-  if (attendance === "attending") return "Joyfully attending";
-  if (attendance === "declined") return "Unable to attend";
-  return "Choose an answer below";
+function statusLabel(c: Copy, attendance: Attendance): string {
+  if (attendance === "attending") return c.guest.statusAttending;
+  if (attendance === "declined") return c.guest.statusDeclined;
+  return c.guest.statusPending;
 }
 
 function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest) => void }) {
+  const c = useCopy();
   const select = (attendance: Attendance) => onChange({ ...guest, attendance });
   const answered = guest.attendance !== "pending";
 
@@ -426,25 +441,25 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
         </span>
         <div className="guest-card-name">
           <h3>{guest.name}</h3>
-          <p className={answered ? `is-${guest.attendance}` : "is-pending"}>{statusLabel(guest.attendance)}</p>
+          <p className={answered ? `is-${guest.attendance}` : "is-pending"}>{statusLabel(c, guest.attendance)}</p>
         </div>
       </div>
-      <div className="attendance-buttons" role="group" aria-label={`Attendance for ${guest.name}`}>
+      <div className="attendance-buttons" role="group" aria-label={c.guest.attendanceAria(guest.name)}>
         <button type="button" aria-pressed={guest.attendance === "attending"} className={guest.attendance === "attending" ? "selected yes" : ""} onClick={() => select("attending")}>
-          <span aria-hidden="true">✓</span> We will attend
+          <span aria-hidden="true">✓</span> {c.guest.yes}
         </button>
         <button type="button" aria-pressed={guest.attendance === "declined"} className={guest.attendance === "declined" ? "selected no" : ""} onClick={() => select("declined")}>
-          <span aria-hidden="true">×</span> We cannot attend
+          <span aria-hidden="true">×</span> {c.guest.no}
         </button>
       </div>
       {guest.attendance === "attending" && (
         <div className="notes-field">
-          <label htmlFor={`notes-${guest.id}`}>Dietary or accessibility needs</label>
+          <label htmlFor={`notes-${guest.id}`}>{c.guest.notesLabel}</label>
           <textarea
             id={`notes-${guest.id}`}
             value={guest.dietaryNotes}
             onChange={(event) => onChange({ ...guest, dietaryNotes: event.target.value })}
-            placeholder="Optional, tell us what would help you feel comfortable"
+            placeholder={c.guest.notesPlaceholder}
             maxLength={500}
             rows={2}
           />
@@ -455,8 +470,9 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
 }
 
 function VenueScene() {
+  const c = useCopy();
   return (
-    <div className="venue-scene" aria-label="An abstract garden view of Midalidare Estate, from a warm afternoon into a starlit celebration">
+    <div className="venue-scene" aria-label={c.venue.sceneAria}>
       <div className="scene-fade scene-fade-top" aria-hidden="true" />
       <div className="scene-fade scene-fade-bottom" aria-hidden="true" />
       <div className="scene-sky scene-sky-day" aria-hidden="true" />
@@ -490,7 +506,7 @@ function VenueScene() {
         <BotanicalPhoto className="scene-botanical scene-botanical-one" />
         <BotanicalPhoto variant="corner" className="scene-botanical scene-botanical-two" />
       </div>
-      <p className="scene-label">Midalidare<br /><small>Among the Bulgarian vines</small></p>
+      <p className="scene-label">{c.venue.sceneName}<br /><small>{c.venue.sceneTag}</small></p>
     </div>
   );
 }
@@ -510,12 +526,13 @@ function lsPetalPath(type: "rose" | "tulip", h: number): string {
   return `M 0,0 C ${-w / 2},${-h / 2} ${-w / 2},${-h} 0,${-h} C ${w},${-h} ${w / 2},${-h / 2} 0,0`;
 }
 
-// [left, top, size, hue] per flower in a milestone's cluster.
-const LS_MILESTONES: Array<{ year: string; label: string; text: string; cluster: [number, number, number, number][] }> = [
-  { year: "2015", label: "We met", text: "We met in the summer of 2015 and instantly fell in love.", cluster: [[0, 0, 58, 22], [26, 60, 34, 22], [2, 92, 26, 82]] },
-  { year: "2018", label: "Vienna", text: "We moved to Vienna together.", cluster: [[0, 0, 58, 309], [24, 58, 34, 309], [0, 90, 26, 22]] },
-  { year: "2023", label: "London", text: "We set London as our next adventure.", cluster: [[0, 0, 58, 82], [26, 60, 34, 82], [2, 92, 26, 309]] },
-  { year: "2025", label: "The big question", text: "She said yes.", cluster: [[0, 0, 62, 18], [26, 62, 34, 22], [2, 94, 26, 18]] },
+// [left, top, size, hue] per flower in a milestone's cluster; the label and
+// text for each entry live in copy.ts (story.milestones, same order).
+const LS_MILESTONES: Array<{ year: string; cluster: [number, number, number, number][] }> = [
+  { year: "2015", cluster: [[0, 0, 58, 22], [26, 60, 34, 22], [2, 92, 26, 82]] },
+  { year: "2018", cluster: [[0, 0, 58, 309], [24, 58, 34, 309], [0, 90, 26, 22]] },
+  { year: "2023", cluster: [[0, 0, 58, 82], [26, 60, 34, 82], [2, 92, 26, 309]] },
+  { year: "2025", cluster: [[0, 0, 62, 18], [26, 62, 34, 22], [2, 94, 26, 18]] },
 ];
 
 // [hue, size, at, side, off] for each bloom seated on the photo arch.
@@ -525,6 +542,7 @@ const LS_ARCH_FLOWERS: [number, number, number, number, number][] = [
 ];
 
 function LoveStory() {
+  const c = useCopy();
   const rootRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -596,22 +614,135 @@ function LoveStory() {
       });
     };
 
+    // The timeline vine is regenerated at the holder's native pixel size (the
+    // old fixed 64x800 viewBox was stretched to fit, elongating every leaf on
+    // tall screens). Three strands — a soft halo, the main stem, and a thin
+    // companion that weaves across it — plus leaves with a midrib highlight
+    // that rustle via CSS, tendrils, and blossom buds echoing the milestone
+    // flowers. The static path in the JSX stays as the no-JS fallback and is
+    // only removed once a build succeeds.
     const buildVines = () => {
       root.querySelectorAll<SVGSVGElement>("[data-vine]").forEach((svg) => {
-        if (svg.dataset.built) return;
-        const stems = svg.querySelectorAll<SVGPathElement>("[data-stem]");
-        if (!stems.length) return;
-        let ok = true;
-        stems.forEach((stem) => { if (!stem.getTotalLength || stem.getTotalLength() < 10) ok = false; });
-        if (!ok) return;
-        svg.dataset.built = "1";
-        stems.forEach((stem) => {
+        const box = svg.getBoundingClientRect();
+        const w = Math.round(box.width) || 64;
+        const h = Math.round(box.height);
+        if (svg.dataset.built) {
+          if (Math.abs(h - Number(svg.dataset.builtH || 0)) < 64) return;
+          delete svg.dataset.built;
+          svg.innerHTML = "";
+        }
+        if (h < 300) return;
+        const gen = document.createElementNS(SVG_NS, "g");
+        svg.appendChild(gen);
+        let seed = 11;
+        const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+        const TONES = ["oklch(41% 0.05 133)", "oklch(47% 0.058 132)", "oklch(53% 0.062 134)", "oklch(59% 0.055 131)", "oklch(64% 0.038 146)"];
+        const BUDS = ["oklch(72% 0.105 22)", "oklch(68% 0.1 309)", "oklch(78% 0.08 18)"];
+        type Pt = { x: number; y: number };
+        const spline = (pts: Pt[]) => {
+          let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+          for (let i = 0; i < pts.length - 1; i += 1) {
+            const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+            d += ` C ${(p1.x + (p2.x - p0.x) / 6).toFixed(1)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(1)}`
+              + ` ${(p2.x - (p3.x - p1.x) / 6).toFixed(1)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(1)}`
+              + ` ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+          }
+          return d;
+        };
+        const wander = (phase: number, amp: number, top: number, bottom: number): Pt[] => {
+          const pts: Pt[] = [];
+          const steps = Math.max(6, Math.round((bottom - top) / 105));
+          for (let i = 0; i <= steps; i += 1) {
+            const t = i / steps;
+            pts.push({
+              x: w / 2 + Math.sin(i * 1.05 + phase) * amp * (0.75 + rnd() * 0.5),
+              y: top + (bottom - top) * t + (i > 0 && i < steps ? (rnd() - 0.5) * 26 : 0),
+            });
+          }
+          return pts;
+        };
+        const strand = (d: string, stroke: string, width: number) => {
+          const p = document.createElementNS(SVG_NS, "path");
+          p.setAttribute("d", d);
+          p.setAttribute("fill", "none");
+          p.setAttribute("stroke", stroke);
+          p.setAttribute("stroke-width", String(width));
+          p.setAttribute("stroke-linecap", "round");
+          p.setAttribute("data-stem", "");
+          gen.appendChild(p);
+          return p;
+        };
+        const el = (name: string, attrs: Record<string, string>, parent: Element) => {
+          const node = document.createElementNS(SVG_NS, name);
+          for (const k in attrs) node.setAttribute(k, attrs[k]);
+          parent.appendChild(node);
+          return node;
+        };
+        // Smooth grapevine curl: a slim lead-in arc, then a spiral that
+        // tightens into its own centre (the old coarse polyline read as a
+        // scribbled knot at display size).
+        const tendrilPath = (dir: number, size: number) => {
+          const pts: Pt[] = [];
+          for (let s = 0; s <= 10; s += 1) { const t = s / 10; pts.push({ x: dir * 3.6 * Math.sin(t * 1.5) * size, y: -9 * t * size }); }
+          const e = pts[pts.length - 1];
+          const r0 = 3.9 * size;
+          for (let s = 1; s <= 44; s += 1) {
+            const t = s / 44, th = Math.PI / 2 + dir * t * 1.55 * 2 * Math.PI, r = r0 * (1 - 0.86 * t);
+            pts.push({ x: e.x + r * Math.cos(th), y: e.y - r0 + r * Math.sin(th) });
+          }
+          return "M " + pts.map((pp) => `${pp.x.toFixed(2)},${pp.y.toFixed(2)}`).join(" L ");
+        };
+        const tendril = (px: number, py: number, rot: number, dir: number, size: number, growAt: number) => {
+          el("path", {
+            d: tendrilPath(dir, size), fill: "none", stroke: "oklch(52% 0.055 133)",
+            "stroke-width": "1.2", "stroke-linecap": "round", "stroke-linejoin": "round",
+            "data-grow": String(growAt), "data-base": `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${rot.toFixed(1)})`,
+          }, gen).setAttribute("transform", `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${rot.toFixed(1)}) scale(0)`);
+        };
+        // Pointed almond leaf on a short stalk, optional smaller companion
+        // leaflet, curved midrib on the larger leaves.
+        const leafPath = (l: number, wHalf: number) =>
+          `M 0,0 C ${(-wHalf * 0.95).toFixed(2)},${(-l * 0.22).toFixed(2)} ${(-wHalf).toFixed(2)},${(-l * 0.62).toFixed(2)} 0,${(-l).toFixed(2)} C ${wHalf.toFixed(2)},${(-l * 0.62).toFixed(2)} ${(wHalf * 0.95).toFixed(2)},${(-l * 0.22).toFixed(2)} 0,0`;
+        const addLeaf = (parent: Element, l: number, wHalf: number, tone: string, pairTone: string | null) => {
+          const stalk = Math.max(2.4, l * 0.17);
+          el("path", { d: `M 0,0 Q 0.5,${(-stalk * 0.6).toFixed(1)} 0,${(-stalk).toFixed(1)}`, fill: "none", stroke: tone, "stroke-width": "1.05", "stroke-linecap": "round" }, parent);
+          const g = el("g", { transform: `translate(0 ${(-stalk).toFixed(1)})` }, parent);
+          el("path", { d: leafPath(l, wHalf), fill: tone }, g);
+          if (l > 12) el("path", { d: `M 0,${(-l * 0.12).toFixed(1)} Q ${(wHalf * 0.22).toFixed(1)},${(-l * 0.5).toFixed(1)} 0,${(-l * 0.85).toFixed(1)}`, fill: "none", stroke: "oklch(88% 0.03 130 / 0.45)", "stroke-width": "0.7", "stroke-linecap": "round" }, g);
+          if (pairTone) {
+            const pg = el("g", { transform: "rotate(54)" }, parent);
+            el("path", { d: "M 0,0 Q 0.3,-1.2 0,-2.2", fill: "none", stroke: pairTone, "stroke-width": "0.9", "stroke-linecap": "round" }, pg);
+            el("path", { d: leafPath(l * 0.52, wHalf * 0.55), fill: pairTone }, el("g", { transform: "translate(0 -2.2)" }, pg));
+          }
+        };
+        // Blossom bud: stalk, three petals, green calyx seating it on the stem.
+        const addBud = (parent: Element, budScale: number) => {
+          const g = el("g", { transform: `scale(${budScale.toFixed(2)})` }, parent);
+          el("path", { d: "M 0,0 Q 0.3,-1.4 0,-2.6", fill: "none", stroke: "oklch(50% 0.06 133)", "stroke-width": "1", "stroke-linecap": "round" }, g);
+          el("circle", { cx: "-1.1", cy: "-4.4", r: "1.9", fill: BUDS[0] }, g);
+          el("circle", { cx: "1.3", cy: "-4.7", r: "1.6", fill: BUDS[1] }, g);
+          el("circle", { cx: "0.1", cy: "-6.3", r: "1.4", fill: BUDS[2] }, g);
+          el("path", { d: "M -1.7,-2.2 Q 0,-4.4 1.7,-2.2 Q 0,-1.2 -1.7,-2.2", fill: "oklch(50% 0.06 133)" }, g);
+        };
+        const mainD = spline(wander(0.6, w * 0.3, 0, h));
+        const halo = strand(mainD, "oklch(64% 0.038 146 / 0.22)", 6.5);
+        const main = strand(mainD, "oklch(46% 0.058 133)", 2.6);
+        const companion = strand(spline(wander(3.4, w * 0.24, h * 0.04, h * 0.985)), "oklch(54% 0.055 132)", 1.5);
+        if (!main.getTotalLength || main.getTotalLength() < 10 || companion.getTotalLength() < 10) { svg.removeChild(gen); return; }
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        Array.from(svg.children).forEach((child) => { if (child !== gen) child.remove(); });
+        const haloLen = halo.getTotalLength();
+        halo.style.strokeDasharray = String(haloLen);
+        halo.style.strokeDashoffset = String(haloLen);
+        halo.style.transition = "stroke-dashoffset 120ms linear";
+        halo.dataset.len = String(haloLen);
+        [{ stem: main, gap: 84, scale: 1 }, { stem: companion, gap: 132, scale: 0.72 }].forEach(({ stem, gap, scale }) => {
           const total = stem.getTotalLength();
           stem.style.strokeDasharray = String(total);
           stem.style.strokeDashoffset = String(total);
           stem.style.transition = "stroke-dashoffset 120ms linear";
           stem.dataset.len = String(total);
-          const count = Math.max(5, Math.round(total / 78));
+          const count = Math.max(5, Math.round(total / gap));
           for (let i = 0; i < count; i += 1) {
             const t = (i + 0.6) / (count + 0.4);
             const at = total * t;
@@ -619,33 +750,56 @@ function LoveStory() {
             const q = stem.getPointAtLength(Math.min(total, at + 1.5));
             const tangent = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
             const side = i % 2 ? 1 : -1;
-            const len = 15 + (i % 3) * 3.5;
-            const leaf = document.createElementNS(SVG_NS, "path");
-            leaf.setAttribute("d", `M 0,0 C ${-len * 0.42},${-len * 0.3} ${-len * 0.252},${-len} 0,${-len} C ${len * 0.252},${-len} ${len * 0.42},${-len * 0.3} 0,0`);
-            leaf.setAttribute("fill", i % 2 ? "oklch(56% 0.062 134)" : "oklch(49% 0.058 132)");
-            leaf.setAttribute("data-grow", String(t));
-            leaf.setAttribute("data-base", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 52})`);
-            leaf.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 52}) scale(0)`);
-            svg.appendChild(leaf);
-            if (i % 3 === 1) {
-              const c = document.createElementNS(SVG_NS, "path");
-              let d = "M 0,0";
-              for (let s = 1; s <= 22; s += 1) {
-                const ang = s * 0.62, rad = 1.6 + s * 0.52;
-                d += ` L ${(Math.cos(ang) * rad * side).toFixed(2)},${(-Math.sin(ang) * rad * 0.62 - s * 0.22).toFixed(2)}`;
-              }
-              c.setAttribute("d", d);
-              c.setAttribute("fill", "none");
-              c.setAttribute("stroke", "oklch(52% 0.055 133)");
-              c.setAttribute("stroke-width", "1.5");
-              c.setAttribute("stroke-linecap", "round");
-              c.setAttribute("data-grow", String(t));
-              c.setAttribute("data-base", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 24})`);
-              c.setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${tangent + 90 + side * 24}) scale(0)`);
-              svg.appendChild(c);
+            const len = (13 + rnd() * 9) * scale;
+            const wHalf = len * (0.28 + rnd() * 0.1);
+            const holder = el("g", {
+              "data-grow": String(t),
+              "data-base": `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${(tangent + 90 + side * (30 + rnd() * 34)).toFixed(1)})`,
+            }, gen);
+            holder.setAttribute("transform", `${holder.getAttribute("data-base")} scale(0)`);
+            const rustle = el("g", { class: "ls-rustle" }, holder) as SVGGElement;
+            rustle.style.animationDelay = `-${(rnd() * 7).toFixed(2)}s`;
+            const tone = TONES[Math.min(TONES.length - 1, Math.floor(rnd() * TONES.length))];
+            const pairTone = stem === main && rnd() > 0.68 ? TONES[Math.min(TONES.length - 1, Math.floor(rnd() * TONES.length))] : null;
+            addLeaf(rustle, len, wHalf, tone, pairTone);
+            // Tendrils and buds alternate sides per occurrence (their node
+            // indices are all odd, so `side` alone would stamp them all the
+            // same way) and sit between leaf nodes on clean stem runs.
+            if (stem === main && i % 4 === 1) {
+              const tSide = Math.floor(i / 4) % 2 ? 1 : -1;
+              const ta = Math.min(total - 2, Math.max(2, at + (rnd() - 0.5) * gap * 0.6));
+              const tp = stem.getPointAtLength(ta);
+              const tq = stem.getPointAtLength(Math.min(total, ta + 1.5));
+              const ttan = (Math.atan2(tq.y - tp.y, tq.x - tp.x) * 180) / Math.PI;
+              tendril(tp.x, tp.y, ttan + 90 + tSide * 38, tSide, 1 + rnd() * 0.3, t);
+            }
+            if (stem === main && i % 4 === 3) {
+              const bSide = Math.floor(i / 4) % 2 ? 1 : -1;
+              const ba = Math.min(total - 2, at + gap * 0.5);
+              const bp = stem.getPointAtLength(ba);
+              const bq = stem.getPointAtLength(Math.min(total, ba + 1.5));
+              const btan = (Math.atan2(bq.y - bp.y, bq.x - bp.x) * 180) / Math.PI;
+              const bud = el("g", {
+                "data-grow": String(Math.min(0.96, t + 0.04)),
+                "data-base": `translate(${bp.x.toFixed(1)} ${bp.y.toFixed(1)}) rotate(${(btan + 90 + bSide * 30).toFixed(1)})`,
+              }, gen);
+              bud.setAttribute("transform", `${bud.getAttribute("data-base")} scale(0)`);
+              addBud(bud, 1.5 + rnd() * 0.3);
             }
           }
         });
+        const mainTotal = main.getTotalLength();
+        const tip = main.getPointAtLength(mainTotal);
+        const pre = main.getPointAtLength(mainTotal - 2);
+        const tipBud = document.createElementNS(SVG_NS, "g");
+        tipBud.setAttribute("data-grow", "0.93");
+        tipBud.setAttribute("data-base", `translate(${tip.x.toFixed(1)} ${tip.y.toFixed(1)}) rotate(${((Math.atan2(tip.y - pre.y, tip.x - pre.x) * 180) / Math.PI + 90).toFixed(1)})`);
+        tipBud.setAttribute("transform", `${tipBud.getAttribute("data-base")} scale(0)`);
+        addBud(tipBud, 1.8);
+        gen.appendChild(tipBud);
+        svg.dataset.built = "1";
+        svg.dataset.builtH = String(h);
+        dirty = true;
       });
     };
 
@@ -789,12 +943,15 @@ function LoveStory() {
             if (i % 5 === 3 && t < 0.78 && strand === 0) {
               const out = dir;
               const c = document.createElementNS(SVG_NS, "path");
-              let d = "M 0,0";
-              for (let s2 = 1; s2 <= 16; s2 += 1) {
-                const ang = s2 * 0.52, rad = 1.3 + s2 * 0.42;
-                d += ` L ${(Math.cos(ang) * rad * out).toFixed(2)},${(-Math.sin(ang) * rad * 0.58 - s2 * 0.2).toFixed(2)}`;
+              const cpts: Pt[] = [];
+              for (let s2 = 0; s2 <= 10; s2 += 1) { const tt = s2 / 10; cpts.push({ x: out * 2.9 * Math.sin(tt * 1.5), y: -7.2 * tt }); }
+              const ce = cpts[cpts.length - 1];
+              for (let s2 = 1; s2 <= 40; s2 += 1) {
+                const tt = s2 / 40, th = Math.PI / 2 + out * tt * 1.55 * 2 * Math.PI, r2 = 3.1 * (1 - 0.86 * tt);
+                cpts.push({ x: ce.x + r2 * Math.cos(th), y: ce.y - 3.1 + r2 * Math.sin(th) });
               }
-              c.setAttribute("d", d);
+              c.setAttribute("d", "M " + cpts.map((cp) => `${cp.x.toFixed(2)},${cp.y.toFixed(2)}`).join(" L "));
+              c.setAttribute("stroke-linejoin", "round");
               c.setAttribute("fill", "none");
               c.setAttribute("stroke", "oklch(55% 0.05 133)");
               c.setAttribute("stroke-width", "1.3");
@@ -987,8 +1144,8 @@ function LoveStory() {
     <section className="love-story-section" ref={rootRef} aria-labelledby="ls-title">
       <BotanicalPhoto variant="sprig" className="ls-sprig" />
       <div className="ls-head">
-        <p className="eyebrow ls-eyebrow">Our love story</p>
-        <h2 id="ls-title">A story<br />in bloom</h2>
+        <p className="eyebrow ls-eyebrow">{c.story.eyebrow}</p>
+        <h2 id="ls-title">{c.story.titleLines[0]}<br />{c.story.titleLines[1]}</h2>
       </div>
       <div className="ls-timeline">
         <div className="ls-vine-holder" aria-hidden="true">
@@ -996,7 +1153,7 @@ function LoveStory() {
             <path data-stem d="M32 0 C10 96 52 178 32 272 C12 366 54 448 32 542 C14 622 40 700 32 800" fill="none" stroke="oklch(46% 0.058 133)" strokeWidth="2.6" strokeLinecap="round" />
           </svg>
         </div>
-        {LS_MILESTONES.map((milestone) => (
+        {LS_MILESTONES.map((milestone, index) => (
           <article data-milestone className="ls-milestone" key={milestone.year}>
             <span data-cluster aria-hidden="true" className="ls-cluster">
               {milestone.cluster.map(([left, top, size, hue], index) => (
@@ -1005,8 +1162,8 @@ function LoveStory() {
             </span>
             <div data-copy className="ls-copy">
               <p className="ls-year">{milestone.year}</p>
-              <p className="ls-label">{milestone.label}</p>
-              <p className="ls-text">{milestone.text}</p>
+              <p className="ls-label">{c.story.milestones[index]?.label}</p>
+              <p className="ls-text">{c.story.milestones[index]?.text}</p>
             </div>
           </article>
         ))}
@@ -1019,26 +1176,17 @@ function LoveStory() {
               ))}
             </div>
             <div data-locket className="ls-locket">
-              <div className="ls-locket-inner" role="img" aria-label="A photo of Ekaterina and Dimitar">
-                <span className="petal-mark ls-locket-mark" aria-hidden="true" />
-                <span className="ls-locket-hint">Your engagement photo</span>
+              <div className="ls-locket-inner">
+                <Image className="ls-locket-photo" src="/love-story-photo-v1.jpg" alt={c.story.photoAlt} width={1200} height={1600} unoptimized loading="lazy" decoding="async" />
               </div>
             </div>
           </div>
-          <p data-copy className="ls-finale-line">and 2027, the part with all of you in it</p>
+          <p data-copy className="ls-finale-line">{c.story.finale}</p>
         </div>
       </div>
     </section>
   );
 }
-
-const programStops: Array<{ time: string; name: string; desc: string }> = [
-  { time: "15:00", name: "Arrival", desc: "The stealing of the bride, a Bulgarian tradition you won't want to miss. Be on time; it starts at 15:30, and there's something cold to drink while you wait." },
-  { time: "16:30", name: "Ceremony", desc: "Our vows among the vines." },
-  { time: "17:30", name: "Drinks", desc: "A glass of the estate's own wine, something to eat, and the best view on the property." },
-  { time: "19:30", name: "Dinner", desc: "Your chosen dish, a few Bulgarian traditions, and no shortage of wine. Menu choices open in October." },
-  { time: "21:00", name: "Dancing", desc: "Our favourite songs and at least one hora. No experience needed, hold hands and follow whoever's on your right." },
-];
 
 function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts, onExit }: {
   household: Household;
@@ -1048,9 +1196,10 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
   contacts: ContactAction[];
   onExit: () => void;
 }) {
+  const c = useCopy();
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<StatusKey | "">("");
   const receiptRef = useRef<HTMLDivElement>(null);
   const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((CEREMONY_TIME - Date.now()) / 86_400_000)));
   const draftKey = `wedding-rsvp-draft:${household.id}`;
@@ -1118,13 +1267,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
 
   const save = async () => {
     if (hasPending) {
-      setStatus("Please choose an answer for each invited guest.");
+      setStatus("needAnswers");
       setSaveState("error");
       return;
     }
     if (saveState === "saving") return;
     setSaveState("saving");
-    setStatus("Saving your reply…");
+    setStatus("savingReply");
     try {
       const response = await fetch("/api/rsvp", {
         method: "POST",
@@ -1133,7 +1282,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       });
       if (response.status === 409) {
         setSaveState("conflict");
-        setStatus("This invitation was updated on another phone. Load the latest saved reply, then review it before saving again.");
+        setStatus("replyConflict");
         return;
       }
       if (!response.ok) throw new Error("save failed");
@@ -1142,26 +1291,26 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       onUpdate(saved);
       safeRemoveStoredDraft(draftKey);
       setSaveState("success");
-      setStatus("Your reply is confirmed. You can return with the same code if anything changes.");
+      setStatus("replySaved");
     } catch {
       setSaveState("error");
-      setStatus("We could not save your reply. Your choices are safe on this phone. Please try again.");
+      setStatus("replySaveFailed");
     }
   };
 
   const loadLatest = async () => {
     setSaveState("saving");
-    setStatus("Loading the latest saved reply…");
+    setStatus("loadingLatestReply");
     try {
       const latest = await fetchInvitation(household.credential);
       setDraft(latest.household);
       onUpdate(latest);
       safeRemoveStoredDraft(draftKey);
       setSaveState("idle");
-      setStatus("The latest saved reply is now shown. Please review it before making any changes.");
+      setStatus("latestReplyLoaded");
     } catch {
       setSaveState("conflict");
-      setStatus("We could not load the latest reply. Please check your connection and try again.");
+      setStatus("latestReplyFailed");
     }
   };
 
@@ -1172,17 +1321,17 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
     if (saveState === "success") receiptRef.current?.scrollIntoView({ block: "nearest" });
   }, [saveState]);
 
-  const saveLabel = saveState === "saving" ? "Saving…"
-    : saveState === "error" ? "Try saving again"
-    : saveState === "conflict" ? "Latest reply needed"
-    : "Save our reply";
+  const saveLabel = saveState === "saving" ? c.rsvp.saveLabels.saving
+    : saveState === "error" ? c.rsvp.saveLabels.error
+    : saveState === "conflict" ? c.rsvp.saveLabels.conflict
+    : c.rsvp.saveLabels.idle;
 
   return (
     <main className="invitation-page">
-      <nav className="invitation-nav" aria-label="Invitation navigation">
+      <nav className="invitation-nav" aria-label={c.nav.aria}>
         <span aria-hidden="true" />
-        <a className="nav-rsvp" href="#rsvp">RSVP</a>
-        <button type="button" className="nav-link" onClick={onExit}>Change invitation</button>
+        <a className="nav-rsvp" href="#rsvp">{c.nav.rsvp}</a>
+        <button type="button" className="nav-link" onClick={onExit}>{c.nav.change}</button>
       </nav>
 
       <header className="invitation-hero">
@@ -1192,35 +1341,35 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           <BotanicalPhoto className="hero-botanical hero-botanical-left" />
         </div>
         <div className="floating-petals" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <span key={index} />)}</div>
-        <p className="eyebrow hero-eyebrow">Celebrate with us</p>
-        <h1><span>Ekaterina</span><small>&amp;</small><span>Dimitar</span></h1>
-        <p className="hero-subtitle">as we marry among the vines</p>
-        <div className="event-line" aria-label="Wedding date and venue">
-          <div><strong>Sunday</strong><span>20 June 2027</span></div>
+        <p className="eyebrow hero-eyebrow">{c.hero.eyebrow}</p>
+        <h1><span>{c.names.her}</span><small>&amp;</small><span>{c.names.him}</span></h1>
+        <p className="hero-subtitle">{c.hero.subtitle}</p>
+        <div className="event-line" aria-label={c.hero.dateAria}>
+          <div><strong>{c.hero.day}</strong><span>{c.hero.dateLong}</span></div>
           <span className="event-divider" aria-hidden="true" />
-          <div><strong>Midalidare Estate</strong><span>Bulgaria</span></div>
+          <div><strong>{c.hero.venueName}</strong><span>{c.hero.venueCountry}</span></div>
         </div>
-        <p className="hero-countdown">{daysUntilWedding} days to go <span aria-hidden="true">·</span> Kindly reply by 1 December 2026</p>
-        <a className="scroll-prompt" href="#rsvp">Your invitation <span aria-hidden="true">↓</span></a>
+        <p className="hero-countdown">{c.hero.daysToGo(daysUntilWedding)} <span aria-hidden="true">·</span> {c.hero.replyBy}</p>
+        <a className="scroll-prompt" href="#rsvp">{c.hero.scrollPrompt} <span aria-hidden="true">↓</span></a>
         <div className="hero-fade" aria-hidden="true" />
       </header>
 
       <section className="rsvp-section" id="rsvp">
         <div className="rsvp-intro">
-          <p className="eyebrow">{household.greeting || `Dear ${household.householdName}`}</p>
-          <h2>We would love to<br />celebrate with you.</h2>
-          <p>Please let us know whether you can join us.</p>
+          <p className="eyebrow">{household.greeting || c.rsvp.greeting(household.householdName)}</p>
+          <h2>{c.rsvp.introTitleLines[0]}<br />{c.rsvp.introTitleLines[1]}</h2>
+          <p>{c.rsvp.introBody}</p>
         </div>
         <div className="rsvp-column">
           <div className="rsvp-heading">
-            <div><p className="eyebrow">Kindly reply</p><h2>Will you be there?</h2></div>
-            <span className="reply-date">By 1 December 2026</span>
+            <div><p className="eyebrow">{c.rsvp.kindly}</p><h2>{c.rsvp.question}</h2></div>
+            <span className="reply-date">{c.rsvp.replyDate}</span>
           </div>
 
           <div className="rsvp-progress" aria-hidden="true">
             <div className="rsvp-progress-labels">
-              <span>{answeredCount} of {draft.guests.length} answered</span>
-              {outstanding.length > 0 && <span className="rsvp-progress-outstanding">{outstanding.join(", ")} still to answer</span>}
+              <span>{c.rsvp.progressAnswered(answeredCount, draft.guests.length)}</span>
+              {outstanding.length > 0 && <span className="rsvp-progress-outstanding">{c.rsvp.progressOutstanding(outstanding)}</span>}
             </div>
             <div className="rsvp-progress-track">
               <div className="rsvp-progress-fill" style={{ width: `${draft.guests.length ? (answeredCount / draft.guests.length) * 100 : 0}%` }} />
@@ -1232,22 +1381,22 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           </div>
 
           <div className="rsvp-save">
-            {hasPending && <p className="rsvp-save-note">{outstanding.length} answer{outstanding.length > 1 ? "s" : ""} still needed for {outstanding.join(", ")}</p>}
+            {hasPending && <p className="rsvp-save-note">{c.rsvp.saveNote(outstanding)}</p>}
             <button type="button" className="primary-action" onClick={save} disabled={saveState === "saving" || saveState === "conflict"}>
               {saveLabel} <span aria-hidden="true">→</span>
             </button>
-            <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
-            {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved reply</button>}
+            <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status ? c.status[status] : ""}</p>
+            {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>{c.rsvp.loadLatest}</button>}
           </div>
           {saveState === "success" && (
-            <div className="rsvp-receipt" aria-label="RSVP confirmation" ref={receiptRef}>
+            <div className="rsvp-receipt" aria-label={c.rsvp.receiptAria} ref={receiptRef}>
               <span className="receipt-mark" aria-hidden="true">✓</span>
               <div>
-                <strong>Reply confirmed for {household.householdName}</strong>
-                <p>{attendingNames.length > 0 ? `${attendingNames.join(" and ")} will join us on 20 June 2027.` : "We will miss you, and we are grateful you let us know."}</p>
+                <strong>{c.rsvp.receiptTitle(household.householdName)}</strong>
+                <p>{attendingNames.length > 0 ? c.rsvp.receiptAttending(attendingNames) : c.rsvp.receiptDeclined}</p>
                 {attendingNames.length > 0 && (mealPhaseOpen
-                  ? <p>The menu is open. <button type="button" className="receipt-link" onClick={onOpenMeals}>Choose a meal for each guest</button> with this same invitation.</p>
-                  : <p>Closer to the day we will open the menu. Come back with this same link or printed code to choose a meal for each guest.</p>)}
+                  ? <p>{c.rsvp.receiptMealsOpen.pre} <button type="button" className="receipt-link" onClick={onOpenMeals}>{c.rsvp.receiptMealsOpen.link}</button> {c.rsvp.receiptMealsOpen.post}</p>
+                  : <p>{c.rsvp.receiptMealsLater}</p>)}
               </div>
             </div>
           )}
@@ -1258,21 +1407,21 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       {mealPhaseOpen ? (
         <section className="meal-teaser">
           <div>
-            <p className="eyebrow">The wedding table</p>
-            <h2>Meal choices are now open</h2>
-            <p>Choose a meal for each attending guest using this same private invitation.</p>
+            <p className="eyebrow">{c.mealTeaser.eyebrow}</p>
+            <h2>{c.mealTeaser.title}</h2>
+            <p>{c.mealTeaser.body}</p>
           </div>
-          <button type="button" className="secondary-action" onClick={onOpenMeals}>Choose meals <span aria-hidden="true">→</span></button>
+          <button type="button" className="secondary-action" onClick={onOpenMeals}>{c.mealTeaser.btn} <span aria-hidden="true">→</span></button>
         </section>
       ) : (
-        <section className="meal-notice" aria-label="Meal choices">
+        <section className="meal-notice" aria-label={c.mealNotice.aria}>
           <BotanicalPhoto variant="sprig" className="meal-notice-botanical" />
           <div className="meal-notice-body">
-            <p className="eyebrow">The wedding table</p>
-            <h2>The menu is<br />still blooming</h2>
-            <p>There is nothing to do here just yet. Dinner choices open in <strong>October</strong>, and you will return to this same invitation to choose a meal for each guest.</p>
-            <span className="meal-notice-pill"><span className="meal-notice-dot" aria-hidden="true" />Menu opens later this year</span>
-            <p className="meal-notice-foot">For now, please just let us know who is coming.</p>
+            <p className="eyebrow">{c.mealNotice.eyebrow}</p>
+            <h2>{c.mealNotice.titleLines[0]}<br />{c.mealNotice.titleLines[1]}</h2>
+            <p>{c.mealNotice.bodyPre}<strong>{c.mealNotice.bodyMonth}</strong>{c.mealNotice.bodyPost}</p>
+            <span className="meal-notice-pill"><span className="meal-notice-dot" aria-hidden="true" />{c.mealNotice.pill}</span>
+            <p className="meal-notice-foot">{c.mealNotice.foot}</p>
           </div>
         </section>
       )}
@@ -1284,12 +1433,12 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           <BotanicalPhoto variant="sprig" className="program-botanical program-botanical-two" />
         </div>
         <div className="program-heading">
-          <h2 id="program-title">How the day unfolds</h2>
-          <p>The day begins with a Bulgarian ritual you wouldn&apos;t want to miss.</p>
+          <h2 id="program-title">{c.program.title}</h2>
+          <p>{c.program.sub}</p>
         </div>
         <div className="program-path">
           <span className="program-vine" aria-hidden="true" />
-          {programStops.map((stop) => (
+          {c.program.stops.map((stop) => (
             <article className="program-stop" key={stop.time}>
               <span className="program-bud" aria-hidden="true" />
               <div><time>{stop.time}</time><h3>{stop.name}</h3><p>{stop.desc}</p></div>
@@ -1299,51 +1448,33 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       </section>
 
       <section className="venue-section" id="venue">
-        <p className="eyebrow venue-eyebrow">The celebration</p>
+        <p className="eyebrow venue-eyebrow">{c.venue.eyebrow}</p>
         <VenueScene />
         <div className="estate-map-shell">
           <iframe
-            title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
+            title={c.venue.mapTitle}
             src="https://www.google.com/maps?q=42.3417472%2C25.4058997&z=15&output=embed"
             loading="lazy"
             allowFullScreen
             referrerPolicy="no-referrer"
           />
           <div className="estate-map-caption">
-            <div><span>Our venue</span><strong>Midalidare Estate</strong><small>Mogilovo, Bulgaria</small></div>
-            <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
+            <div><span>{c.venue.captionLabel}</span><strong>{c.venue.captionName}</strong><small>{c.venue.captionPlace}</small></div>
+            <a href="https://www.google.com/maps/search/?api=1&query=42.3417472%2C25.4058997" target="_blank" rel="noreferrer">{c.venue.mapsLink} <span aria-hidden="true">↗</span></a>
           </div>
         </div>
         <div className="dress-code-note">
-          <span>Dress code</span>
-          <strong>Pastels &amp; Wildflowers</strong>
-          <div className="dress-code-swatches" aria-hidden="true">
-            <span className="swatch-sage" /><span className="swatch-lilac" /><span className="swatch-blush" /><span className="swatch-champagne" />
-          </div>
-          <small>Elegant attire for an evening among the vines. Come in whatever makes you feel your best, and do bring a light jacket or a scarf, it turns cool once the sun goes down.</small>
+          <span>{c.venue.dressLabel}</span>
+          <small>{c.venue.dressBody}</small>
         </div>
       </section>
 
-      <section className="stay-section" id="stay" aria-label="Where to stay">
+      <section className="stay-section" id="stay" aria-label={c.stay.aria}>
         <BotanicalPhoto variant="sprig" className="stay-botanical" />
         <div className="stay-body">
-          <h2>Stay among<br />the vines</h2>
-          <p>Midalidare is a wine estate in the countryside, about half an hour from Stara Zagora, and most guests will stay the night. Rooms on the estate are few, so once you&apos;ve replied we&apos;ll make sure you have somewhere to stay, on the estate or close by.</p>
-          <div className="stay-cards">
-            <div className="stay-card stay-card-onsite">
-              <span className="stay-card-eyebrow">On site</span>
-              <strong>Midalidare Estate</strong>
-              <small>Vineyard rooms and suites, a short stroll from the celebration. Wake up where the party was.</small>
-              <a className="stay-reserve" href="#stay" aria-disabled="true">Reserve a room <span aria-hidden="true">↗</span></a>
-              <small className="stay-card-foot">Booking details to follow with your invitation.</small>
-            </div>
-            <div className="stay-card">
-              <span className="stay-card-eyebrow stay-card-eyebrow-muted">15 to 40 minutes away</span>
-              <strong>Nearby: Chirpan &amp; Stara Zagora</strong>
-              <small>A handful of guesthouses and small hotels, for those who would like their own base.</small>
-            </div>
-          </div>
-          <p className="stay-foot">Heading home the same night? There is free parking on the estate.</p>
+          <h2>{c.stay.titleLines[0]}<br />{c.stay.titleLines[1]}</h2>
+          <p>{c.stay.body}</p>
+          <p className="stay-foot">{c.stay.foot}</p>
         </div>
         <div className="stay-fade" aria-hidden="true" />
       </section>
@@ -1353,10 +1484,10 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       <footer className="wedding-footer">
         <BotanicalPhoto variant="corner" className="footer-botanical" />
         <div className="footer-copy">
-          <p>Thank you for being part of our story.</p>
-          <span>We cannot wait to celebrate among the vines with you.</span>
+          <p>{c.footer.thanks}</p>
+          <span>{c.footer.tagline}</span>
         </div>
-        <span className="footer-sign">Ekaterina &amp; Dimitar · 20 June 2027</span>
+        <span className="footer-sign">{c.footer.sign}</span>
       </footer>
     </main>
   );
@@ -1369,10 +1500,11 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
   onBack: () => void;
   onUpdate: (invitation: InvitationResponse) => void;
 }) {
+  const c = useCopy();
   const attending = household.guests.filter((guest) => guest.attendance === "attending");
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<StatusKey | "">("");
   const missingChoice = attending.some((guest) => !draft.guests.find((item) => item.id === guest.id)?.mealChoice);
   const chooseMeal = (guestId: number, mealChoice: string) => {
     if (saveState !== "conflict") {
@@ -1384,12 +1516,12 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
   const save = async () => {
     if (missingChoice) {
       setSaveState("error");
-      setStatus("Please choose a meal for each attending guest.");
+      setStatus("needMeals");
       return;
     }
     if (saveState === "saving") return;
     setSaveState("saving");
-    setStatus("Saving meal choices…");
+    setStatus("savingMeals");
     try {
       const response = await fetch("/api/meals", {
         method: "POST",
@@ -1402,7 +1534,7 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
       });
       if (response.status === 409) {
         setSaveState("conflict");
-        setStatus("This invitation was updated on another phone. Load the latest choices before saving again.");
+        setStatus("mealsConflict");
         return;
       }
       if (!response.ok) throw new Error("save failed");
@@ -1410,46 +1542,46 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
       setDraft(saved.household);
       onUpdate(saved);
       setSaveState("success");
-      setStatus("Meal choices confirmed. Thank you.");
+      setStatus("mealsSaved");
     } catch {
       setSaveState("error");
-      setStatus("We could not save your meal choices. Please try again.");
+      setStatus("mealsSaveFailed");
     }
   };
 
   const loadLatest = async () => {
     setSaveState("saving");
-    setStatus("Loading the latest saved choices…");
+    setStatus("loadingLatestMeals");
     try {
       const latest = await fetchInvitation(household.credential);
       setDraft(latest.household);
       onUpdate(latest);
       setSaveState("idle");
-      setStatus("The latest saved choices are now shown. Please review them before making changes.");
+      setStatus("latestMealsLoaded");
     } catch {
       setSaveState("conflict");
-      setStatus("We could not load the latest choices. Please check your connection and try again.");
+      setStatus("latestMealsFailed");
     }
   };
 
   return (
     <main className="meal-page">
-      <button className="back-button" type="button" onClick={onBack}>← Back to invitation</button>
+      <button className="back-button" type="button" onClick={onBack}>{c.meals.back}</button>
       <section className="meal-intro">
-        <p className="eyebrow">The wedding table</p>
-        <h1>A meal chosen<br />just for you</h1>
-        <p>Use the same private invitation to choose for each attending guest.</p>
+        <p className="eyebrow">{c.meals.eyebrow}</p>
+        <h1>{c.meals.introTitleLines[0]}<br />{c.meals.introTitleLines[1]}</h1>
+        <p>{c.meals.introBody}</p>
       </section>
       {!open ? (
         <section className="phase-closed">
           <span className="season-mark" aria-hidden="true">✽</span>
-          <p className="eyebrow">Coming later</p>
-          <h2>The menu is still blooming.</h2>
-          <p>There is nothing you need to do yet. We will let you know when meal choices open, and this same private invitation will still work.</p>
-          <button type="button" className="primary-action" onClick={onBack}>Return to the invitation</button>
+          <p className="eyebrow">{c.meals.closed.eyebrow}</p>
+          <h2>{c.meals.closed.title}</h2>
+          <p>{c.meals.closed.body}</p>
+          <button type="button" className="primary-action" onClick={onBack}>{c.meals.closed.btn}</button>
         </section>
       ) : attending.length === 0 ? (
-        <section className="phase-closed"><h2>RSVP first</h2><p>Please confirm who is attending before choosing meals.</p><button type="button" className="primary-action" onClick={onBack}>Complete RSVP</button></section>
+        <section className="phase-closed"><h2>{c.meals.rsvpFirst.title}</h2><p>{c.meals.rsvpFirst.body}</p><button type="button" className="primary-action" onClick={onBack}>{c.meals.rsvpFirst.btn}</button></section>
       ) : (
         <section className="meal-choices">
           {attending.map((guest) => {
@@ -1465,14 +1597,14 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
                       <strong>{meal.name}</strong><small>{meal.description}</small>
                     </button>
                   ))}
-                  {availableMeals.length === 0 && <p>The menu for this guest is still being prepared.</p>}
+                  {availableMeals.length === 0 && <p>{c.meals.emptyMenu}</p>}
                 </div>
               </article>
             );
           })}
-          <button type="button" className="primary-action" disabled={saveState === "saving" || saveState === "conflict"} onClick={save}>{saveState === "saving" ? "Saving…" : saveState === "error" ? "Try saving again" : saveState === "conflict" ? "Latest choices needed" : "Save meal choices"} <span aria-hidden="true">→</span></button>
-          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status}</p>
-          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>Load latest saved choices</button>}
+          <button type="button" className="primary-action" disabled={saveState === "saving" || saveState === "conflict"} onClick={save}>{saveState === "saving" ? c.meals.saveLabels.saving : saveState === "error" ? c.meals.saveLabels.error : saveState === "conflict" ? c.meals.saveLabels.conflict : c.meals.saveLabels.idle} <span aria-hidden="true">→</span></button>
+          <p className={`save-status ${saveState}`} role={saveState === "error" || saveState === "conflict" ? "alert" : "status"}>{status ? c.status[status] : ""}</p>
+          {saveState === "conflict" && <button type="button" className="conflict-action" onClick={loadLatest}>{c.meals.loadLatest}</button>}
         </section>
       )}
     </main>
@@ -1480,6 +1612,7 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
 }
 
 export default function WeddingExperience() {
+  const [lang, setLang] = useState<Lang>("en");
   const [household, setHousehold] = useState<Household | null>(null);
   const [view, setView] = useState<"entry" | "invitation" | "meals">("entry");
   const [mealPhaseOpen, setMealPhaseOpen] = useState(false);
@@ -1514,7 +1647,7 @@ export default function WeddingExperience() {
       .catch(() => {
         if (!cancelled) {
           setCredentialInAddressBar();
-          setLinkError("This personal link could not be opened. Enter the code from your printed invitation below.");
+          setLinkError("failed");
         }
       })
       .finally(() => {
@@ -1535,9 +1668,48 @@ export default function WeddingExperience() {
     setContacts(invitation.contacts);
   };
 
+  // Language: restored after mount (SSR always renders English), persisted,
+  // and mirrored onto <html lang> so the Bulgarian font swap in globals.css
+  // and assistive tech both follow.
+  useEffect(() => {
+    const restoreLang = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+        if (stored === "bg" || stored === "en") setLang(stored);
+      } catch {
+        // Storage can be blocked; the default language still works.
+      }
+    }, 0);
+    return () => window.clearTimeout(restoreLang);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.title = COPY[lang].meta.title;
+  }, [lang]);
+
+  const changeLang = (next: Lang) => {
+    setLang(next);
+    try {
+      window.localStorage.setItem(LANG_STORAGE_KEY, next);
+    } catch {
+      // Persisting the choice is optional.
+    }
+  };
+
+  let body: ReactNode;
   if (!household || view === "entry") {
-    return <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { updateInvitation(found); setView("invitation"); setCredentialInAddressBar(found.household.credential); }} />;
+    body = <CodeEntry linkStatus={linkStatus} linkError={linkError} onFound={(found) => { updateInvitation(found); setView("invitation"); setCredentialInAddressBar(found.household.credential); }} />;
+  } else if (view === "meals") {
+    body = <MealSelection household={household} open={mealPhaseOpen} mealOptions={mealOptions} onBack={() => setView("invitation")} onUpdate={updateInvitation} />;
+  } else {
+    body = <Invitation household={household} onUpdate={updateInvitation} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} contacts={contacts} onExit={() => { setHousehold(null); setView("entry"); setCredentialInAddressBar(); }} />;
   }
-  if (view === "meals") return <MealSelection household={household} open={mealPhaseOpen} mealOptions={mealOptions} onBack={() => setView("invitation")} onUpdate={updateInvitation} />;
-  return <Invitation household={household} onUpdate={updateInvitation} onOpenMeals={() => setView("meals")} mealPhaseOpen={mealPhaseOpen} contacts={contacts} onExit={() => { setHousehold(null); setView("entry"); setCredentialInAddressBar(); }} />;
+
+  return (
+    <LangContext.Provider value={lang}>
+      <LangToggle lang={lang} onChange={changeLang} />
+      {body}
+    </LangContext.Provider>
+  );
 }

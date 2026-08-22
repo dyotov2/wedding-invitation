@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Figtree, Italiana } from "next/font/google";
+import { Cormorant, Figtree, Italiana, Manrope } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
@@ -13,6 +13,22 @@ const italiana = Italiana({
   variable: "--font-display",
   weight: "400",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Italiana and Figtree carry no Cyrillic. When the visitor switches the
+// invitation to Bulgarian (html[lang="bg"]), globals.css swaps the font
+// variables to these Cyrillic-capable companions.
+const cormorant = Cormorant({
+  variable: "--font-display-bg",
+  weight: "500",
+  subsets: ["cyrillic", "latin"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  variable: "--font-body-bg",
+  subsets: ["cyrillic", "latin"],
   display: "swap",
 });
 
@@ -51,7 +67,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${figtree.variable} ${italiana.variable}`}>{children}</body>
+      <body className={`${figtree.variable} ${italiana.variable} ${cormorant.variable} ${manrope.variable}`}>{children}</body>
     </html>
   );
 }
