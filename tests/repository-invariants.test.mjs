@@ -172,3 +172,18 @@ test("production source contains no demo household, runtime DDL, or stale deadli
   assert.equal(/20 April 2027/i.test(guestSource), false, "remove the superseded RSVP deadline");
   assert.equal(/1 December 2026/i.test(guestSource), true, "show the approved RSVP deadline");
 });
+
+test("admin Save guest list validates and commits without a separate preview click", async () => {
+  const adminSource = await text("app/AdminExperience.tsx");
+  const previewStart = adminSource.indexOf("const requestEditorPreview");
+  const saveStart = adminSource.indexOf("const saveEditor");
+  const saveEnd = adminSource.indexOf("const previewImport", saveStart);
+
+  assert.ok(previewStart >= 0 && saveStart > previewStart && saveEnd > saveStart);
+  const previewBlock = adminSource.slice(previewStart, saveStart);
+  const saveBlock = adminSource.slice(saveStart, saveEnd);
+  assert.match(previewBlock, /mode:\s*"preview"/);
+  assert.match(saveBlock, /requestEditorPreview\(rows\)/);
+  assert.match(saveBlock, /mode:\s*"commit"/);
+  assert.match(adminSource, /onClick=\{\(\) => void saveEditor\(\)\} disabled=\{!editorHasChanges \|\| editorBusy\}/);
+});

@@ -221,6 +221,22 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
   const firstCredential = database.prepare(`SELECT link_token AS linkToken, short_code AS shortCode
     FROM households WHERE external_id = 'HOUSEHOLD-001'`).get();
   assert.match(firstCredential.shortCode, /^[A-HJ-NP-Z2-9]{10}$/u);
+  const adminIndexResponse = await apiRequest(worker, d1, "/api/admin", {
+    email: admin.email,
+    origin: undefined,
+  });
+  assert.equal(adminIndexResponse.status, 200);
+  const adminIndex = await adminIndexResponse.json();
+  const editableHousehold = adminIndex.households.find((household) => household.externalId === "HOUSEHOLD-001");
+  assert.equal(editableHousehold.greeting, "Dear Elena and Nikolay");
+  assert.deepEqual(editableHousehold.guests.map((guest) => ({
+    externalId: guest.externalId,
+    displayOrder: guest.displayOrder,
+    guestType: guest.guestType,
+  })), [
+    { externalId: "GUEST-001", displayOrder: 1, guestType: "adult" },
+    { externalId: "GUEST-002", displayOrder: 2, guestType: "adult" },
+  ]);
 
   const rowsWithIgnoredActiveFlags = rows.map((row) => ({ ...row, householdActive: false, guestActive: false }));
   const repeatedPreviewResponse = await apiRequest(worker, d1, "/api/admin/import", {
@@ -239,7 +255,17 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM guests").get().count, 3);
   assert.equal(database.prepare("SELECT MIN(active) AS allActive FROM guests").get().allActive, 1);
 
-  const changedRows = rows.map((row) => row.guestExternalId === "GUEST-001" ? { ...row, guestName: "Elena Changed" } : row);
+  const changedRows = rows.map((row) => {
+    const inFirstHousehold = row.householdExternalId === "HOUSEHOLD-001";
+    return {
+      ...row,
+      householdName: inFirstHousehold ? "Renamed Sample Household" : row.householdName,
+      householdGreeting: inFirstHousehold ? "Dear renamed household" : row.householdGreeting,
+      guestName: row.guestExternalId === "GUEST-001" ? "Elena Changed" : row.guestName,
+      guestType: row.guestExternalId === "GUEST-001" ? "child" : row.guestType,
+      displayOrder: row.guestExternalId === "GUEST-001" ? 9 : row.displayOrder,
+    };
+  });
   const changedPreviewResponse = await apiRequest(worker, d1, "/api/admin/import", {
     ...admin,
     body: { mode: "preview", rows: changedRows, sourceName: "changed.csv" },
@@ -250,7 +276,18 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
     body: { mode: "commit", rows: changedRows, sourceName: "changed.csv", sourceHash: changedPreview.sourceHash, previewToken: changedPreview.previewToken },
   });
   assert.equal(changedImport.status, 200);
-  assert.equal(database.prepare("SELECT name FROM guests WHERE external_id = 'GUEST-001'").get().name, "Elena Changed");
+  assert.deepEqual({ ...database.prepare(`SELECT h.household_name AS householdName, h.greeting,
+    h.link_token AS linkToken, h.short_code AS shortCode, g.name, g.guest_type AS guestType,
+    g.display_order AS displayOrder FROM guests g JOIN households h ON h.id = g.household_id
+    WHERE g.external_id = 'GUEST-001'`).get() }, {
+    householdName: "Renamed Sample Household",
+    greeting: "Dear renamed household",
+    linkToken: firstCredential.linkToken,
+    shortCode: firstCredential.shortCode,
+    name: "Elena Changed",
+    guestType: "child",
+    displayOrder: 9,
+  });
 
   const restorePreviewResponse = await apiRequest(worker, d1, "/api/admin/import", {
     ...admin,
@@ -467,6 +504,110 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
     body: { confirmation: "RESTORE WEDDING GUEST DATA", backup: { format: "wedding-backup", version: 1, tables: {} } },
   });
   assert.equal(postPurgeRestore.status, 410, "restore must not resurrect purged guest data");
+
+  database.close();
+});
+
+test("guest-editor saves only invalidate invitations for households that changed", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  const admin = { email: "dyotov2@gmail.com", method: "POST" };
+  const householdAToken = "version-token-household-a-1234567890";
+  const editorRows = [
+    {
+      householdExternalId: "VERSION-HOUSEHOLD-A",
+      householdName: "Household A",
+      householdGreeting: "Dear Household A",
+      guestExternalId: "VERSION-GUEST-A",
+      guestName: "Guest A",
+      displayOrder: 1,
+      guestType: "adult",
+    },
+    {
+      householdExternalId: "VERSION-HOUSEHOLD-B",
+      householdName: "Household B",
+      householdGreeting: "Dear Household B",
+      guestExternalId: "VERSION-GUEST-B",
+      guestName: "Guest B",
+      displayOrder: 1,
+      guestType: "adult",
+    },
+  ];
+
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name, greeting, response_version)
+    VALUES (?, ?, ?, ?, ?, ?)`)
+    .run("VERSION-HOUSEHOLD-A", householdAToken, "VERSIONA23", "Household A", "Dear Household A", 4);
+  database.prepare(`INSERT INTO households
+    (external_id, link_token, short_code, household_name, greeting, response_version)
+    VALUES (?, ?, ?, ?, ?, ?)`)
+    .run("VERSION-HOUSEHOLD-B", "version-token-household-b", "VERSIONB23", "Household B", "Dear Household B", 7);
+  const householdAId = database.prepare(
+    "SELECT id FROM households WHERE external_id = 'VERSION-HOUSEHOLD-A'",
+  ).get().id;
+  const householdBId = database.prepare(
+    "SELECT id FROM households WHERE external_id = 'VERSION-HOUSEHOLD-B'",
+  ).get().id;
+  database.prepare(`INSERT INTO guests
+    (external_id, household_id, name, display_order, guest_type)
+    VALUES (?, ?, ?, ?, ?)`)
+    .run("VERSION-GUEST-A", householdAId, "Guest A", 1, "adult");
+  database.prepare(`INSERT INTO guests
+    (external_id, household_id, name, display_order, guest_type)
+    VALUES (?, ?, ?, ?, ?)`)
+    .run("VERSION-GUEST-B", householdBId, "Guest B", 1, "adult");
+
+  const staleInvitationResponse = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST",
+    body: { credential: householdAToken },
+    origin: undefined,
+  });
+  assert.equal(staleInvitationResponse.status, 200);
+  const staleInvitation = await staleInvitationResponse.json();
+  assert.equal(staleInvitation.household.responseVersion, 4);
+
+  const editedRows = editorRows.map((row) => row.guestExternalId === "VERSION-GUEST-A"
+    ? { ...row, guestName: "Guest A Edited" }
+    : row);
+  const previewResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "preview", rows: editedRows, sourceName: "guest-editor.json" },
+  });
+  assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  const saveResponse = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: {
+      mode: "commit",
+      rows: editedRows,
+      sourceName: "guest-editor.json",
+      sourceHash: preview.sourceHash,
+      previewToken: preview.previewToken,
+    },
+  });
+  assert.equal(saveResponse.status, 200);
+
+  const versions = database.prepare(`SELECT external_id AS externalId, response_version AS responseVersion
+    FROM households ORDER BY external_id`).all();
+  assert.deepEqual(versions.map((version) => ({ ...version })), [
+    { externalId: "VERSION-HOUSEHOLD-A", responseVersion: 5 },
+    { externalId: "VERSION-HOUSEHOLD-B", responseVersion: 7 },
+  ]);
+
+  const staleRsvp = await apiRequest(worker, d1, "/api/rsvp", {
+    method: "POST",
+    origin: undefined,
+    body: {
+      credential: householdAToken,
+      responseVersion: staleInvitation.household.responseVersion,
+      guests: staleInvitation.household.guests.map((guest) => ({
+        id: guest.id,
+        attendance: "attending",
+        dietaryNotes: "",
+      })),
+    },
+  });
+  assert.equal(staleRsvp.status, 409);
 
   database.close();
 });

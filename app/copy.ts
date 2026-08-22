@@ -15,19 +15,11 @@ export interface Copy {
   meta: { title: string };
   names: { her: string; him: string; coupleAria: string };
   toggle: { aria: string };
-  entry: {
-    loveNote: string;
-    titleLines: [string, string];
-    copyLine: string;
-    codeLabel: string;
-    codePlaceholder: string;
-    openBtn: string;
-    openingBtn: string;
-    hint: string;
-    errEmpty: string;
-    errNotFound: string;
-    linkOpening: string;
-    linkError: string;
+  gate: {
+    eyebrow: string;
+    titles: Record<"checking" | "missing" | "invalid" | "unavailable", string>;
+    messages: Record<"checking" | "missing" | "invalid" | "unavailable", string>;
+    retry: string;
     privacy: string;
     footer: string;
   };
@@ -42,7 +34,7 @@ export interface Copy {
     attendanceAria: (name: string) => string;
   };
   contacts: { prompt: string; aria: string; phone: string };
-  nav: { aria: string; rsvp: string; change: string };
+  nav: { aria: string; rsvp: string };
   hero: {
     eyebrow: string;
     subtitle: string;
@@ -123,24 +115,26 @@ export interface Copy {
 }
 
 const en: Copy = {
-  meta: { title: "Ekaterina & Dimitar | Our Wedding" },
+  meta: { title: "Ekaterina & Dimitar | 20 June 2027" },
   names: { her: "Ekaterina", him: "Dimitar", coupleAria: "Ekaterina and Dimitar" },
   toggle: { aria: "Language" },
-  entry: {
-    loveNote: "our forever begins",
-    titleLines: ["Forever", "starts today"],
-    copyLine: "Your personal invitation is waiting.",
-    codeLabel: "Invitation code",
-    codePlaceholder: "e.g. K7MP9Q2XWD",
-    openBtn: "Open invitation",
-    openingBtn: "Opening…",
-    hint: "You will find this short code on your printed card.",
-    errEmpty: "Please enter the code printed on your invitation.",
-    errNotFound: "We could not find that invitation. Please check the code and try again.",
-    linkOpening: "Opening your personal invitation…",
-    linkError: "This personal link could not be opened. Enter the code from your printed invitation below.",
+  gate: {
+    eyebrow: "Private invitation",
+    titles: {
+      checking: "Opening your private invitation…",
+      missing: "This invitation has a personal address.",
+      invalid: "We could not open this invitation.",
+      unavailable: "The invitation garden is resting.",
+    },
+    messages: {
+      checking: "A little patience while your household invitation blooms.",
+      missing: "Please use the personal link sent to your household. It opens your invitation directly, with only the people invited with you.",
+      invalid: "The link may be incomplete or out of date. Please ask Ekaterina or Dimitar to resend your personal invitation.",
+      unavailable: "Please check your connection and try again in a moment. Your invitation and any saved reply are safe.",
+    },
+    retry: "Try the link again",
     privacy: "We use your invitation details and reply only to plan our wedding. Guest data will be deleted by 27 June 2027.",
-    footer: "Ekaterina & Dimitar · Midalidare Estate, Bulgaria",
+    footer: "Midalidare Estate · Bulgaria",
   },
   guest: {
     statusAttending: "Joyfully attending",
@@ -153,7 +147,7 @@ const en: Copy = {
     attendanceAria: (name) => `Attendance for ${name}`,
   },
   contacts: { prompt: "Prefer to reply personally?", aria: "Contact options", phone: "Call us" },
-  nav: { aria: "Invitation navigation", rsvp: "RSVP", change: "Change invitation" },
+  nav: { aria: "Invitation navigation", rsvp: "RSVP" },
   hero: {
     eyebrow: "Celebrate with us",
     subtitle: "as we marry among the vines",
@@ -183,7 +177,7 @@ const en: Copy = {
     receiptAttending: (names) => `${names.join(" and ")} will join us on 20 June 2027.`,
     receiptDeclined: "We will miss you, and we are grateful you let us know.",
     receiptMealsOpen: { pre: "The menu is open.", link: "Choose a meal for each guest", post: "with this same invitation." },
-    receiptMealsLater: "Closer to the day we will open the menu. Come back with this same link or printed code to choose a meal for each guest.",
+    receiptMealsLater: "Closer to the day we will open the menu. Come back with this same personal link to choose a meal for each guest.",
   },
   mealTeaser: {
     eyebrow: "The wedding table",
@@ -268,7 +262,7 @@ const en: Copy = {
     needAnswers: "Please choose an answer for each invited guest.",
     savingReply: "Saving your reply…",
     replyConflict: "This invitation was updated on another phone. Load the latest saved reply, then review it before saving again.",
-    replySaved: "Your reply is confirmed. You can return with the same code if anything changes.",
+    replySaved: "Your reply is confirmed. You can return with the same personal link if anything changes.",
     replySaveFailed: "We could not save your reply. Your choices are safe on this phone. Please try again.",
     loadingLatestReply: "Loading the latest saved reply…",
     latestReplyLoaded: "The latest saved reply is now shown. Please review it before making any changes.",
@@ -285,24 +279,26 @@ const en: Copy = {
 };
 
 const bg: Copy = {
-  meta: { title: "Екатерина и Димитър | Нашата сватба" },
+  meta: { title: "Екатерина и Димитър | 20 юни 2027" },
   names: { her: "Екатерина", him: "Димитър", coupleAria: "Екатерина и Димитър" },
   toggle: { aria: "Език" },
-  entry: {
-    loveNote: "нашето завинаги започва",
-    titleLines: ["Завинаги", "започва днес"],
-    copyLine: "Личната ви покана ви очаква.",
-    codeLabel: "Код от поканата",
-    codePlaceholder: "напр. K7MP9Q2XWD",
-    openBtn: "Отвори поканата",
-    openingBtn: "Отваряме…",
-    hint: "Ще намерите този кратък код върху печатната покана.",
-    errEmpty: "Моля, въведете кода от вашата покана.",
-    errNotFound: "Не открихме такава покана. Проверете кода и опитайте отново.",
-    linkOpening: "Отваряме личната ви покана…",
-    linkError: "Личният линк не можа да се отвори. Въведете кода от печатната покана по-долу.",
+  gate: {
+    eyebrow: "Лична покана",
+    titles: {
+      checking: "Отваряме личната ви покана…",
+      missing: "Тази покана има личен адрес.",
+      invalid: "Не успяхме да отворим поканата.",
+      unavailable: "Градината на поканата си почива.",
+    },
+    messages: {
+      checking: "Малко търпение, докато поканата на вашето семейство разцъфне.",
+      missing: "Моля, използвайте личния линк, изпратен на вашето семейство. Той отваря поканата ви директно — само с хората, поканени с вас.",
+      invalid: "Линкът може да е непълен или остарял. Помолете Екатерина или Димитър да изпратят отново личната ви покана.",
+      unavailable: "Проверете връзката и опитайте отново след малко. Поканата и запазеният ви отговор са в безопасност.",
+    },
+    retry: "Опитай линка отново",
     privacy: "Използваме данните от поканата и отговора ви само за организацията на сватбата. Данните за гостите ще бъдат изтрити до 27 юни 2027 г.",
-    footer: "Екатерина и Димитър · Мидалидаре Естейт, България",
+    footer: "Мидалидаре Естейт · България",
   },
   guest: {
     statusAttending: "С радост ще присъства",
@@ -315,7 +311,7 @@ const bg: Copy = {
     attendanceAria: (name) => `Отговор за ${name}`,
   },
   contacts: { prompt: "Предпочитате да отговорите лично?", aria: "Начини за връзка", phone: "Обадете се" },
-  nav: { aria: "Навигация в поканата", rsvp: "Отговор", change: "Смени поканата" },
+  nav: { aria: "Навигация в поканата", rsvp: "Отговор" },
   hero: {
     eyebrow: "Празнувайте с нас",
     subtitle: "венчаваме се сред лозята",
@@ -345,7 +341,7 @@ const bg: Copy = {
     receiptAttending: (names) => `${names.join(" и ")} ще ${names.length === 1 ? "бъде" : "бъдат"} с нас на 20 юни 2027 г.`,
     receiptDeclined: "Ще ни липсвате — благодарим, че ни казахте.",
     receiptMealsOpen: { pre: "Менюто е отворено.", link: "Изберете ястие за всеки гост", post: "със същата покана." },
-    receiptMealsLater: "По-близо до датата ще отворим менюто. Върнете се със същия линк или печатен код, за да изберете ястие за всеки гост.",
+    receiptMealsLater: "По-близо до датата ще отворим менюто. Върнете се със същия личен линк, за да изберете ястие за всеки гост.",
   },
   mealTeaser: {
     eyebrow: "Сватбената трапеза",
@@ -430,7 +426,7 @@ const bg: Copy = {
     needAnswers: "Моля, изберете отговор за всеки поканен гост.",
     savingReply: "Запазваме отговора ви…",
     replyConflict: "Поканата е била променена от друг телефон. Заредете последния запазен отговор и го прегледайте, преди да запазите отново.",
-    replySaved: "Отговорът ви е потвърден. Можете да се върнете със същия код, ако нещо се промени.",
+    replySaved: "Отговорът ви е потвърден. Можете да се върнете със същия личен линк, ако нещо се промени.",
     replySaveFailed: "Не успяхме да запазим отговора. Изборът ви е записан на този телефон — моля, опитайте отново.",
     loadingLatestReply: "Зареждаме последния запазен отговор…",
     latestReplyLoaded: "Показан е последният запазен отговор. Прегледайте го, преди да правите промени.",

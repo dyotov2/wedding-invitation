@@ -90,7 +90,8 @@ Within the first release window:
 2. Submit and change a reply for each invited person.
 3. Reload on a different device and verify D1 returns the saved result.
 4. Verify the admin view shows the correct status and response source.
-5. Confirm unknown codes return a generic error and do not appear in logs.
+5. Confirm an invalid personal link returns generic recovery guidance and its
+   credential does not appear in logs.
 6. Confirm error rate and latency remain normal.
 7. Record only pass/fail results and aggregate counts.
 
