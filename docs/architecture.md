@@ -141,7 +141,7 @@ Private data includes the guest list, personal invitation credentials, RSVP
 answers, notes, meal choices, response sources, exports, QR packs and backups.
 These artifacts never enter Git.
 
-The requested RSVP date is 1 January 2027. Late guest replies intentionally
+The requested RSVP date is 1 December 2026. Late guest replies intentionally
 remain possible so the couple can accommodate phone-first and older guests.
 The scheduled deletion date for guest data
 and every derived artifact is 27 June 2027. On that date the guest API stops

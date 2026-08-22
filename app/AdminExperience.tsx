@@ -938,7 +938,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         </header>
 
         <p className="admin-status" role="status">{status}</p>
-        <div className="admin-date-notice"><strong>Initial RSVP requested by {formatPolicyDate(data?.rsvpDeadline, "1 January 2027")}</strong><span>Late replies remain possible; wedding data is scheduled for deletion on {formatPolicyDate(data?.deletionDate, "27 June 2027")}.</span></div>
+        <div className="admin-date-notice"><strong>Initial RSVP requested by {formatPolicyDate(data?.rsvpDeadline, "1 December 2026")}</strong><span>Late replies remain possible; wedding data is scheduled for deletion on {formatPolicyDate(data?.deletionDate, "27 June 2027")}.</span></div>
         <div className="metric-strip">
           <div><strong>{guests.length}</strong><span>Invited guests</span></div>
           <div className="metric-attending"><strong>{attending}</strong><span>Attending</span></div>
