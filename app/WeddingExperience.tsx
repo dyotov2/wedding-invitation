@@ -1331,7 +1331,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
           <div className="dress-code-swatches" aria-hidden="true">
             <span className="swatch-sage" /><span className="swatch-lilac" /><span className="swatch-blush" /><span className="swatch-champagne" />
           </div>
-          <small>Soft, sun-washed colours and romantic floral details.</small>
+          <small>Elegant attire for an evening among the vines. Come in whatever makes you feel your best, and do bring a light jacket or a scarf, it turns cool once the sun goes down.</small>
         </div>
       </section>
 
