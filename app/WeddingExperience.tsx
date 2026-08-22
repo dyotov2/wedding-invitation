@@ -1312,7 +1312,6 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts,
       <section className="venue-section" id="venue">
         <p className="eyebrow venue-eyebrow">The celebration</p>
         <VenueScene />
-        <p className="venue-copy">We will gather at Midalidare Estate for an afternoon of ceremony, dinner, and dancing beneath the Bulgarian summer sky.</p>
         <div className="estate-map-shell">
           <iframe
             title="Google Map showing Midalidare Estate in Mogilovo, Bulgaria"
