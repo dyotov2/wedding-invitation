@@ -590,6 +590,7 @@ h1, h2, h3, p { margin-top: 0; }
 .editor-field input:focus-visible, .editor-field select:focus-visible { border-color: var(--sage-dark); outline: 3px solid oklch(74% .08 130 / .25); outline-offset: 1px; }
 .editor-field-error input { border-color: var(--rose); background: oklch(98% .012 25); }
 .editor-field-error small { color: oklch(42% .09 25); font-size: .7rem; line-height: 1.4; }
+.editor-field .editor-hint { color: oklch(52% .02 80); font-size: .7rem; font-weight: 500; line-height: 1.4; text-transform: none; letter-spacing: 0; }
 .guest-editor-grid { margin-top: 1.2rem; border-top: 1px solid var(--line); }
 .guest-editor-head, .guest-editor-row { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(7.5rem, .32fr) 9rem 5rem; align-items: center; gap: .75rem; }
 .guest-editor-head { min-height: 42px; color: oklch(48% .02 43); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

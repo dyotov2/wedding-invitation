@@ -1184,7 +1184,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
 
       <section className="rsvp-section" id="rsvp">
         <div className="rsvp-intro">
-          <p className="eyebrow">{household.greeting || c.rsvp.greeting(household.householdName)}</p>
+          <p className="eyebrow">{c.rsvp.greeting(household.greeting || household.householdName)}</p>
           <h2>{c.rsvp.introTitleLines[0]}<br />{c.rsvp.introTitleLines[1]}</h2>
           <p>{c.rsvp.introBody}</p>
         </div>
