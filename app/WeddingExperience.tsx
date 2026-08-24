@@ -1301,7 +1301,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
         <BotanicalPhoto variant="sprig" className="stay-botanical" />
         <div className="stay-body">
           <h2>{c.stay.titleLines[0]}<br />{c.stay.titleLines[1]}</h2>
-          <p>{c.stay.body}</p>
+          {c.stay.body.map((para, index) => (
+            <p key={index}>{para}</p>
+          ))}
           <p className="stay-foot">{c.stay.foot}</p>
         </div>
         <div className="stay-fade" aria-hidden="true" />

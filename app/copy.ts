@@ -93,7 +93,7 @@ export interface Copy {
     dressLabel: string;
     dressBody: string;
   };
-  stay: { aria: string; titleLines: [string, string]; body: string; foot: string };
+  stay: { aria: string; titleLines: [string, string]; body: [string, string]; foot: string };
   story: {
     eyebrow: string;
     titleLines: [string, string];
@@ -222,16 +222,19 @@ const en: Copy = {
     dressBody: "Elegant attire for an evening among the vines. Come in whatever makes you feel your best, and do bring a light jacket or a scarf, it turns cool once the sun goes down.",
   },
   stay: {
-    aria: "Where to stay",
-    titleLines: ["Stay among", "the vines"],
-    body: "Midalidare is a wine estate in the countryside, about half an hour from Stara Zagora, and most guests will stay the night. Rooms on the estate are few, so once you've replied we'll make sure you have somewhere to stay, on the estate or close by.",
+    aria: "Accommodation and the venue",
+    titleLines: ["Accommodation &", "the Venue itself"],
+    body: [
+      "Midalidare Estate is a picturesque wine estate nestled among the forests of Sredna Gora, with two wineries and four vineyards stretching across 160 hectares. Accommodation is available in the beautifully restored 200-year-old schoolhouse, now home to Midalidare Hotel & SPA, as well as in charming nearby guest houses. The estate also features a spa and gastropub.",
+      "Once you RSVP, we'll arrange your accommodation either on the estate or nearby.",
+    ],
     foot: "Heading home the same night? There is free parking on the estate.",
   },
   story: {
     eyebrow: "Our love story",
     titleLines: ["A story", "in bloom"],
     milestones: [
-      { label: "We met", text: "We met in the summer of 2015 and instantly fell in love." },
+      { label: "Where It All Began", text: "We met in the summer of 2015, while we were both still in high school, and it didn't take long for something special to begin." },
       { label: "Vienna", text: "We moved to Vienna together." },
       { label: "London", text: "We set London as our next adventure." },
       { label: "The big question", text: "She said yes." },
@@ -386,16 +389,19 @@ const bg: Copy = {
     dressBody: "Елегантно облекло за вечер сред лозята. Елате с това, в което се чувствате най-добре, и си вземете леко яке или шал. Захладнява, щом слънцето залезе.",
   },
   stay: {
-    aria: "Къде да отседнете",
-    titleLines: ["Останете сред", "лозята"],
-    body: "Мидалидаре е винено имение сред природата, на около половин час от Стара Загора, и повечето гости ще пренощуват. Стаите в имението са малко, затова щом отговорите, ще се погрижим да имате къде да отседнете, в имението или наблизо.",
+    aria: "Настаняване и имението",
+    titleLines: ["Настаняване и", "самото имение"],
+    body: [
+      "Мидалидаре Естейт е живописно винено имение, сгушено сред горите на Средна гора, с две винарни и четири лозя, разпрострени върху 160 хектара. Настаняването е в красиво реставрираната 200-годишна училищна сграда, в която днес се помещава Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо. Имението разполага също със спа и гастропъб.",
+      "Щом отговорите, ще уредим настаняването ви в имението или наблизо.",
+    ],
     foot: "Прибирате се същата вечер? В имението има безплатен паркинг.",
   },
   story: {
     eyebrow: "Нашата любовна история",
     titleLines: ["История", "в цъфтеж"],
     milestones: [
-      { label: "Запознахме се", text: "Срещнахме се през лятото на 2015 и веднага се влюбихме." },
+      { label: "Където всичко започна", text: "Срещнахме се през лятото на 2015, докато и двамата бяхме още в гимназията, и не след дълго между нас започна нещо специално." },
       { label: "Виена", text: "Преместихме се заедно във Виена." },
       { label: "Лондон", text: "Избрахме Лондон за следващото си приключение." },
       { label: "Големият въпрос", text: "Тя каза „да“." },
