@@ -1190,7 +1190,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
         </div>
         <div className="rsvp-column">
           <div className="rsvp-heading">
-            <div><p className="eyebrow">{c.rsvp.kindly}</p><h2>{c.rsvp.question}</h2></div>
+            <div><p className="eyebrow">{c.rsvp.kindly}</p></div>
             <span className="reply-date">{c.rsvp.replyDate}</span>
           </div>
 

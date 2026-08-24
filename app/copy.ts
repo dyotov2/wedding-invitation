@@ -54,7 +54,6 @@ export interface Copy {
     introTitleLines: [string, string];
     introBody: string;
     kindly: string;
-    question: string;
     replyDate: string;
     progressAnswered: (answered: number, total: number) => string;
     progressOutstanding: (names: string[]) => string;
@@ -167,7 +166,6 @@ const en: Copy = {
     introTitleLines: ["We would love to", "celebrate with you."],
     introBody: "Please let us know whether you can join us.",
     kindly: "Kindly reply",
-    question: "Will you be there?",
     replyDate: "By 1 December 2026",
     progressAnswered: (answered, total) => `${answered} of ${total} answered`,
     progressOutstanding: (names) => `${names.join(", ")} still to answer`,
@@ -334,7 +332,6 @@ const bg: Copy = {
     introTitleLines: ["Ще се радваме да", "празнуваме с вас."],
     introBody: "Молим, кажете ни дали ще можете да дойдете.",
     kindly: "Молим, отговорете",
-    question: "Ще бъдете ли с нас?",
     replyDate: "До 1 декември 2026 г.",
     progressAnswered: (answered, total) => `Отговорени: ${answered} от ${total}`,
     progressOutstanding: (names) => `Очакваме отговор за: ${names.join(", ")}`,
