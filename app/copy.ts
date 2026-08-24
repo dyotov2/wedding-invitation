@@ -233,11 +233,11 @@ const en: Copy = {
     titleLines: ["A story", "in bloom"],
     milestones: [
       { label: "Where It All Began", text: "We met in the summer of 2015, while we were both still in high school, and it didn't take long for something special to begin." },
-      { label: "Vienna", text: "We moved to Vienna together." },
-      { label: "London", text: "We set London as our next adventure." },
-      { label: "The big question", text: "She said yes." },
+      { label: "Vienna", text: "We moved to Vienna to pursue our bachelor's degrees and ended up calling this city home for five unforgettable years." },
+      { label: "London", text: "Our journey continued in London, where a new adventure became home, a place to grow together, build our careers, and shape our future." },
+      { label: "The Big Question", text: "After nearly ten years together, a befitting proposal at the Queen's House marked the start of our next chapter." },
     ],
-    finale: "and 2027, the part with all of you in it",
+    finale: "Ten years, three cities, and countless memories later, this is only the beginning.",
     photoAlt: "Ekaterina and Dimitar",
   },
   footer: {
@@ -399,11 +399,11 @@ const bg: Copy = {
     titleLines: ["История", "в цъфтеж"],
     milestones: [
       { label: "Където всичко започна", text: "Срещнахме се през лятото на 2015, докато и двамата бяхме още в гимназията, и не след дълго между нас започна нещо специално." },
-      { label: "Виена", text: "Преместихме се заедно във Виена." },
-      { label: "Лондон", text: "Избрахме Лондон за следващото си приключение." },
-      { label: "Големият въпрос", text: "Тя каза „да“." },
+      { label: "Виена", text: "Преместихме се във Виена за бакалавърските си степени и този град стана наш дом за пет незабравими години." },
+      { label: "Лондон", text: "Пътят ни продължи в Лондон, където едно ново приключение се превърна в дом, място да растем заедно, да градим кариерите си и да оформим бъдещето си." },
+      { label: "Големият въпрос", text: "След близо десет години заедно, подобаващо предложение в Queen's House постави началото на новата ни глава." },
     ],
-    finale: "и 2027, частта, в която сте всички вие",
+    finale: "Десет години, три града и безброй спомени по-късно, това е само началото.",
     photoAlt: "Екатерина и Димитър",
   },
   footer: {
