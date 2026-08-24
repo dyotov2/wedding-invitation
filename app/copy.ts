@@ -203,7 +203,7 @@ const en: Copy = {
       { time: "16:30", name: "Ceremony", desc: "Our vows among the vines." },
       { time: "17:30", name: "Drinks", desc: "A glass of the estate's own wine, something to eat, and the best view on the property." },
       { time: "19:30", name: "Dinner", desc: "Your chosen dish, a few Bulgarian traditions, and no shortage of wine. Menu choices open in October." },
-      { time: "21:00", name: "Dancing", desc: "Our favourite songs and at least one hora. No experience needed, hold hands and follow whoever's on your right." },
+      { time: "21:00", name: "Dancing", desc: "Our favourite songs and a few hora. No experience needed, hold hands and follow whoever's on your right." },
     ],
   },
   venue: {
@@ -369,7 +369,7 @@ const bg: Copy = {
       { time: "16:30", name: "Церемония", desc: "Нашите обети сред лозята." },
       { time: "17:30", name: "Коктейл", desc: "Чаша вино от имението, нещо за хапване и най-хубавата гледка наоколо." },
       { time: "19:30", name: "Вечеря", desc: "Избраното от вас ястие, няколко български традиции и вино в изобилие. Изборът на меню отваря през октомври." },
-      { time: "21:00", name: "Танци", desc: "Любимите ни песни и поне едно хоро. Опит не е нужен. Хванете се за ръце и следвайте човека вдясно." },
+      { time: "21:00", name: "Танци", desc: "Любимите ни песни и няколко хора. Опит не е нужен. Хванете се за ръце и следвайте човека вдясно." },
     ],
   },
   venue: {
