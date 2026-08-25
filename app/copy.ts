@@ -7,6 +7,23 @@
 
 export type Lang = "en" | "bg";
 
+// "A, B and C" / „А, Б и В" — never "A and B and C".
+const joinNames = (names: string[], pair: string) =>
+  names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")}${pair}${names[names.length - 1]}`;
+
+// „Скъпи" must agree with the addressee: neuter for „семейство X", feminine for
+// a single female name (Bulgarian female names end in -а/-я; the exception set
+// covers the common male -а/-я names), plural „Скъпи" otherwise. A per-household
+// greeting saved on the server bypasses this entirely.
+const BG_MALE_SOFT_ENDINGS = new Set(["никола", "илия", "лука", "сава", "кузма", "тома", "добри"]);
+const bgGreeting = (name: string) => {
+  const trimmed = name.trim();
+  const first = (trimmed.split(/\s+/)[0] ?? "").toLowerCase();
+  if (first === "семейство" || first === "сем.") return `Скъпо ${trimmed}`;
+  if (!/\s/.test(trimmed) && /[ая]$/i.test(trimmed) && !BG_MALE_SOFT_ENDINGS.has(first)) return `Скъпа ${trimmed}`;
+  return `Скъпи ${trimmed}`;
+};
+
 export type StatusKey =
   | "needAnswers" | "savingReply" | "replyConflict" | "replySaved" | "replySaveFailed"
   | "loadingLatestReply" | "latestReplyLoaded" | "latestReplyFailed"
@@ -129,8 +146,8 @@ const en: Copy = {
     },
     messages: {
       checking: "A little patience while your household invitation blooms.",
-      missing: "Please use the personal link sent to your household. It opens your invitation directly, with only the people invited with you.",
-      invalid: "The link may be incomplete or out of date. Please ask Ekaterina or Dimitar to resend your personal invitation.",
+      missing: "Please use the personal link sent to your household. It opens your invitation directly, with only the people invited with you. Can't find it? Reply to the message it came with and we will send it again.",
+      invalid: "The link may be incomplete or out of date. Reply to the message that brought you this link and we will send you a fresh one.",
       unavailable: "Please check your connection and try again in a moment. Your invitation and any saved reply are safe.",
     },
     retry: "Try the link again",
@@ -169,15 +186,15 @@ const en: Copy = {
     replyDate: "By 1 December 2026",
     progressAnswered: (answered, total) => `${answered} of ${total} answered`,
     progressOutstanding: (names) => `${names.join(", ")} still to answer`,
-    saveNote: (names) => `${names.length} answer${names.length > 1 ? "s" : ""} still needed for ${names.join(", ")}`,
+    saveNote: (names) => `${names.length} answer${names.length > 1 ? "s" : ""} still needed for ${joinNames(names, " and ")}`,
     saveLabels: { idle: "Save our reply", saving: "Saving…", error: "Try saving again", conflict: "Latest reply needed" },
     loadLatest: "Load latest saved reply",
     receiptAria: "RSVP confirmation",
     receiptTitle: (name) => `Reply confirmed for ${name}`,
-    receiptAttending: (names) => `${names.join(" and ")} will join us on 20 June 2027.`,
+    receiptAttending: (names) => `${joinNames(names, " and ")} will join us on 20 June 2027.`,
     receiptDeclined: "We will miss you, and we are grateful you let us know.",
     receiptMealsOpen: { pre: "The menu is open.", link: "Choose a meal for each guest", post: "with this same invitation." },
-    receiptMealsLater: "Closer to the day we will open the menu. Come back with this same personal link to choose a meal for each guest.",
+    receiptMealsLater: "In October we will open the menu — we will let you know, and this same personal link is where you will choose a meal for each guest.",
   },
   mealTeaser: {
     eyebrow: "The wedding table",
@@ -191,7 +208,7 @@ const en: Copy = {
     titleLines: ["The menu is", "still blooming"],
     bodyPre: "There is nothing to do here just yet. Dinner choices open in ",
     bodyMonth: "October",
-    bodyPost: ", and you will return to this same invitation to choose a meal for each guest.",
+    bodyPost: " — we will let you know, and you will choose right here with this same invitation.",
     pill: "Menu opens later this year",
     foot: "For now, please just let us know who is coming.",
   },
@@ -291,12 +308,12 @@ const bg: Copy = {
       checking: "Отваряме личната ви покана…",
       missing: "Тази покана носи вашето име.",
       invalid: "Не успяхме да отворим поканата.",
-      unavailable: "Градината на поканата си почива.",
+      unavailable: "Градината с покани си почива.",
     },
     messages: {
       checking: "Малко търпение, докато поканата на вашето семейство разцъфне.",
-      missing: "Моля, използвайте личния линк, изпратен на вашето семейство. Той отваря поканата ви директно, само с хората, поканени с вас.",
-      invalid: "Линкът може да е непълен или остарял. Помолете Екатерина или Димитър да изпратят отново личната ви покана.",
+      missing: "Моля, използвайте личния линк, изпратен на вашето семейство. Той отваря поканата ви директно, само с хората, поканени с вас. Ако не го откривате, отговорете на съобщението, с което е пристигнал, и ще ви го изпратим отново.",
+      invalid: "Линкът може да е непълен или остарял. Отговорете на съобщението, с което получихте линка, и ще ви изпратим нов.",
       unavailable: "Проверете връзката и опитайте отново след малко. Поканата и запазеният ви отговор са в безопасност.",
     },
     retry: "Опитайте отново",
@@ -305,12 +322,12 @@ const bg: Copy = {
   },
   guest: {
     statusAttending: "С радост ще присъства",
-    statusDeclined: "Няма да може да дойде",
+    statusDeclined: "Няма да може да присъства",
     statusPending: "Изберете отговор по-долу",
     yes: "Ще присъства",
     no: "Няма да присъства",
     notesLabel: "Хранителни ограничения или специални нужди",
-    notesPlaceholder: "По желание, кажете ни какво ще ви е от помощ",
+    notesPlaceholder: "По желание, кажете ни какво би ви помогнало да се чувствате добре",
     attendanceAria: (name) => `Отговор за ${name}`,
   },
   contacts: { prompt: "Предпочитате да отговорите лично?", aria: "Начини за връзка", phone: "Обадете ни се" },
@@ -324,26 +341,26 @@ const bg: Copy = {
     venueName: "Мидалидаре Естейт",
     venueCountry: "България",
     daysToGo: (n) => (n === 1 ? "Остава 1 ден" : `Остават ${n} дни`),
-    replyBy: "Молим, отговорете до 1 декември 2026 г.",
+    replyBy: "Молим да потвърдите присъствието си до 1 декември 2026 г.",
     scrollPrompt: "Вашата покана",
   },
   rsvp: {
-    greeting: (name) => `Скъпи ${name}`,
-    introTitleLines: ["Ще се радваме да", "празнуваме с вас."],
-    introBody: "Молим, кажете ни дали ще можете да дойдете.",
-    kindly: "Молим, отговорете",
+    greeting: bgGreeting,
+    introTitleLines: ["Ще се радваме", "да празнуваме с вас."],
+    introBody: "Моля, кажете ни дали ще можете да дойдете.",
+    kindly: "Молим за отговор",
     replyDate: "До 1 декември 2026 г.",
     progressAnswered: (answered, total) => `Отговорени: ${answered} от ${total}`,
     progressOutstanding: (names) => `Очакваме отговор за: ${names.join(", ")}`,
-    saveNote: (names) => `Остава отговор за ${names.join(", ")}`,
-    saveLabels: { idle: "Запазете отговора ни", saving: "Запазваме…", error: "Опитайте отново", conflict: "Нужен е последният отговор" },
+    saveNote: (names) => (names.length === 1 ? `Остава отговор за ${names[0]}` : `Остават отговори за ${joinNames(names, " и ")}`),
+    saveLabels: { idle: "Запазете отговора си", saving: "Запазваме…", error: "Опитайте отново", conflict: "Нужен е последният отговор" },
     loadLatest: "Заредете последния запазен отговор",
     receiptAria: "Потвърждение на отговора",
     receiptTitle: (name) => `Отговорът на ${name} е потвърден`,
-    receiptAttending: (names) => `${names.join(" и ")} ще ${names.length === 1 ? "бъде" : "бъдат"} с нас на 20 юни 2027 г.`,
+    receiptAttending: (names) => `${joinNames(names, " и ")} ще ${names.length === 1 ? "бъде" : "бъдат"} с нас на 20 юни 2027 г.`,
     receiptDeclined: "Ще ни липсвате. Благодарим, че ни казахте.",
     receiptMealsOpen: { pre: "Менюто е отворено.", link: "Изберете ястие за всеки гост", post: "със същата покана." },
-    receiptMealsLater: "По-близо до датата ще отворим менюто. Върнете се със същия личен линк, за да изберете ястие за всеки гост.",
+    receiptMealsLater: "През октомври ще отворим менюто. Ще ви известим, а изборът се прави със същия личен линк.",
   },
   mealTeaser: {
     eyebrow: "Сватбената трапеза",
@@ -357,13 +374,13 @@ const bg: Copy = {
     titleLines: ["Менюто още", "узрява"],
     bodyPre: "Засега тук няма какво да правите. Изборът на ястия започва през ",
     bodyMonth: "октомври",
-    bodyPost: ". Тогава ще се върнете към същата покана, за да изберете ястие за всеки гост.",
-    pill: "Менюто отваря по-късно тази година",
+    bodyPost: ". Ще ви известим и тогава ще отворите отново същата покана, за да изберете ястие за всеки гост.",
+    pill: "Изборът започва по-късно тази година",
     foot: "Засега просто ни кажете кой ще дойде.",
   },
   program: {
     title: "Как ще протече денят",
-    sub: "Денят започва с български ритуал, който не бихте искали да пропуснете.",
+    sub: "Денят започва с български ритуал, който не е за изпускане.",
     stops: [
       { time: "15:00", name: "Пристигане", desc: "Открадването на булката, българска традиция, която не се пропуска. Бъдете навреме: започва в 15:30, а докато чакате, ще има нещо студено за пиене." },
       { time: "16:30", name: "Церемония", desc: "Нашите обети сред лозята." },
@@ -389,19 +406,19 @@ const bg: Copy = {
     aria: "Настаняване и имението",
     titleLines: ["Настаняване и", "самото имение"],
     body: [
-      "Мидалидаре Естейт е живописно винено имение, сгушено сред горите на Средна гора, с две винарни и четири лозя, разпрострени върху 160 хектара. Настаняването е в красиво реставрираната 200-годишна училищна сграда, в която днес се помещава Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо. Имението разполага също със спа и гастропъб.",
+      "Мидалидаре Естейт е живописно винарско имение, сгушено сред горите на Средна гора, с две винарни и четири лозя, простиращи се върху 160 хектара. Настаняването е в красиво реставрираната 200-годишна училищна сграда, в която днес се помещава Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо. Имението разполага също със спа и гастропъб.",
       "Щом отговорите, ще уредим настаняването ви в имението или наблизо.",
     ],
     foot: "Прибирате се същата вечер? В имението има безплатен паркинг.",
   },
   story: {
     eyebrow: "Нашата любовна история",
-    titleLines: ["История", "в цъфтеж"],
+    titleLines: ["История", "в разцвет"],
     milestones: [
-      { label: "Където всичко започна", text: "Срещнахме се през лятото на 2015, докато и двамата бяхме още в гимназията, и не след дълго между нас започна нещо специално." },
-      { label: "Виена", text: "Преместихме се във Виена за бакалавърските си степени и този град стана наш дом за пет незабравими години." },
+      { label: "Там, където всичко започна", text: "Срещнахме се през лятото на 2015 г., докато и двамата бяхме още в гимназията, и не след дълго между нас започна нещо специално." },
+      { label: "Виена", text: "Преместихме се във Виена, за да следваме бакалавър, и този град стана наш дом за пет незабравими години." },
       { label: "Лондон", text: "Пътят ни продължи в Лондон, където едно ново приключение се превърна в дом, място, в което да растем заедно, да градим кариерите си и да оформим бъдещето си." },
-      { label: "Големият въпрос", text: "След близо десет години заедно, подобаващо предложение за брак в Queen's House постави началото на новата ни глава." },
+      { label: "Големият въпрос", text: "След близо десет години заедно, в Queen's House дойде предложение, достойно за кралица — началото на следващата ни глава." },
     ],
     finale: "Десет години, три града и безброй спомени по-късно, това е само началото.",
     photoAlt: "Екатерина и Димитър",
@@ -414,10 +431,10 @@ const bg: Copy = {
   meals: {
     back: "← Обратно към поканата",
     eyebrow: "Сватбената трапеза",
-    introTitleLines: ["Ястие, избрано", "само за вас"],
+    introTitleLines: ["Ястие", "по ваш избор"],
     introBody: "Използвайте същата лична покана, за да изберете ястие за всеки присъстващ гост.",
     closed: {
-      eyebrow: "По-късно",
+      eyebrow: "Предстои",
       title: "Менюто още узрява.",
       body: "Засега няма какво да правите. Ще ви известим, когато отворим избора на ястия. Същата лична покана ще важи.",
       btn: "Обратно към поканата",
@@ -432,7 +449,7 @@ const bg: Copy = {
     savingReply: "Запазваме отговора ви…",
     replyConflict: "Поканата е била променена от друг телефон. Заредете последния запазен отговор и го прегледайте, преди да запазите отново.",
     replySaved: "Отговорът ви е потвърден. Можете да се върнете със същия личен линк, ако нещо се промени.",
-    replySaveFailed: "Не успяхме да запазим отговора. Изборът ви е записан на този телефон. Моля, опитайте отново.",
+    replySaveFailed: "Не успяхме да запазим отговора. Изборът ви е запазен на този телефон. Моля, опитайте отново.",
     loadingLatestReply: "Зареждаме последния запазен отговор…",
     latestReplyLoaded: "Показан е последният запазен отговор. Прегледайте го, преди да правите промени.",
     latestReplyFailed: "Не успяхме да заредим последния отговор. Проверете връзката и опитайте отново.",

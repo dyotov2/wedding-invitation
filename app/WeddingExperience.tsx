@@ -379,6 +379,15 @@ function LoveStory() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
+    // The garden is painted with raw oklch() presentation attributes, which
+    // engines without oklch support render as BLACK fills. On those (old
+    // Viber/WhatsApp WebViews) skip the drawing entirely: the copy and the
+    // photo are the no-JS-safe core and stay fully readable.
+    const oklchOk = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", "oklch(50% 0 0)");
+    if (!oklchOk) {
+      root.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((el) => el.classList.add("is-in"));
+      return;
+    }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
     let running = false;
