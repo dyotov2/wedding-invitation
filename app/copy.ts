@@ -92,10 +92,8 @@ export interface Copy {
     bodyPre: string;
     bodyMonth: string;
     bodyPost: string;
-    pill: string;
-    foot: string;
   };
-  program: { title: string; sub: string; stops: Array<{ time: string; name: string; desc: string }> };
+  program: { title: string; stops: Array<{ time: string; name: string; desc: string }> };
   venue: {
     eyebrow: string;
     mapTitle: string;
@@ -194,7 +192,7 @@ const en: Copy = {
     receiptAttending: (names) => `${joinNames(names, " and ")} will join us on 20 June 2027.`,
     receiptDeclined: "We will miss you, and we are grateful you let us know.",
     receiptMealsOpen: { pre: "The menu is open.", link: "Choose a meal for each guest", post: "with this same invitation." },
-    receiptMealsLater: "In October we will open the menu. We will let you know, and this same personal link is where you will choose a meal for each guest.",
+    receiptMealsLater: "In January we will open the menu. We will let you know, and this same personal link is where you will choose a meal for each guest.",
   },
   mealTeaser: {
     eyebrow: "The wedding table",
@@ -207,19 +205,16 @@ const en: Copy = {
     eyebrow: "The wedding table",
     titleLines: ["The menu is", "still blooming"],
     bodyPre: "There is nothing to do here just yet. Dinner choices open in ",
-    bodyMonth: "October",
+    bodyMonth: "January",
     bodyPost: ". We will let you know, and you will choose right here with this same invitation.",
-    pill: "Menu opens later this year",
-    foot: "For now, please just let us know who is coming.",
   },
   program: {
     title: "How the day unfolds",
-    sub: "The day begins with a Bulgarian ritual you wouldn't want to miss.",
     stops: [
-      { time: "15:00", name: "Arrival", desc: "The stealing of the bride, a Bulgarian tradition you won't want to miss. Be on time; it starts at 15:30, and there's something cold to drink while you wait." },
+      { time: "15:30", name: "Start", desc: "The day begins with the stealing of the bride, a Bulgarian tradition you won't want to miss." },
       { time: "16:30", name: "Ceremony", desc: "Our vows among the vines." },
       { time: "17:30", name: "Drinks", desc: "A glass of the estate's own wine, something to eat, and the best view on the property." },
-      { time: "19:30", name: "Dinner", desc: "Your chosen dish, a few Bulgarian traditions, and no shortage of wine. Menu choices open in October." },
+      { time: "19:30", name: "Dinner", desc: "Your chosen dish, a few Bulgarian traditions, and no shortage of wine. Menu choices open in January." },
       { time: "21:00", name: "Dancing", desc: "Our favourite songs and a few hora. No experience needed, hold hands and follow whoever's on your right." },
     ],
   },
@@ -360,7 +355,7 @@ const bg: Copy = {
     receiptAttending: (names) => `${joinNames(names, " и ")} ще ${names.length === 1 ? "бъде" : "бъдат"} с нас на 20 юни 2027 г.`,
     receiptDeclined: "Ще ни липсвате. Благодарим, че ни казахте.",
     receiptMealsOpen: { pre: "Менюто е отворено.", link: "Изберете ястие за всеки гост", post: "със същата покана." },
-    receiptMealsLater: "През октомври ще отворим менюто. Ще ви известим, а изборът се прави със същия личен линк.",
+    receiptMealsLater: "През януари ще отворим менюто. Ще ви известим, а изборът се прави със същия личен линк.",
   },
   mealTeaser: {
     eyebrow: "Сватбената трапеза",
@@ -373,19 +368,16 @@ const bg: Copy = {
     eyebrow: "Сватбената трапеза",
     titleLines: ["Менюто още", "узрява"],
     bodyPre: "Засега тук няма какво да правите. Изборът на ястия започва през ",
-    bodyMonth: "октомври",
+    bodyMonth: "януари",
     bodyPost: ". Ще ви известим и тогава ще отворите отново същата покана, за да изберете ястие за всеки гост.",
-    pill: "Изборът започва по-късно тази година",
-    foot: "Засега просто ни кажете кой ще дойде.",
   },
   program: {
     title: "Как ще протече денят",
-    sub: "Денят започва с български ритуал, който не е за изпускане.",
     stops: [
-      { time: "15:00", name: "Пристигане", desc: "Открадването на булката, българска традиция, която не се пропуска. Бъдете навреме: започва в 15:30, а докато чакате, ще има нещо студено за пиене." },
+      { time: "15:30", name: "Начало", desc: "Денят започва с открадването на булката, българска традиция, която не се пропуска." },
       { time: "16:30", name: "Церемония", desc: "Нашите обети сред лозята." },
       { time: "17:30", name: "Коктейл", desc: "Чаша вино от имението, нещо за хапване и най-хубавата гледка наоколо." },
-      { time: "19:30", name: "Вечеря", desc: "Избраното от вас ястие, няколко български традиции и вино в изобилие. Изборът на меню започва през октомври." },
+      { time: "19:30", name: "Вечеря", desc: "Избраното от вас ястие, няколко български традиции и вино в изобилие. Изборът на меню започва през януари." },
       { time: "21:00", name: "Танци", desc: "Любимите ни песни и по някое хоро. Опит не е нужен. Хванете се за ръце и следвайте съседа си отдясно." },
     ],
   },

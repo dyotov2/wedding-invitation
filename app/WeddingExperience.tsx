@@ -1257,8 +1257,6 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
             <p className="eyebrow">{c.mealNotice.eyebrow}</p>
             <h2>{c.mealNotice.titleLines[0]}<br />{c.mealNotice.titleLines[1]}</h2>
             <p>{c.mealNotice.bodyPre}<strong>{c.mealNotice.bodyMonth}</strong>{c.mealNotice.bodyPost}</p>
-            <span className="meal-notice-pill"><span className="meal-notice-dot" aria-hidden="true" />{c.mealNotice.pill}</span>
-            <p className="meal-notice-foot">{c.mealNotice.foot}</p>
           </div>
         </section>
       )}
@@ -1271,7 +1269,6 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
         </div>
         <div className="program-heading">
           <h2 id="program-title">{c.program.title}</h2>
-          <p>{c.program.sub}</p>
         </div>
         <div className="program-path">
           <span className="program-vine" aria-hidden="true" />
