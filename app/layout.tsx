@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Figtree, Italiana } from "next/font/google";
+import { Cormorant, Figtree, Italiana, Manrope } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
@@ -16,11 +16,28 @@ const italiana = Italiana({
   display: "swap",
 });
 
+// Italiana and Figtree carry no Cyrillic. When the visitor switches the
+// invitation to Bulgarian (html[lang="bg"]), globals.css swaps the font
+// variables to these Cyrillic-capable companions.
+const cormorant = Cormorant({
+  variable: "--font-display-bg",
+  weight: "500",
+  style: ["normal", "italic"],
+  subsets: ["cyrillic", "latin"],
+  display: "swap",
+});
+
+const manrope = Manrope({
+  variable: "--font-body-bg",
+  subsets: ["cyrillic", "latin"],
+  display: "swap",
+});
+
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-v4.png`;
+  const imageUrl = `${protocol}://${host}/og.jpg`;
 
   return {
     title: "Ekaterina & Dimitar | Our Wedding",
@@ -37,7 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Forever starts today | Ekaterina & Dimitar",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
-      images: [{ url: imageUrl, width: 1536, height: 1024, alt: "Ekaterina and Dimitar's wedding invitation" }],
+      images: [{ url: imageUrl, width: 1200, height: 800, alt: "Ekaterina and Dimitar's wedding invitation" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -51,7 +68,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${figtree.variable} ${italiana.variable}`}>{children}</body>
+      <body className={`${figtree.variable} ${italiana.variable} ${cormorant.variable} ${manrope.variable}`}>{children}</body>
     </html>
   );
 }

@@ -72,7 +72,7 @@ type NormalizedImportRow = {
 
 const DEFAULT_SETTINGS: SettingsRow = {
   mealPhaseOpen: 0,
-  rsvpDeadline: "2027-01-01",
+  rsvpDeadline: "2026-12-01",
   weddingDate: "2027-06-20",
   deletionDate: "2027-06-27",
 };
@@ -121,14 +121,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function readJsonObject(request: Request): Promise<Record<string, unknown> | null> {
+async function readJsonObject(request: Request, limitBytes = JSON_LIMIT_BYTES): Promise<Record<string, unknown> | null> {
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return null;
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declaredLength) && declaredLength > JSON_LIMIT_BYTES) return null;
+  if (Number.isFinite(declaredLength) && declaredLength > limitBytes) return null;
 
   try {
     const text = await request.text();
-    if (new TextEncoder().encode(text).byteLength > JSON_LIMIT_BYTES) return null;
+    if (new TextEncoder().encode(text).byteLength > limitBytes) return null;
     const value: unknown = JSON.parse(text);
     return isObject(value) ? value : null;
   } catch {
@@ -303,32 +303,74 @@ async function recordRateLimitedAttempt(
   }, 429, { "retry-after": String(windowSeconds) });
 }
 
+type CredentialLookupLimiter = {
+  limited: Response | null;
+  recordFailure: () => Promise<void>;
+};
+
+// Only failed credential lookups count toward this limit. Many valid guests share
+// one IP at a family gathering or on venue Wi-Fi; successful opens must never
+// lock the household after them out. Brute-force guessing still hits the cap,
+// and once capped even valid attempts are refused before touching guest data.
+async function credentialLookupLimiter(request: Request, db: D1Database): Promise<CredentialLookupLimiter> {
+  const forwarded = request.headers.get("cf-connecting-ip")
+    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? "unknown";
+  const now = Math.floor(Date.now() / 1000);
+  const bucket = Math.floor(now / LOOKUP_WINDOW_SECONDS);
+  const bucketKey = await sha256(`credential-lookup:${forwarded}:${bucket}`);
+  const expiresAt = (bucket + 2) * LOOKUP_WINDOW_SECONDS;
+  await db.prepare("DELETE FROM invitation_lookup_limits WHERE expires_at < ?").bind(now).run();
+  const row = await db.prepare(`SELECT attempt_count AS attemptCount
+    FROM invitation_lookup_limits WHERE bucket_key = ?`)
+    .bind(bucketKey).first<{ attemptCount: number }>();
+  return {
+    limited: Number(row?.attemptCount ?? 0) >= LOOKUP_ATTEMPT_LIMIT
+      ? json({
+        error: "Too many attempts. Please wait a few minutes or contact us directly.",
+        code: "TOO_MANY_ATTEMPTS",
+      }, 429, { "retry-after": String(LOOKUP_WINDOW_SECONDS) })
+      : null,
+    recordFailure: async () => {
+      await db.prepare(`INSERT INTO invitation_lookup_limits
+        (bucket_key, attempt_count, expires_at) VALUES (?, 1, ?)
+        ON CONFLICT(bucket_key) DO UPDATE SET attempt_count = attempt_count + 1,
+          expires_at = excluded.expires_at`)
+        .bind(bucketKey, expiresAt).run();
+    },
+  };
+}
+
 async function handleInvitation(request: Request, db: D1Database, env: WeddingApiEnv): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
-  const limited = await recordRateLimitedAttempt(
-    request, db, "credential-lookup", LOOKUP_WINDOW_SECONDS, LOOKUP_ATTEMPT_LIMIT,
-  );
-  if (limited) return limited;
+  const limiter = await credentialLookupLimiter(request, db);
+  if (limiter.limited) return limiter.limited;
   const body = await readJsonObject(request);
   const credential = normalizeCredential(body?.credential);
-  if (!credential) return invitationUnavailable(400);
+  if (!credential) {
+    await limiter.recordFailure();
+    return invitationUnavailable(400);
+  }
   if (guestDataExpired(await getSettings(db))) return invitationUnavailable(410);
   const payload = await invitationPayload(db, credential, env);
   if (payload) return json(payload);
+  await limiter.recordFailure();
   return invitationUnavailable();
 }
 
 async function handleRsvp(request: Request, db: D1Database, env: WeddingApiEnv): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
-  const lookupLimited = await recordRateLimitedAttempt(
-    request, db, "credential-lookup", LOOKUP_WINDOW_SECONDS, LOOKUP_ATTEMPT_LIMIT,
-  );
-  if (lookupLimited) return lookupLimited;
+  const limiter = await credentialLookupLimiter(request, db);
+  if (limiter.limited) return limiter.limited;
   const body = await readJsonObject(request);
   const credential = normalizeCredential(body?.credential);
   const responseVersion = parseResponseVersion(body?.responseVersion);
   const submittedGuests = Array.isArray(body?.guests) ? body.guests : [];
-  if (!credential || responseVersion === null || submittedGuests.length === 0 || submittedGuests.length > 30) {
+  if (!credential) {
+    await limiter.recordFailure();
+    return json({ error: "Please check the invitation reply and try again" }, 400);
+  }
+  if (responseVersion === null || submittedGuests.length === 0 || submittedGuests.length > 30) {
     return json({ error: "Please check the invitation reply and try again" }, 400);
   }
 
@@ -350,7 +392,10 @@ async function handleRsvp(request: Request, db: D1Database, env: WeddingApiEnv):
 
   if (guestDataExpired(await getSettings(db))) return invitationUnavailable(410);
   const household = await findHouseholdByCredential(db, credential);
-  if (!household) return invitationUnavailable();
+  if (!household) {
+    await limiter.recordFailure();
+    return invitationUnavailable();
+  }
   const limited = await recordRateLimitedAttempt(
     request, db, `rsvp-write:${household.id}`, WRITE_WINDOW_SECONDS, WRITE_ATTEMPT_LIMIT,
   );
@@ -390,15 +435,17 @@ async function handleRsvp(request: Request, db: D1Database, env: WeddingApiEnv):
 
 async function handleMeals(request: Request, db: D1Database, env: WeddingApiEnv): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
-  const lookupLimited = await recordRateLimitedAttempt(
-    request, db, "credential-lookup", LOOKUP_WINDOW_SECONDS, LOOKUP_ATTEMPT_LIMIT,
-  );
-  if (lookupLimited) return lookupLimited;
+  const limiter = await credentialLookupLimiter(request, db);
+  if (limiter.limited) return limiter.limited;
   const body = await readJsonObject(request);
   const credential = normalizeCredential(body?.credential);
   const responseVersion = parseResponseVersion(body?.responseVersion);
   const submittedGuests = Array.isArray(body?.guests) ? body.guests : [];
-  if (!credential || responseVersion === null || submittedGuests.length === 0 || submittedGuests.length > 30) {
+  if (!credential) {
+    await limiter.recordFailure();
+    return json({ error: "Please check the meal choices and try again" }, 400);
+  }
+  if (responseVersion === null || submittedGuests.length === 0 || submittedGuests.length > 30) {
     return json({ error: "Please check the meal choices and try again" }, 400);
   }
 
@@ -419,7 +466,10 @@ async function handleMeals(request: Request, db: D1Database, env: WeddingApiEnv)
   const settings = await getSettings(db);
   if (guestDataExpired(settings)) return invitationUnavailable(410);
   const household = await findHouseholdByCredential(db, credential);
-  if (!household) return invitationUnavailable();
+  if (!household) {
+    await limiter.recordFailure();
+    return invitationUnavailable();
+  }
   if (household.responseVersion !== responseVersion) return versionConflict(db, credential, env);
   const limited = await recordRateLimitedAttempt(
     request, db, `meal-write:${household.id}`, WRITE_WINDOW_SECONDS, WRITE_ATTEMPT_LIMIT,
@@ -1017,16 +1067,20 @@ async function handleAdminImport(request: Request, db: D1Database, email: string
     .bind(batchId, sourceName, sourceHash, validation.rows.length, grouped.size, validation.rows.length, email));
   for (const [externalId, row] of grouped) {
     const credential = credentials.get(externalId)!;
-    const persistedExternalId = existing.households.get(externalId)?.externalId ?? externalId;
+    const currentHousehold = existing.households.get(externalId);
+    const persistedExternalId = currentHousehold?.externalId ?? externalId;
+    const responseDataChanged = !householdImportMatches(row, currentHousehold) ||
+      validation.rows.some((guestRow) => guestRow.householdExternalId === externalId &&
+        !guestImportMatches(guestRow, existing.guests.get(guestRow.guestExternalId), currentHousehold));
     statements.push(db.prepare(`INSERT INTO households
       (external_id, link_token, short_code, household_name, greeting, active, import_batch_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(external_id) DO UPDATE SET household_name = excluded.household_name,
         greeting = excluded.greeting,
         import_batch_id = excluded.import_batch_id,
-        response_version = households.response_version + 1, updated_at = CURRENT_TIMESTAMP`)
+        response_version = households.response_version + ?, updated_at = CURRENT_TIMESTAMP`)
       .bind(persistedExternalId, credential.linkToken, credential.shortCode, row.householdName,
-        row.householdGreeting, 1, batchId));
+        row.householdGreeting, 1, batchId, responseDataChanged ? 1 : 0));
   }
   for (const row of validation.rows) {
     const persistedGuestExternalId = existing.guests.get(row.guestExternalId)?.externalId ?? row.guestExternalId;
@@ -1147,6 +1201,274 @@ async function handleAdminPlanningExport(request: Request, db: D1Database, email
   });
 }
 
+const BACKUP_FORMAT = "wedding-backup";
+const BACKUP_VERSION = 1;
+const BACKUP_JSON_LIMIT_BYTES = 16_000_000;
+const RESTORE_CONFIRMATION = "RESTORE WEDDING GUEST DATA";
+// Sites-managed D1 exposes no export, Time Travel or restore controls, so this
+// application-level snapshot is the only complete, restorable backup available.
+const BACKUP_TABLES = ["import_batches", "households", "guests", "wedding_settings", "meal_options", "audit_events"] as const;
+type BackupTable = (typeof BACKUP_TABLES)[number];
+const BACKUP_ROW_LIMITS: Record<BackupTable, number> = {
+  import_batches: 500,
+  households: 1_000,
+  guests: 5_000,
+  wedding_settings: 5,
+  meal_options: 100,
+  audit_events: 20_000,
+};
+
+function backupTableQuery(table: BackupTable): string {
+  // audit_events is append-only and unbounded; keep the most recent rows within the
+  // restore cap so the snapshot is always restorable. Other tables are small and bounded.
+  if (table === "audit_events") {
+    return `SELECT * FROM (SELECT * FROM audit_events ORDER BY id DESC LIMIT ${BACKUP_ROW_LIMITS.audit_events}) ORDER BY id ASC`;
+  }
+  return `SELECT * FROM ${table}`;
+}
+
+async function handleAdminBackup(request: Request, db: D1Database, email: string): Promise<Response> {
+  if (request.method !== "POST") return methodNotAllowed("POST");
+  // One batch runs in a single implicit transaction, so every table comes from the
+  // same consistent snapshot even if a guest reply or import commits mid-backup.
+  const snapshot = await db.batch(BACKUP_TABLES.map((table) => db.prepare(backupTableQuery(table))));
+  const tables: Record<string, unknown[]> = {};
+  BACKUP_TABLES.forEach((table, index) => { tables[table] = snapshot[index].results ?? []; });
+  await db.prepare(`INSERT INTO audit_events
+    (event_id, actor_type, actor_email, action, entity_type, details_json)
+    VALUES (?, 'admin', ?, 'backup.exported', 'database', ?)`)
+    .bind(crypto.randomUUID(), email, JSON.stringify({
+      households: tables.households.length,
+      guests: tables.guests.length,
+      auditEvents: tables.audit_events.length,
+    })).run();
+  return new Response(JSON.stringify({
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    tables,
+  }), {
+    status: 200,
+    headers: responseHeaders("application/json; charset=utf-8", {
+      "content-disposition": "attachment; filename=wedding-backup.json",
+    }),
+  });
+}
+
+function backupTableRows(tables: Record<string, unknown>, table: BackupTable): Record<string, unknown>[] | null {
+  // A genuine backup always carries every section. An absent key means a truncated or
+  // wrong-format file, so reject it rather than defaulting to an empty (data-wiping) restore.
+  if (!Object.hasOwn(tables, table)) return null;
+  const value = tables[table];
+  if (!Array.isArray(value) || value.length > BACKUP_ROW_LIMITS[table]) return null;
+  const rows: Record<string, unknown>[] = [];
+  for (const row of value) {
+    if (!isObject(row)) return null;
+    rows.push(row);
+  }
+  return rows;
+}
+
+function restoreInt(value: unknown): number | null {
+  return Number.isInteger(value) ? Number(value) : null;
+}
+
+function restoreText(value: unknown, maxLength = 4_000): string | null {
+  return typeof value === "string" && value.length <= maxLength ? value : null;
+}
+
+function restoreFlag(value: unknown): number | null {
+  if (value === 0 || value === 1) return Number(value);
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return null;
+}
+
+async function handleAdminRestore(request: Request, db: D1Database, email: string): Promise<Response> {
+  if (request.method !== "POST") return methodNotAllowed("POST");
+  const body = await readJsonObject(request, BACKUP_JSON_LIMIT_BYTES);
+  if (!body) return json({ error: "The backup file could not be read. It may be too large or not valid JSON." }, 400);
+  if (body.confirmation !== RESTORE_CONFIRMATION) {
+    return json({ error: "The restore confirmation did not match" }, 400);
+  }
+  const backup = body.backup;
+  if (!isObject(backup) || backup.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || !isObject(backup.tables)) {
+    return json({ error: "That file is not a wedding backup this version can restore" }, 400);
+  }
+  const tables: Partial<Record<BackupTable, Record<string, unknown>[]>> = {};
+  for (const table of BACKUP_TABLES) {
+    const rows = backupTableRows(backup.tables, table);
+    if (!rows) return json({ error: `The backup section "${table}" is missing or malformed` }, 400);
+    tables[table] = rows;
+  }
+
+  const statements: D1PreparedStatement[] = [
+    db.prepare("DELETE FROM audit_events"),
+    db.prepare("DELETE FROM guests"),
+    db.prepare("DELETE FROM households"),
+    db.prepare("DELETE FROM import_previews"),
+    db.prepare("DELETE FROM import_batches"),
+    db.prepare("DELETE FROM meal_options"),
+    db.prepare("DELETE FROM invitation_lookup_limits"),
+  ];
+
+  const importBatchIds = new Set<string>();
+  for (const row of tables.import_batches!) {
+    const id = restoreText(row.id, 80);
+    const sourceName = restoreText(row.source_name, 200);
+    const sourceHash = restoreText(row.source_hash, 128);
+    const status = row.status === "completed" || row.status === "failed" ? String(row.status) : null;
+    const rowCount = restoreInt(row.row_count);
+    const householdCount = restoreInt(row.household_count);
+    const guestCount = restoreInt(row.guest_count);
+    const importedBy = restoreText(row.imported_by, 320);
+    const createdAt = restoreText(row.created_at, 40);
+    const completedAt = restoreText(row.completed_at, 40);
+    if (!id || !sourceName || !sourceHash || !status || rowCount === null || householdCount === null ||
+      guestCount === null || importedBy === null || !createdAt || !completedAt) {
+      return json({ error: "The backup contains an import record that cannot be restored" }, 400);
+    }
+    importBatchIds.add(id);
+    statements.push(db.prepare(`INSERT INTO import_batches
+      (id, source_name, source_hash, status, row_count, household_count, guest_count, imported_by, created_at, completed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, sourceName, sourceHash, status, rowCount, householdCount, guestCount, importedBy, createdAt, completedAt));
+  }
+
+  const householdIds = new Set<number>();
+  for (const row of tables.households!) {
+    const id = restoreInt(row.id);
+    const externalId = restoreText(row.external_id, 80);
+    const linkToken = restoreText(row.link_token, 200);
+    const shortCode = restoreText(row.short_code, 40);
+    const householdName = restoreText(row.household_name, 200);
+    const greeting = restoreText(row.greeting, 300);
+    const active = restoreFlag(row.active);
+    const responseVersion = restoreInt(row.response_version);
+    const importBatchId = row.import_batch_id === null || row.import_batch_id === undefined
+      ? null : restoreText(row.import_batch_id, 80);
+    const createdAt = restoreText(row.created_at, 40);
+    const updatedAt = restoreText(row.updated_at, 40);
+    if (id === null || id <= 0 || !externalId || !linkToken || !shortCode || !householdName ||
+      greeting === null || active === null || responseVersion === null || responseVersion < 0 ||
+      importBatchId === undefined || !createdAt || !updatedAt) {
+      return json({ error: "The backup contains a household that cannot be restored" }, 400);
+    }
+    householdIds.add(id);
+    statements.push(db.prepare(`INSERT INTO households
+      (id, external_id, link_token, short_code, household_name, greeting, active, response_version, import_batch_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, externalId, linkToken, shortCode, householdName, greeting, active, responseVersion,
+        importBatchId && importBatchIds.has(importBatchId) ? importBatchId : null, createdAt, updatedAt));
+  }
+
+  for (const row of tables.guests!) {
+    const id = restoreInt(row.id);
+    const externalId = restoreText(row.external_id, 80);
+    const householdId = restoreInt(row.household_id);
+    const name = restoreText(row.name, 200);
+    const displayOrder = restoreInt(row.display_order);
+    const guestType = ["adult", "child", "infant"].includes(String(row.guest_type)) ? String(row.guest_type) : null;
+    const active = restoreFlag(row.active);
+    const attendance = ["pending", "attending", "declined"].includes(String(row.attendance)) ? String(row.attendance) : null;
+    const dietaryNotes = restoreText(row.dietary_notes, 600);
+    const mealChoice = restoreText(row.meal_choice, 80);
+    const responseSource = ["website", "phone", "whatsapp", "viber", "paper"].includes(String(row.response_source))
+      ? String(row.response_source) : null;
+    const responseVersion = restoreInt(row.response_version);
+    const importBatchId = row.import_batch_id === null || row.import_batch_id === undefined
+      ? null : restoreText(row.import_batch_id, 80);
+    const createdAt = restoreText(row.created_at, 40);
+    const updatedAt = restoreText(row.updated_at, 40);
+    if (id === null || id <= 0 || !externalId || householdId === null || !householdIds.has(householdId) ||
+      !name || displayOrder === null || !guestType || active === null || !attendance ||
+      dietaryNotes === null || mealChoice === null || !responseSource || responseVersion === null ||
+      importBatchId === undefined || !createdAt || !updatedAt) {
+      return json({ error: "The backup contains a guest that cannot be restored" }, 400);
+    }
+    statements.push(db.prepare(`INSERT INTO guests
+      (id, external_id, household_id, name, display_order, guest_type, active, attendance, dietary_notes, meal_choice, response_source, response_version, import_batch_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, externalId, householdId, name, displayOrder, guestType, active, attendance, dietaryNotes,
+        mealChoice, responseSource, responseVersion,
+        importBatchId && importBatchIds.has(importBatchId) ? importBatchId : null, createdAt, updatedAt));
+  }
+
+  for (const row of tables.wedding_settings!) {
+    if (restoreInt(row.id) !== 1) continue;
+    const mealPhaseOpen = restoreFlag(row.meal_phase_open);
+    const rsvpDeadline = restoreText(row.rsvp_deadline, 10);
+    const weddingDate = restoreText(row.wedding_date, 10);
+    const deletionDate = restoreText(row.deletion_date, 10);
+    if (mealPhaseOpen === null || !rsvpDeadline || !weddingDate || !deletionDate) {
+      return json({ error: "The backup wedding settings cannot be restored" }, 400);
+    }
+    statements.push(db.prepare(`INSERT OR REPLACE INTO wedding_settings
+      (id, meal_phase_open, rsvp_deadline, wedding_date, deletion_date, updated_at)
+      VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)`)
+      .bind(mealPhaseOpen, rsvpDeadline, weddingDate, deletionDate));
+  }
+
+  for (const row of tables.meal_options!) {
+    const id = restoreInt(row.id);
+    const optionKey = restoreText(row.option_key, 80);
+    const name = restoreText(row.name, 200);
+    const description = restoreText(row.description, 600);
+    const guestType = ["all", "adult", "child", "infant"].includes(String(row.guest_type)) ? String(row.guest_type) : null;
+    const displayOrder = restoreInt(row.display_order);
+    const active = restoreFlag(row.active);
+    if (id === null || !optionKey || !name || description === null || !guestType || displayOrder === null || active === null) {
+      return json({ error: "The backup contains a meal option that cannot be restored" }, 400);
+    }
+    statements.push(db.prepare(`INSERT INTO meal_options
+      (id, option_key, name, description, guest_type, display_order, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, optionKey, name, description, guestType, displayOrder, active));
+  }
+
+  for (const row of tables.audit_events!) {
+    const eventId = restoreText(row.event_id, 80);
+    const actorType = ["guest", "admin", "system"].includes(String(row.actor_type)) ? String(row.actor_type) : null;
+    const actorEmail = restoreText(row.actor_email, 320);
+    const action = restoreText(row.action, 120);
+    const entityType = restoreText(row.entity_type, 120);
+    const entityId = restoreText(row.entity_id, 120);
+    const householdId = restoreInt(row.household_id);
+    const detailsJson = restoreText(row.details_json, 4_000);
+    const createdAt = restoreText(row.created_at, 40);
+    if (!eventId || !actorType || actorEmail === null || !action || !entityType || entityId === null ||
+      detailsJson === null || !createdAt) {
+      return json({ error: "The backup contains an audit event that cannot be restored" }, 400);
+    }
+    statements.push(db.prepare(`INSERT INTO audit_events
+      (event_id, actor_type, actor_email, action, entity_type, entity_id, household_id, details_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(eventId, actorType, actorEmail, action, entityType, entityId,
+        householdId !== null && householdIds.has(householdId) ? householdId : null, detailsJson, createdAt));
+  }
+
+  statements.push(db.prepare(`INSERT INTO audit_events
+    (event_id, actor_type, actor_email, action, entity_type, details_json)
+    VALUES (?, 'admin', ?, 'backup.restored', 'database', ?)`)
+    .bind(crypto.randomUUID(), email, JSON.stringify({
+      households: householdIds.size,
+      guests: tables.guests!.length,
+      exportedAt: typeof backup.exportedAt === "string" ? backup.exportedAt.slice(0, 40) : "",
+    })));
+
+  try {
+    await db.batch(statements);
+  } catch {
+    return json({ error: "The backup could not be restored. No changes were saved." }, 409);
+  }
+  return json({
+    ok: true,
+    households: householdIds.size,
+    guests: tables.guests!.length,
+    importBatches: importBatchIds.size,
+    auditEvents: tables.audit_events!.length,
+  });
+}
+
 export async function handleWeddingApi(request: Request, env: WeddingApiEnv): Promise<Response> {
   if (!env.DB) return json({ error: "The invitation service is temporarily unavailable" }, 503);
   const db = env.DB;
@@ -1173,6 +1495,8 @@ export async function handleWeddingApi(request: Request, env: WeddingApiEnv): Pr
       if (pathname === "/api/admin/import") return handleAdminImport(request, db, email);
       if (pathname === "/api/admin/export") return handleAdminPlanningExport(request, db, email);
       if (pathname === "/api/admin/delivery-export") return handleAdminDeliveryExport(request, db, env, email);
+      if (pathname === "/api/admin/backup") return handleAdminBackup(request, db, email);
+      if (pathname === "/api/admin/restore") return handleAdminRestore(request, db, email);
     }
     return json({ error: "Not found" }, 404);
   } catch {

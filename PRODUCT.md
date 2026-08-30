@@ -10,7 +10,7 @@ Wedding guests and households invited by Ekaterina and Dimitar, including older 
 
 ## Product Purpose
 
-Create a personal digital extension of Ekaterina and Dimitar's printed wedding invitation for their celebration on 20 June 2027 at Midalidare Estate in Bulgaria. Each private household link or short code reveals only the invited people, supports a clear per-person RSVP, and can later be reused for meal choices. A practical admin view keeps digital and manually received replies together.
+Create a personal digital extension of Ekaterina and Dimitar's printed wedding invitation for their celebration on 20 June 2027 at Midalidare Estate in Bulgaria. Each private household link reveals only the invited people, supports a clear per-person RSVP, and can later be reused for meal choices. The public root has no code-entry form; short codes remain an internal compatibility and recovery credential. A practical admin view keeps digital and manually received replies together.
 
 ## Brand Personality
 
@@ -34,7 +34,7 @@ Use large readable type, strong contrast, generous touch targets, visible focus 
 
 ## Operational Policy
 
-- The RSVP deadline is 1 January 2027 (`2027-01-01`).
+- The RSVP deadline is 1 December 2026 (`2026-12-01`).
 - The only production admin email is `dyotov2@gmail.com` until an explicit, reviewed allowlist change is made.
 - Guest records and every derived import, export, backup, personal-link sheet, and QR pack must be deleted on 27 June 2027 (`2027-06-27`).
 - D1 is the authoritative data store. Airtable is not the RSVP system of record, and browser storage is only for recoverable unsaved drafts.

@@ -22,7 +22,7 @@ async function render(pathname = "/") {
   );
 }
 
-test("server-renders the production wedding invitation entry", async () => {
+test("server-renders a quiet private-invitation gate while a personalized link opens", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -30,14 +30,14 @@ test("server-renders the production wedding invitation entry", async () => {
   const html = await response.text();
   assert.match(html, /<html[^>]+lang=["']en["']/i);
   assert.match(html, /<title>Ekaterina (?:&amp;|&#x26;) Dimitar \| 20 June 2027<\/title>/i);
-  assert.match(html, /Forever(?:<br\s*\/?>|\s)+starts today/i);
   assert.match(html, /Ekaterina/);
   assert.match(html, /Dimitar/);
   assert.match(html, /20 · 06 · 2027/);
-  assert.match(html, /<label[^>]+for=["']invitation-code["'][^>]*>Invitation code<\/label>/i);
-  assert.match(html, /<input[^>]+id=["']invitation-code["']/i);
-  assert.match(html, /<button[^>]+type=["']submit["'][^>]*>Open invitation<\/button>/i);
-  assert.match(html, /Midalidare Estate, Bulgaria/i);
+  assert.match(html, /Opening your private invitation/i);
+  assert.match(html, /Midalidare Estate/i);
+  assert.doesNotMatch(html, /invitation-code/i);
+  assert.doesNotMatch(html, /Open invitation/i);
+  assert.doesNotMatch(html, /<form\b/i);
 });
 
 test("rendered entry contains no starter or demonstration escape hatch", async () => {

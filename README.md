@@ -3,14 +3,16 @@
 The private, phone-first wedding invitation and RSVP system for Ekaterina and
 Dimitar's celebration at Midalidare Estate on 20 June 2027.
 
-Guests open a household-specific link or enter the code printed on their card.
+Guests open a household-specific link directly or scan its QR code. The public
+root does not ask for a code; a missing or damaged link shows calm recovery
+guidance instead of exposing a credential form.
 They can reply for every invited person, leave dietary or accessibility notes,
 and reuse the same link when meal selection opens. The admin view combines
 website replies with replies received by phone, WhatsApp, Viber, or paper.
 
 ## Important dates and ownership
 
-- RSVP deadline: **1 January 2027** (`2027-01-01`).
+- RSVP deadline: **1 December 2026** (`2026-12-01`).
 - Wedding: **20 June 2027**.
 - Guest-data deletion date: **27 June 2027** (`2027-06-27`).
 - Production administrator: **dyotov2@gmail.com**. Authentication alone is not
@@ -83,17 +85,26 @@ purge and the runbook covers removal of every external copy.
 
 ## Guest-list workflow
 
-Use one CSV row per invited person and group people with a stable
-`household_external_id`. Every person also needs a stable `guest_external_id`.
-The importer validates the file, shows a dry-run summary,
-then upserts households and guests idempotently. Imports are safe merges: an
-omitted existing record remains active and is clearly reported. It exports one personal
-URL and code per household plus the value used to generate its QR code.
+Use the household editor in `/admin` for the normal workflow. Add a household,
+add its invited people, then select **Save guest list**. The save action validates
+and shows the resulting change summary as it commits; **Review changes** remains
+available as an optional dry run. The application
+creates stable internal identifiers and generates one private URL and code per
+new household automatically. Editing names, greetings, guest type or order does
+not rotate an existing invitation credential.
 
-The complete column contract, example template, validation rules, reconciliation
+CSV remains available as an optional bulk-import fallback. Both paths use the
+same validated preview-and-commit API and safe-merge rules: an omitted existing
+record remains active and is clearly reported.
+
+The complete editor workflow, CSV contract, validation rules, reconciliation
 steps and private-file handling are in [Guest-list import](docs/guest-list-import.md).
 
 ## Domain and QR warning
+
+Sites supports connecting a custom domain the couple already owns: it provides
+the DNS records, validates them, and issues SSL. It does not purchase the
+domain, so buy one first (for example `ekaterinaanddimitar.com`).
 
 An ampersand (`&`) is **not valid in a DNS hostname**. It may appear in page
 copy as “Ekaterina & Dimitar,” but never create a domain such as
@@ -113,7 +124,13 @@ details and response sources are private data.
 - Use synthetic households in local development and staging.
 - Never log household codes, guest names, notes or meal choices.
 - Back up production before every migration, import or release that can affect
-  data.
+  data. Sites does not expose D1 export or restore controls, so use the admin
+  dashboard's Encrypted backups section: it snapshots every guest-data table,
+  encrypts the file in the browser with a passphrase before download, and can
+  restore a snapshot after a typed confirmation.
+- Do not import the real guest list until one encrypted backup has been taken
+  and a restore has been rehearsed, or production D1 moves into a Cloudflare
+  account the couple controls.
 - Delete guest records and every derived export/backup on 27 June 2027, unless
   a documented legal obligation requires a narrowly scoped exception.
 

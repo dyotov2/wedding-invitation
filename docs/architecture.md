@@ -41,7 +41,11 @@ Cloudflare D1 is the authoritative database for:
 - operational wedding settings such as whether meal selection is open.
 
 The logical D1 binding is `DB` in `.openai/hosting.json`. Sites owns the actual
-Cloudflare resource and binds the correct database during deployment. Drizzle
+Cloudflare resource and binds the correct database during deployment. Sites does
+not expose D1 export, Time Travel or restore controls, so complete backups are
+taken through the admin dashboard's Encrypted backups workflow
+(`/api/admin/backup` and `/api/admin/restore`, passphrase-encrypted in the
+browser); see the backup runbook. Drizzle
 schema changes must produce reviewed SQL files in `drizzle/`. Production
 requests must not create tables, alter schema, or seed demonstration records.
 
@@ -56,7 +60,9 @@ controlled import or admin workflow.
 
 ## Request and data flow
 
-1. A guest scans a QR code, opens a personal link, or enters a printed code.
+1. A guest scans a QR code or opens the household's personal link. A request
+   without a valid personal credential receives private recovery guidance and
+   no public code-entry form.
 2. The Worker normalizes the credential, applies abuse controls, and returns
    only the matching household and invited people.
 3. The guest submits one response for every invited person.
@@ -135,7 +141,7 @@ Private data includes the guest list, personal invitation credentials, RSVP
 answers, notes, meal choices, response sources, exports, QR packs and backups.
 These artifacts never enter Git.
 
-The requested RSVP date is 1 January 2027. Late guest replies intentionally
+The requested RSVP date is 1 December 2026. Late guest replies intentionally
 remain possible so the couple can accommodate phone-first and older guests.
 The scheduled deletion date for guest data
 and every derived artifact is 27 June 2027. On that date the guest API stops
