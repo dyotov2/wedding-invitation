@@ -379,6 +379,15 @@ function LoveStory() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
+    // The garden is painted with raw oklch() presentation attributes, which
+    // engines without oklch support render as BLACK fills. On those (old
+    // Viber/WhatsApp WebViews) skip the drawing entirely: the copy and the
+    // photo are the no-JS-safe core and stay fully readable.
+    const oklchOk = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", "oklch(50% 0 0)");
+    if (!oklchOk) {
+      root.querySelectorAll<HTMLElement>("[data-copy],[data-locket]").forEach((el) => el.classList.add("is-in"));
+      return;
+    }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
     let running = false;
@@ -1184,13 +1193,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
 
       <section className="rsvp-section" id="rsvp">
         <div className="rsvp-intro">
-          <p className="eyebrow">{household.greeting || c.rsvp.greeting(household.householdName)}</p>
+          <p className="eyebrow">{c.rsvp.greeting(household.greeting || household.householdName)}</p>
           <h2>{c.rsvp.introTitleLines[0]}<br />{c.rsvp.introTitleLines[1]}</h2>
           <p>{c.rsvp.introBody}</p>
         </div>
         <div className="rsvp-column">
           <div className="rsvp-heading">
-            <div><p className="eyebrow">{c.rsvp.kindly}</p><h2>{c.rsvp.question}</h2></div>
+            <div><p className="eyebrow">{c.rsvp.kindly}</p></div>
             <span className="reply-date">{c.rsvp.replyDate}</span>
           </div>
 
@@ -1301,7 +1310,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
         <BotanicalPhoto variant="sprig" className="stay-botanical" />
         <div className="stay-body">
           <h2>{c.stay.titleLines[0]}<br />{c.stay.titleLines[1]}</h2>
-          <p>{c.stay.body}</p>
+          {c.stay.body.map((para, index) => (
+            <p key={index}>{para}</p>
+          ))}
           <p className="stay-foot">{c.stay.foot}</p>
         </div>
         <div className="stay-fade" aria-hidden="true" />

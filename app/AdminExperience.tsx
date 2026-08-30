@@ -987,18 +987,20 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
                       {householdNameIssue && <small id={`household-name-error-${household.externalId}`}>{householdNameIssue.message}</small>}
                     </label>
                     <label className={greetingIssue ? "editor-field editor-field-error" : "editor-field"} htmlFor={`household-greeting-${household.externalId}`}>
-                      <span>Personal greeting <em>optional</em></span>
+                      <span>Names to greet <em>optional</em></span>
                       <input
                         id={`household-greeting-${household.externalId}`}
                         value={household.greeting}
                         maxLength={240}
                         disabled={editorBusy}
                         aria-invalid={Boolean(greetingIssue)}
-                        aria-describedby={greetingIssue ? `household-greeting-error-${household.externalId}` : undefined}
-                        placeholder="e.g. Dear Elena and Nikolay"
+                        aria-describedby={greetingIssue ? `household-greeting-error-${household.externalId}` : `household-greeting-hint-${household.externalId}`}
+                        placeholder="e.g. Elena and Nikolay"
                         onChange={(event) => updateHousehold(household.externalId, "greeting", event.target.value)}
                       />
-                      {greetingIssue && <small id={`household-greeting-error-${household.externalId}`}>{greetingIssue.message}</small>}
+                      {greetingIssue
+                        ? <small id={`household-greeting-error-${household.externalId}`}>{greetingIssue.message}</small>
+                        : <small className="editor-hint" id={`household-greeting-hint-${household.externalId}`}>Just the names. “Dear” or “Скъпи” is added automatically in each language.</small>}
                     </label>
                   </div>
 

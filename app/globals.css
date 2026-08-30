@@ -9,6 +9,10 @@
   --rose-pale: oklch(91% 0.032 22);
   --lavender: oklch(63% 0.045 309);
   --lavender-pale: oklch(92% 0.026 309);
+  /* Text-carrying variants: the decorative rose/lavender sit near 3:1 on cream,
+     below WCAG for the small caps they label. Petals keep the light originals. */
+  --rose-text: oklch(50% 0.075 18);
+  --lavender-text: oklch(48% 0.05 309);
   --sage: oklch(58% 0.05 132);
   --sage-dark: oklch(37% 0.052 130);
   --pastel-sage: oklch(92% 0.035 132);
@@ -46,7 +50,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 .eyebrow {
   margin-bottom: 0.65rem;
-  color: var(--rose);
+  color: var(--rose-text);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -255,8 +259,8 @@ h1, h2, h3, p { margin-top: 0; }
 .event-line strong { display: block; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; }
 .event-line span { display: block; margin-top: 0.25rem; color: oklch(45% 0.022 120); font-size: 0.85rem; }
 .event-divider { width: 1px; height: 32px; flex: 0 0 auto; background: linear-gradient(180deg, transparent, oklch(58% 0.05 132 / .75), transparent); }
-.hero-countdown { position: relative; z-index: 3; margin: 1.8rem 0 0; max-width: 30ch; line-height: 1.7; color: var(--lavender); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-.hero-countdown span { padding-inline: .45rem; color: var(--rose); }
+.hero-countdown { position: relative; z-index: 3; margin: 1.8rem 0 0; max-width: 30ch; line-height: 1.7; color: var(--lavender-text); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.hero-countdown span { padding-inline: .45rem; color: var(--rose-text); }
 .scroll-prompt { position: absolute; z-index: 5; bottom: 1.4rem; color: var(--sage-dark); font-size: 0.72rem; letter-spacing: 0.12em; text-decoration: none; text-transform: uppercase; }
 .scroll-prompt span { display: block; margin-top: 0.25rem; }
 .hero-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 132px; z-index: 2; background: linear-gradient(180deg, transparent, var(--paper)); pointer-events: none; }
@@ -305,7 +309,10 @@ h1, h2, h3, p { margin-top: 0; }
 .notes-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: oklch(98% 0.01 76); padding: 0.85rem; resize: vertical; }
 .rsvp-save { position: sticky; bottom: 0; margin-top: 1.2rem; padding: .9rem 0 1rem; background: linear-gradient(180deg, transparent, var(--paper) 26%); }
 .rsvp-save-note { text-align: center; margin: 0 0 .5rem; font-size: .74rem; font-weight: 650; color: var(--mulberry); }
-.rsvp-save .primary-action { width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 1rem; }
+.rsvp-save .primary-action { width: 100%; display: flex; align-items: center; justify-content: center; gap: .6rem; font-size: 1rem; }
+@media (max-width: 360px) {
+  .rsvp-save .primary-action, .meal-choices > .primary-action { font-size: .95rem; }
+}
 .rsvp-save .save-status { margin: 0.55rem 0 0; }
 .rsvp-save .conflict-action { width: 100%; margin-top: 0.55rem; }
 .primary-action:disabled { cursor: wait; opacity: .68; transform: none; }
@@ -340,7 +347,7 @@ h1, h2, h3, p { margin-top: 0; }
 .meal-notice h2 { margin: 0 0 1.1rem; font-family: var(--font-display), serif; font-size: clamp(2.7rem, 11vw, 2.9rem); font-weight: 400; letter-spacing: -.045em; line-height: .9; }
 .meal-notice-body > p { margin: 0 auto 1.6rem; max-width: 36ch; color: oklch(43% 0.026 60); }
 .meal-notice-body > p strong { font-weight: 750; color: var(--sage-dark); }
-.meal-notice-pill { display: inline-flex; align-items: center; gap: .55rem; border: 1px solid oklch(57% 0.05 132 / .5); border-radius: 999px; background: oklch(99% 0.008 80); padding: .55rem 1.1rem; color: var(--sage-dark); font-size: .76rem; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.meal-notice-pill { display: inline-flex; align-items: center; gap: .55rem; border: 1px solid oklch(57% 0.05 132 / .5); border-radius: 999px; background: oklch(99% 0.008 80); padding: .55rem 1.1rem; color: var(--sage-dark); font-size: .76rem; font-weight: 700; letter-spacing: .04em; white-space: normal; max-width: 100%; line-height: 1.4; }
 .meal-notice-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); }
 .meal-notice-foot { margin: 1.7rem auto 0; max-width: 34ch; color: oklch(48% 0.022 120); font-size: .82rem; line-height: 1.5; }
 
@@ -357,21 +364,21 @@ h1, h2, h3, p { margin-top: 0; }
 .program-botanical-one { --botanical-size: clamp(360px, 110vw, 460px); left: -48%; bottom: -5%; transform: rotate(-9deg); }
 .program-botanical-two { --botanical-size: clamp(135px, 40vw, 160px); right: -13%; top: -8%; transform: scaleX(-1) rotate(-19deg); }
 .program-heading { position: relative; z-index: 3; width: var(--inner); margin: 0 auto 4rem; text-align: center; }
-.program-heading .eyebrow { color: var(--lavender); }
+.program-heading .eyebrow { color: var(--lavender-text); }
 .program-heading h2 { margin: 0 0 .8rem; font-family: var(--font-display), serif; font-size: clamp(3.4rem, 14vw, 3.6rem); font-weight: 400; letter-spacing: -.05em; line-height: .85; }
 .program-heading > p:last-child { color: oklch(42% .024 120); }
 .program-path { position: relative; z-index: 3; width: var(--inner); margin-inline: auto; display: grid; grid-template-columns: 1fr; gap: 3.8rem; padding-left: 3.6rem; }
 .program-vine { position: absolute; width: 3px; height: 100%; left: 1.35rem; top: 0; background: linear-gradient(180deg, transparent, oklch(68% .09 127) 6%, oklch(74% .1 126) 94%, transparent); border-radius: 100%; }
 .program-stop { position: relative; text-align: left; }
 .program-bud { position: absolute; left: -2.95rem; top: 1.2rem; z-index: 2; width: 16px; height: 16px; border: 3px solid var(--lavender-pale); border-radius: 50%; background: var(--sage-dark); box-shadow: 0 0 0 4px oklch(82% .035 130); }
-.program-stop small { display: block; color: var(--lavender); font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+.program-stop small { display: block; color: var(--lavender-text); font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
 .program-stop time { display: block; margin: .35rem 0 .1rem; font-family: var(--font-display), serif; font-size: clamp(2.2rem, 9vw, 2.4rem); line-height: 1; }
 .program-stop h3 { margin: .25rem 0 .45rem; font-family: var(--font-display), serif; font-size: clamp(1.8rem, 7vw, 2rem); font-weight: 400; }
 .program-stop p { max-width: 32ch; margin: 0; color: oklch(43% .023 120); font-size: .9rem; }
 
 /* Venue */
 .venue-section { position: relative; z-index: 2; background: var(--pastel-lilac); padding-bottom: 3rem; }
-.venue-eyebrow { padding: 1.7rem 1.25rem 1rem; margin: 0; text-align: center; color: var(--lavender); font-size: .74rem; letter-spacing: .24em; }
+.venue-eyebrow { padding: 1.7rem 1.25rem 1rem; margin: 0; text-align: center; color: var(--lavender-text); font-size: .74rem; letter-spacing: .24em; }
 .venue-copy { margin: 1.5rem auto 0; max-width: 38ch; padding: 0 1.25rem; text-align: center; color: oklch(43% 0.026 60); }
 .venue-section .estate-map-shell { width: calc(100% - 2.5rem); max-width: 640px; margin: 1.6rem auto 0; overflow: hidden; border: 1px solid oklch(63% .025 45 / .34); border-radius: 12px; background: var(--paper); box-shadow: 0 24px 60px oklch(31% .035 35 / .14); }
 .estate-map-shell iframe { display: block; width: 100%; height: 250px; border: 0; filter: sepia(.12) saturate(.82) contrast(.94); }
@@ -381,7 +388,7 @@ h1, h2, h3, p { margin-top: 0; }
 .estate-map-caption small { display: block; margin-top: .2rem; color: oklch(44% .022 120); font-size: .74rem; }
 .estate-map-caption a { margin-top: .9rem; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: .6rem; border: 1px solid var(--mulberry); border-radius: 999px; color: var(--mulberry); font-size: .74rem; font-weight: 750; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 .dress-code-note { width: calc(100% - 2.5rem); max-width: 640px; margin: 1.4rem auto 0; border: 1px solid var(--line); border-radius: 12px; background: oklch(99% 0.008 80); padding: 1.1rem 1.2rem; }
-.dress-code-note > span { display: block; color: var(--lavender); font-size: 1rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.dress-code-note > span { display: block; color: var(--lavender-text); font-size: 1rem; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
 .dress-code-note small { display: block; margin-top: .6rem; max-width: 42ch; color: oklch(45% .022 120); font-size: .78rem; }
 
 /* Animated venue scene */
@@ -415,13 +422,13 @@ h1, h2, h3, p { margin-top: 0; }
 .scene-botanical-one { --botanical-size: clamp(200px, 60vw, 250px); left: -40%; bottom: -18%; transform: rotate(-16deg); opacity: .96; }
 .scene-botanical-two { --botanical-size: clamp(240px, 72vw, 320px); right: -42%; top: 1%; transform: scaleX(-1) rotate(-12deg); opacity: .96; }
 .scene-label { position: absolute; z-index: 5; left: 10%; top: 19%; margin: 0; color: oklch(98% 0.012 84); font-family: var(--font-display), serif; font-size: clamp(2.4rem, 13vw, 3rem); letter-spacing: -.05em; line-height: .92; text-shadow: 0 2px 14px oklch(26% 0.05 300 / .55), 0 1px 3px oklch(24% 0.04 40 / .5); }
-.scene-label small { display: block; font-family: var(--font-body), sans-serif; font-size: .18em; font-weight: 700; letter-spacing: .18em; }
+.scene-label small { display: block; font-family: var(--font-body), sans-serif; font-size: .68rem; font-weight: 700; letter-spacing: .18em; }
 
 /* Stay */
 .stay-section { position: relative; z-index: 2; overflow: hidden; padding: clamp(3.8rem, 10vw, 4.4rem) clamp(1.25rem, 8vw, 1.7rem) clamp(4.6rem, 12vw, 5.6rem); background: radial-gradient(circle at 80% 22%, oklch(93% 0.03 310 / .7), transparent 46%), linear-gradient(180deg, var(--pastel-lilac) 0%, var(--pastel-blush) 128px, var(--pastel-champagne) 100%); }
 .stay-botanical { --botanical-size: 158px; left: -7%; bottom: 2%; transform: rotate(10deg); opacity: .5; }
 .stay-body { position: relative; z-index: 3; width: var(--inner); margin-inline: auto; }
-.stay-body > .eyebrow { color: var(--lavender); font-size: .74rem; letter-spacing: .24em; }
+.stay-body > .eyebrow { color: var(--lavender-text); font-size: .74rem; letter-spacing: .24em; }
 .stay-body h2 { margin: 0 0 1.1rem; font-family: var(--font-display), serif; font-size: clamp(3rem, 12vw, 3.25rem); font-weight: 400; letter-spacing: -.045em; line-height: .86; }
 .stay-body > p:first-of-type { margin: 0 0 1.8rem; max-width: 40ch; color: oklch(43% 0.026 60); }
 .stay-foot { position: relative; margin: 1.6rem 0 0; max-width: 42ch; color: oklch(48% 0.022 120); font-size: .82rem; line-height: 1.5; }
@@ -440,7 +447,7 @@ h1, h2, h3, p { margin-top: 0; }
 }
 .ls-sprig { --botanical-size: 150px; --r: -12deg; right: -16%; top: -3%; z-index: 0; opacity: .42; transform: rotate(-12deg); animation: ls-breathe 10s ease-in-out infinite; }
 .ls-head { position: relative; z-index: 2; text-align: center; margin-bottom: 2.6rem; }
-.ls-eyebrow { color: var(--lavender); font-size: .72rem; letter-spacing: .24em; }
+.ls-eyebrow { color: var(--lavender-text); font-size: .72rem; letter-spacing: .24em; }
 .ls-head h2 { margin: 0; font-family: var(--font-display), serif; font-size: clamp(2.9rem, 13vw, 3.375rem); font-weight: 400; letter-spacing: -.05em; line-height: .88; }
 .ls-timeline { position: relative; z-index: 2; padding-left: 5rem; }
 .ls-vine-holder { position: absolute; left: .5rem; top: 0; bottom: 1rem; width: 64px; pointer-events: none; }
@@ -590,6 +597,7 @@ h1, h2, h3, p { margin-top: 0; }
 .editor-field input:focus-visible, .editor-field select:focus-visible { border-color: var(--sage-dark); outline: 3px solid oklch(74% .08 130 / .25); outline-offset: 1px; }
 .editor-field-error input { border-color: var(--rose); background: oklch(98% .012 25); }
 .editor-field-error small { color: oklch(42% .09 25); font-size: .7rem; line-height: 1.4; }
+.editor-field .editor-hint { color: oklch(52% .02 80); font-size: .7rem; font-weight: 500; line-height: 1.4; text-transform: none; letter-spacing: 0; }
 .guest-editor-grid { margin-top: 1.2rem; border-top: 1px solid var(--line); }
 .guest-editor-head, .guest-editor-row { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(7.5rem, .32fr) 9rem 5rem; align-items: center; gap: .75rem; }
 .guest-editor-head { min-height: 42px; color: oklch(48% .02 43); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
@@ -829,12 +837,32 @@ h1, h2, h3, p { margin-top: 0; }
   /* The animated scene relies on many raw oklch layers; degrade to a calm solid. */
   .venue-scene { background: #8fa07e; }
   .scene-sky-sunset, .scene-sky-night, .scene-stars, .scene-moon, .scene-dusk, .scene-lights, .scene-fireflies { display: none; }
+  /* Additions since the original hardening pass: the gate, the language toggle,
+     and the love-story locket all carry raw oklch values. */
+  :root { --rose-text: #8a5a56; --lavender-text: #6e5f7f; }
+  .gate-card { background: rgba(253, 250, 243, 0.94); border: 1px solid rgba(196, 193, 178, 0.5); box-shadow: 0 24px 80px rgba(60, 66, 48, 0.12); }
+  .gate-message p { color: #5c554a; }
+  .gate-loader { border: 2px solid rgba(111, 129, 98, 0.25); border-top-color: #374527; }
+  .lang-toggle { background: rgba(253, 250, 243, 0.92); border: 1px solid rgba(196, 178, 138, 0.7); box-shadow: 0 6px 18px rgba(94, 84, 56, 0.16); }
+  .lang-toggle button { color: #6a644f; }
+  .ls-locket { background: #fdfaf3; border: 1px solid rgba(196, 178, 138, 0.8); box-shadow: 0 20px 44px rgba(94, 84, 56, 0.2); }
+  .meal-notice-pill { background: #fdfaf3; border: 1px solid rgba(111, 129, 98, 0.5); }
 }
 
 /* --- Language toggle + Bulgarian font swap ------------------------------- */
 /* Italiana/Figtree have no Cyrillic; in Bulgarian the whole page moves to the
    Cyrillic-capable companions so Latin and Cyrillic never mix mid-word. */
 html[lang="bg"] body { --font-display: var(--font-display-bg); --font-body: var(--font-body-bg); }
+/* Cormorant sets ~10-15% smaller on the em than Italiana, with long extenders and
+   a normal letter fit; the Italiana-tuned negative tracking and sub-1 leading
+   would set Cyrillic caps touching and clip descenders. */
+html[lang="bg"] :is(.gate-names, .gate-message h1, .invitation-hero h1, .rsvp-intro h2, .rsvp-heading h2, .meal-teaser h2, .meal-notice h2, .program-heading h2, .stay-body h2, .ls-head h2, .scene-label, .footer-copy p) {
+  letter-spacing: -0.015em;
+  line-height: 1.04;
+}
+html[lang="bg"] .invitation-hero h1 { font-size: clamp(4rem, 19vw, 5.8rem); }
+html[lang="bg"] .gate-names { font-size: clamp(2.9rem, 13vw, 4rem); }
+html[lang="bg"] .event-line strong { font-size: .64rem; letter-spacing: .06em; }
 
 .lang-toggle {
   position: fixed;
@@ -858,7 +886,7 @@ html[lang="bg"] body { --font-display: var(--font-display-bg); --font-body: var(
   min-height: 30px;
   padding: .2rem .58rem;
   border-radius: 999px;
-  font-family: var(--font-body), sans-serif;
+  font-family: var(--font-body-bg), var(--font-body), sans-serif; /* "БГ" needs Cyrillic in EN mode too */
   font-size: .66rem;
   font-weight: 750;
   letter-spacing: .1em;

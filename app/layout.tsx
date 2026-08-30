@@ -22,6 +22,7 @@ const italiana = Italiana({
 const cormorant = Cormorant({
   variable: "--font-display-bg",
   weight: "500",
+  style: ["normal", "italic"],
   subsets: ["cyrillic", "latin"],
   display: "swap",
 });
