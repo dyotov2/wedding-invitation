@@ -1,28 +1,13 @@
 // Bilingual copy for the wedding invitation. `Copy` is a single interface both
-// languages must satisfy, so a missing translation is a compile error. Names and
-// free text stored on the server (the names in a household greeting, meal names
-// and descriptions) render as saved; the words around them are translated here.
-// A saved greeting holds only the names: rsvp.greeting adds "Dear"/"Скъпи" in the
-// active language.
+// languages must satisfy, so a missing translation is a compile error. Free text
+// stored on the server (meal names and descriptions) renders as saved; the words
+// around it are translated here.
 
 export type Lang = "en" | "bg";
 
 // "A, B and C" / „А, Б и В" — never "A and B and C".
 const joinNames = (names: string[], pair: string) =>
   names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")}${pair}${names[names.length - 1]}`;
-
-// „Скъпи" must agree with the addressee: neuter for „семейство X", feminine for
-// a single female name (Bulgarian female names end in -а/-я; the exception set
-// covers the common male -а/-я names), plural „Скъпи" otherwise. A per-household
-// greeting saved on the server bypasses this entirely.
-const BG_MALE_SOFT_ENDINGS = new Set(["никола", "илия", "лука", "сава", "кузма", "тома", "добри"]);
-const bgGreeting = (name: string) => {
-  const trimmed = name.trim();
-  const first = (trimmed.split(/\s+/)[0] ?? "").toLowerCase();
-  if (first === "семейство" || first === "сем.") return `Скъпо ${trimmed}`;
-  if (!/\s/.test(trimmed) && /[ая]$/i.test(trimmed) && !BG_MALE_SOFT_ENDINGS.has(first)) return `Скъпа ${trimmed}`;
-  return `Скъпи ${trimmed}`;
-};
 
 export type StatusKey =
   | "needAnswers" | "savingReply" | "replyConflict" | "replySaved" | "replySaveFailed"
@@ -67,10 +52,8 @@ export interface Copy {
     scrollPrompt: string;
   };
   rsvp: {
-    greeting: (name: string) => string;
     introTitleLines: [string, string];
     introBody: string;
-    kindly: string;
     replyDate: string;
     progressAnswered: (answered: number, total: number) => string;
     progressOutstanding: (names: string[]) => string;
@@ -107,7 +90,7 @@ export interface Copy {
     dressLabel: string;
     dressBody: string;
   };
-  stay: { aria: string; titleLines: [string, string]; body: [string, string]; foot: string };
+  stay: { aria: string; titleLines: [string, string]; body: string[]; foot: string };
   story: {
     eyebrow: string;
     titleLines: [string, string];
@@ -177,10 +160,8 @@ const en: Copy = {
     scrollPrompt: "Your invitation",
   },
   rsvp: {
-    greeting: (name) => `Dear ${name}`,
     introTitleLines: ["We would love to", "celebrate with you."],
     introBody: "Please let us know whether you can join us.",
-    kindly: "Kindly reply",
     replyDate: "By 1 December 2026",
     progressAnswered: (answered, total) => `${answered} of ${total} answered`,
     progressOutstanding: (names) => `${names.join(", ")} still to answer`,
@@ -206,7 +187,7 @@ const en: Copy = {
     titleLines: ["The menu is", "still blooming"],
     bodyPre: "Dinner choices open in ",
     bodyMonth: "January",
-    bodyPost: ". We will let you know and you will make your choice.",
+    bodyPost: ". Nothing to do here just yet! We will let you know to return to this invitation and make your dinner choice in due time.",
   },
   program: {
     title: "How the day unfolds",
@@ -247,14 +228,14 @@ const en: Copy = {
       { label: "Where It All Began", text: "We met in the summer of 2015, while we were both still in high school, and it didn't take long for something special to begin." },
       { label: "Vienna", text: "We moved to Vienna to pursue our bachelor's degrees and ended up calling this city home for five unforgettable years." },
       { label: "London", text: "Our journey continued in London, where a new adventure became home, a place to grow together, build our careers, and shape our future." },
-      { label: "The Big Question", text: "After nearly ten years together, a befitting proposal at the Queen's House marked the start of our next chapter." },
+      { label: "The Big Question", text: "After ten years together, a befitting proposal at the Queen's House marked the start of our next chapter." },
     ],
     finale: "Ten years, three cities, and countless memories later, this is only the beginning.",
     photoAlt: "Ekaterina and Dimitar",
   },
   footer: {
     thanks: "Thank you for being part of our story.",
-    tagline: "We cannot wait to celebrate among the vines with you.",
+    tagline: "We cannot wait to celebrate our special day with you.",
     sign: "Ekaterina & Dimitar · 20 June 2027",
   },
   meals: {
@@ -329,7 +310,7 @@ const bg: Copy = {
   nav: { aria: "Навигация в поканата", rsvp: "Отговор" },
   hero: {
     eyebrow: "Празнувайте с нас",
-    subtitle: "венчаваме се сред лозята",
+    subtitle: "Нашия специален ден",
     dateAria: "Дата и място на сватбата",
     day: "Неделя",
     dateLong: "20 юни 2027 г.",
@@ -340,10 +321,8 @@ const bg: Copy = {
     scrollPrompt: "Вашата покана",
   },
   rsvp: {
-    greeting: bgGreeting,
     introTitleLines: ["Ще се радваме", "да празнуваме с вас."],
     introBody: "Моля, потвърдете присъствието си.",
-    kindly: "Молим за отговор",
     replyDate: "До 1 декември 2026 г.",
     progressAnswered: (answered, total) => `Отговорени: ${answered} от ${total}`,
     progressOutstanding: (names) => `Очакваме отговор за: ${names.join(", ")}`,
@@ -366,19 +345,19 @@ const bg: Copy = {
   mealNotice: {
     aria: "Избор на меню",
     eyebrow: "Сватбената трапеза",
-    titleLines: ["Менюто още", "узрява"],
-    bodyPre: "Изборът на ястия започва през ",
+    titleLines: ["Менюто още", "зрее"],
+    bodyPre: "През ",
     bodyMonth: "януари",
-    bodyPost: ". Ще ви известим и ще направите своя избор.",
+    bodyPost: " ще ви дадем знак, когато дойде време да изберете своето ястие.",
   },
   program: {
     title: "Как ще протече денят",
     stops: [
-      { time: "15:30", name: "Начало", desc: "Денят започва с открадването на булката, българска традиция, която не се пропуска." },
+      { time: "15:30", name: "Начало", desc: "Преди празникът да започне, булката трябва да бъде открадната, българска традиция, която няма как да пропуснем." },
       { time: "16:30", name: "Церемония", desc: "Нашите обети сред лозята." },
-      { time: "17:30", name: "Коктейл", desc: "Чаша вино от имението, нещо за хапване и най-хубавата гледка наоколо." },
-      { time: "19:30", name: "Вечеря", desc: "Избраното от вас ястие, няколко български традиции и вино в изобилие." },
-      { time: "21:00", name: "Танци", desc: "Любимите ни песни и по някое хоро. Опит не е нужен. Хванете се за ръце и следвайте съседа си отдясно." },
+      { time: "17:30", name: "Коктейл", desc: "Чаша вино, нещо вкусно и хубава гледка, на която да се насладим заедно." },
+      { time: "19:30", name: "Вечеря", desc: "Вкусно ястие по ваш избор, български традиции и много поводи за наздравица." },
+      { time: "21:00", name: "Танци", desc: "Любимите ни песни и, разбира се, някое и друго хоро. Опит не е нужен, хванете се за ръце и следвайте съседа си отдясно." },
     ],
   },
   venue: {
@@ -392,32 +371,33 @@ const bg: Copy = {
     sceneName: "Мидалидаре",
     sceneTag: "Сред българските лозя",
     dressLabel: "Дрескод",
-    dressBody: "Елегантно облекло за вечер сред лозята. Елате с това, в което се чувствате най-добре, и си вземете леко яке или шал. Захладнява, щом слънцето залезе.",
+    dressBody: "Елегантно облекло за вечер сред лозята. Елате в своя стил и не забравяйте нещо за наметване, след залез слънце става прохладно.",
   },
   stay: {
-    aria: "Настаняване и имението",
-    titleLines: ["Настаняване и", "самото имение"],
+    aria: "Настаняване и мястото",
+    titleLines: ["Настаняване и", "мястото"],
     body: [
-      "Мидалидаре Естейт е живописно винарско имение, сгушено сред горите на Средна гора, с две винарни и четири лозя, простиращи се върху 160 хектара. Настаняването е в красиво реставрираната 200-годишна училищна сграда, в която днес се помещава Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо. Имението разполага също със спа и гастропъб.",
-      "Щом отговорите, ще уредим настаняването ви в имението или наблизо.",
+      "Мидалидаре Естейт е живописна винарска изба, сгушено сред горите на Средна гора. Със своите две винарни и четири лозя, мястото съчетава любовта към виното с красотата и спокойствието на природата.",
+      "За гостите, които ще останат за нощта, са предвидени места за настаняване: в красиво реставрираната 200-годишна училищна сграда, днес дом на Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо и в най-близкия град, Стара Загора. На разположение са още SPA зона и гастропъб.",
+      "Щом потвърдите присъствието си, ще се погрижим за настаняването ви.",
     ],
-    foot: "Прибирате се същата вечер? В имението има безплатен паркинг.",
+    foot: "Прибирате се същата вечер? На място има безплатен паркинг.",
   },
   story: {
     eyebrow: "Нашата любовна история",
     titleLines: ["История", "в разцвет"],
     milestones: [
-      { label: "Там, където всичко започна", text: "Срещнахме се през лятото на 2015 г., докато и двамата бяхме още в гимназията, и не след дълго между нас започна нещо специално." },
-      { label: "Виена", text: "Преместихме се във Виена, за да следваме бакалавър, и този град стана наш дом за пет незабравими години." },
-      { label: "Лондон", text: "Пътят ни продължи в Лондон, където едно ново приключение се превърна в дом, място, в което да растем заедно, да градим кариерите си и да оформим бъдещето си." },
-      { label: "Големият въпрос", text: "След близо десет години заедно, в Queen's House дойде предложение, достойно за кралица, което постави началото на следващата ни глава." },
+      { label: "Там, откъдето започна всичко", text: "Срещнахме се през лятото на 2015 г., докато и двамата все още бяхме в гимназията. Не след дълго между нас се появи нещо специално, което с времето се превърна в нашата история." },
+      { label: "Виена", text: "През 2018 г. се преместихме във Виена, за да учим бакалавър. Пет години този град беше нашият дом, време, изпълнено с нови места, приятелства, приключения и много общи спомени." },
+      { label: "Лондон", text: "След Виена дойде ред на Лондон. Започнахме нов етап от живота си, открихме нов дом и продължихме да растем, всеки по своя път, но винаги заедно." },
+      { label: "Едно „да“", text: "След десет години заедно дойде и онзи въпрос, на който и двамата знаехме отговора. В Queen's House казахме „да“ на следващата ни глава." },
     ],
-    finale: "Десет години, три града и безброй спомени по-късно, това е само началото.",
+    finale: "Десет години, три града и безброй спомени по-късно, ни предстои все още най-хубавото.",
     photoAlt: "Екатерина и Димитър",
   },
   footer: {
     thanks: "Благодарим ви, че сте част от нашата история.",
-    tagline: "Нямаме търпение да празнуваме с вас сред лозята.",
+    tagline: "Нямаме търпение да празнуваме нашия специален ден с вас.",
     sign: "Екатерина и Димитър · 20 юни 2027 г.",
   },
   meals: {
