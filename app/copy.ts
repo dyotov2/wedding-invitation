@@ -1,28 +1,13 @@
 // Bilingual copy for the wedding invitation. `Copy` is a single interface both
-// languages must satisfy, so a missing translation is a compile error. Names and
-// free text stored on the server (the names in a household greeting, meal names
-// and descriptions) render as saved; the words around them are translated here.
-// A saved greeting holds only the names: rsvp.greeting adds "Dear"/"Скъпи" in the
-// active language.
+// languages must satisfy, so a missing translation is a compile error. Free text
+// stored on the server (meal names and descriptions) renders as saved; the words
+// around it are translated here.
 
 export type Lang = "en" | "bg";
 
 // "A, B and C" / „А, Б и В" — never "A and B and C".
 const joinNames = (names: string[], pair: string) =>
   names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")}${pair}${names[names.length - 1]}`;
-
-// „Скъпи" must agree with the addressee: neuter for „семейство X", feminine for
-// a single female name (Bulgarian female names end in -а/-я; the exception set
-// covers the common male -а/-я names), plural „Скъпи" otherwise. A per-household
-// greeting saved on the server bypasses this entirely.
-const BG_MALE_SOFT_ENDINGS = new Set(["никола", "илия", "лука", "сава", "кузма", "тома", "добри"]);
-const bgGreeting = (name: string) => {
-  const trimmed = name.trim();
-  const first = (trimmed.split(/\s+/)[0] ?? "").toLowerCase();
-  if (first === "семейство" || first === "сем.") return `Скъпо ${trimmed}`;
-  if (!/\s/.test(trimmed) && /[ая]$/i.test(trimmed) && !BG_MALE_SOFT_ENDINGS.has(first)) return `Скъпа ${trimmed}`;
-  return `Скъпи ${trimmed}`;
-};
 
 export type StatusKey =
   | "needAnswers" | "savingReply" | "replyConflict" | "replySaved" | "replySaveFailed"
@@ -67,7 +52,6 @@ export interface Copy {
     scrollPrompt: string;
   };
   rsvp: {
-    greeting: (name: string) => string;
     introTitleLines: [string, string];
     introBody: string;
     kindly: string;
@@ -177,7 +161,6 @@ const en: Copy = {
     scrollPrompt: "Your invitation",
   },
   rsvp: {
-    greeting: (name) => `Dear ${name}`,
     introTitleLines: ["We would love to", "celebrate with you."],
     introBody: "Please let us know whether you can join us.",
     kindly: "Kindly reply",
@@ -340,7 +323,6 @@ const bg: Copy = {
     scrollPrompt: "Вашата покана",
   },
   rsvp: {
-    greeting: bgGreeting,
     introTitleLines: ["Ще се радваме", "да празнуваме с вас."],
     introBody: "Моля, потвърдете присъствието си.",
     kindly: "Молим за отговор",
