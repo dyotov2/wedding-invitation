@@ -10,7 +10,7 @@ const joinNames = (names: string[], pair: string) =>
   names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")}${pair}${names[names.length - 1]}`;
 
 export type StatusKey =
-  | "needAnswers" | "savingReply" | "replyConflict" | "replySaved" | "replySaveFailed"
+  | "needAnswers" | "draftRestored" | "savingReply" | "replyConflict" | "replySaved" | "replySaveFailed"
   | "loadingLatestReply" | "latestReplyLoaded" | "latestReplyFailed"
   | "needMeals" | "savingMeals" | "mealsConflict" | "mealsSaved" | "mealsSaveFailed"
   | "loadingLatestMeals" | "latestMealsLoaded" | "latestMealsFailed";
@@ -139,8 +139,8 @@ const en: Copy = {
     statusAttending: "Joyfully attending",
     statusDeclined: "Unable to attend",
     statusPending: "Choose an answer below",
-    yes: "We will attend",
-    no: "We cannot attend",
+    yes: "Will attend",
+    no: "Cannot attend",
     notesLabel: "Dietary or accessibility needs",
     notesPlaceholder: "Optional, tell us what would help you feel comfortable",
     attendanceAria: (name) => `Attendance for ${name}`,
@@ -214,9 +214,9 @@ const en: Copy = {
   },
   stay: {
     aria: "Accommodation and the venue",
-    titleLines: ["Accommodation &", "the Venue itself"],
+    titleLines: ["Accommodation", "& the Venue itself"],
     body: [
-      "Midalidare Estate is a picturesque wine estate nestled among the forests of Sredna Gora, with two wineries and four vineyards stretching across 160 hectares. Accommodation is available in the beautifully restored 200-year-old schoolhouse, now home to Midalidare Hotel & SPA, as well as in charming nearby guest houses. The estate also features a spa and gastropub.",
+      "Midalidare Estate is a picturesque wine estate nestled among the forests of Sredna Gora, with two wineries and four vineyards stretching across 160 hectares. Accommodation is available in the beautifully restored 200-year-old schoolhouse, now home to Midalidare Hotel & SPA, as well as in charming nearby guest houses and in the nearest town, Stara Zagora. The estate also features a spa and gastropub.",
       "Once you RSVP, we'll arrange your accommodation either on the estate or nearby.",
     ],
     foot: "Heading home the same night? There is free parking on the estate.",
@@ -256,6 +256,7 @@ const en: Copy = {
   },
   status: {
     needAnswers: "Please choose an answer for each invited guest.",
+    draftRestored: "We kept the answers you started on this phone. They are not sent yet. Please review and save your reply.",
     savingReply: "Saving your reply…",
     replyConflict: "This invitation was updated on another phone. Load the latest saved reply, then review it before saving again.",
     replySaved: "Your reply is confirmed. You can return with the same personal link if anything changes.",
@@ -310,7 +311,7 @@ const bg: Copy = {
   nav: { aria: "Навигация в поканата", rsvp: "Отговор" },
   hero: {
     eyebrow: "Празнувайте с нас",
-    subtitle: "Нашия специален ден",
+    subtitle: "Нашият специален ден",
     dateAria: "Дата и място на сватбата",
     day: "Неделя",
     dateLong: "20 юни 2027 г.",
@@ -377,7 +378,7 @@ const bg: Copy = {
     aria: "Настаняване и мястото",
     titleLines: ["Настаняване и", "мястото"],
     body: [
-      "Мидалидаре Естейт е живописна винарска изба, сгушено сред горите на Средна гора. Със своите две винарни и четири лозя, мястото съчетава любовта към виното с красотата и спокойствието на природата.",
+      "Мидалидаре Естейт е живописна винарска изба, сгушена сред горите на Средна гора. Със своите две винарни и четири лозя, мястото съчетава любовта към виното с красотата и спокойствието на природата.",
       "За гостите, които ще останат за нощта, са предвидени места за настаняване: в красиво реставрираната 200-годишна училищна сграда, днес дом на Midalidare Hotel & SPA, както и в очарователни къщи за гости наблизо и в най-близкия град, Стара Загора. На разположение са още SPA зона и гастропъб.",
       "Щом потвърдите присъствието си, ще се погрижим за настаняването ви.",
     ],
@@ -392,7 +393,7 @@ const bg: Copy = {
       { label: "Лондон", text: "След Виена дойде ред на Лондон. Започнахме нов етап от живота си, открихме нов дом и продължихме да растем, всеки по своя път, но винаги заедно." },
       { label: "Едно „да“", text: "След десет години заедно дойде и онзи въпрос, на който и двамата знаехме отговора. В Queen's House казахме „да“ на следващата ни глава." },
     ],
-    finale: "Десет години, три града и безброй спомени по-късно, ни предстои все още най-хубавото.",
+    finale: "Десет години, три града и безброй спомени по-късно, все още ни предстои най-хубавото.",
     photoAlt: "Екатерина и Димитър",
   },
   footer: {
@@ -407,7 +408,7 @@ const bg: Copy = {
     introBody: "Използвайте същата лична покана, за да изберете ястие за всеки присъстващ гост.",
     closed: {
       eyebrow: "Предстои",
-      title: "Менюто още узрява.",
+      title: "Менюто още зрее.",
       body: "Засега няма какво да правите. Ще ви известим, когато отворим избора на ястия. Същата лична покана ще важи.",
       btn: "Обратно към поканата",
     },
@@ -418,6 +419,7 @@ const bg: Copy = {
   },
   status: {
     needAnswers: "Моля, изберете отговор за всеки поканен гост.",
+    draftRestored: "Запазихме започнатите отговори на този телефон. Те още не са изпратени. Моля, прегледайте ги и запазете отговора си.",
     savingReply: "Запазваме отговора ви…",
     replyConflict: "Поканата е била променена от друг телефон. Заредете последния запазен отговор и го прегледайте, преди да запазите отново.",
     replySaved: "Отговорът ви е потвърден. Можете да се върнете със същия личен линк, ако нещо се промени.",

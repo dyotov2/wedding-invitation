@@ -144,6 +144,14 @@ function setCredentialInAddressBar(credential: string) {
   window.history.replaceState(window.history.state, "", `${url.pathname}${search ? `?${search}` : ""}${url.hash}`);
 }
 
+// In-page section links must scroll without navigating: assigning "#rsvp" to
+// location.hash would overwrite the "#invite=" credential and unmount the
+// invitation into the missing-link gate.
+function scrollToSection(event: { preventDefault: () => void }, id: string) {
+  event.preventDefault();
+  document.getElementById(id)?.scrollIntoView();
+}
+
 function safeRemoveStoredDraft(key: string) {
   try {
     window.localStorage.removeItem(key);
@@ -1079,6 +1087,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
             return savedGuest ? { ...guest, ...savedGuest } : guest;
           }),
         });
+        // A restored draft looks identical to a saved reply, so say out loud
+        // that these answers have not been sent yet.
+        setStatus("draftRestored");
       } catch {
         safeRemoveStoredDraft(draftKey);
       }
@@ -1087,7 +1098,13 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
   }, [draftKey, household]);
 
   useEffect(() => {
-    if (!isDirty || saveState === "success") return;
+    if (!isDirty || saveState === "success") {
+      // A guest who reverts their edits should not leave a stale dirty
+      // snapshot behind to silently restore on the next visit. (Successful
+      // saves already clear the draft themselves.)
+      if (!isDirty && saveState !== "success") safeRemoveStoredDraft(draftKey);
+      return;
+    }
     const storedDraft: StoredRsvpDraft = {
       householdId: draft.id,
       responseVersion: draft.responseVersion,
@@ -1168,7 +1185,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
   return (
     <main className="invitation-page">
       <nav className="invitation-nav" aria-label={c.nav.aria}>
-        <a className="nav-rsvp" href="#rsvp">{c.nav.rsvp}</a>
+        <a className="nav-rsvp" href="#rsvp" onClick={(event) => scrollToSection(event, "rsvp")}>{c.nav.rsvp}</a>
       </nav>
 
       <header className="invitation-hero">
@@ -1187,7 +1204,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
           <div><strong>{c.hero.venueName}</strong><span>{c.hero.venueCountry}</span></div>
         </div>
         <p className="hero-countdown">{c.hero.daysToGo(daysUntilWedding)} <span aria-hidden="true">·</span> {c.hero.replyBy}</p>
-        <a className="scroll-prompt" href="#rsvp">{c.hero.scrollPrompt} <span aria-hidden="true">↓</span></a>
+        <a className="scroll-prompt" href="#rsvp" onClick={(event) => scrollToSection(event, "rsvp")}>{c.hero.scrollPrompt} <span aria-hidden="true">↓</span></a>
         <div className="hero-fade" aria-hidden="true" />
       </header>
 

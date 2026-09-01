@@ -1000,7 +1000,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
                       />
                       {greetingIssue
                         ? <small id={`household-greeting-error-${household.externalId}`}>{greetingIssue.message}</small>
-                        : <small className="editor-hint" id={`household-greeting-hint-${household.externalId}`}>Just the names. “Dear” or “Скъпи” is added automatically in each language.</small>}
+                        : <small className="editor-hint" id={`household-greeting-hint-${household.externalId}`}>Not shown on the invitation. Kept with the guest list and included in the delivery export for addressing your messages.</small>}
                     </label>
                   </div>
 

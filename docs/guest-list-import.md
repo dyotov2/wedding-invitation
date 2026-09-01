@@ -34,7 +34,7 @@ contract:
 | --- | --- | --- |
 | `household_external_id` | Yes | Stable private identifier shared by everyone receiving one invitation |
 | `household_name` | Yes | Household label used in the admin view |
-| `household_greeting` | No | Personal opening, such as `Dear Elena and Nikolay` |
+| `household_greeting` | No | Names for addressing your own messages; not shown on the invitation |
 | `guest_external_id` | Yes | Stable private identifier for one invited person |
 | `guest_name` | Yes | Full display name of one invited person |
 | `display_order` | No | Whole number controlling the order of people on the invitation |

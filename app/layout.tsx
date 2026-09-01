@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Ekaterina & Dimitar | Our Wedding",
     description:
-      "Join Ekaterina and Dimitar as they begin their forever at Midalidare Estate on 20 June 2027.",
+      "Join Ekaterina and Dimitar as they marry among the vines at Midalidare Estate on 20 June 2027.",
     referrer: "no-referrer",
     robots: {
       index: false,
@@ -52,13 +52,13 @@ export async function generateMetadata(): Promise<Metadata> {
       googleBot: { index: false, follow: false, noarchive: true, noimageindex: true },
     },
     openGraph: {
-      title: "Forever starts today | Ekaterina & Dimitar",
+      title: "Ekaterina & Dimitar | 20 June 2027",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
       images: [{ url: imageUrl, width: 1200, height: 800, alt: "Ekaterina and Dimitar's wedding invitation" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Forever starts today | Ekaterina & Dimitar",
+      title: "Ekaterina & Dimitar | 20 June 2027",
       description: "20 June 2027 · Midalidare Estate, Bulgaria",
       images: [imageUrl],
     },
