@@ -229,6 +229,8 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
   const adminIndex = await adminIndexResponse.json();
   const editableHousehold = adminIndex.households.find((household) => household.externalId === "HOUSEHOLD-001");
   assert.equal(editableHousehold.greeting, "Dear Elena and Nikolay");
+  assert.equal(editableHousehold.shortCode, firstCredential.shortCode);
+  assert.equal(editableHousehold.personalUrl, `https://ekaterina-dimitar.example/#invite=${firstCredential.linkToken}`);
   assert.deepEqual(editableHousehold.guests.map((guest) => ({
     externalId: guest.externalId,
     displayOrder: guest.displayOrder,
@@ -505,6 +507,71 @@ test("guest-list import, household RSVP, meal phase and exports persist safely",
   });
   assert.equal(postPurgeRestore.status, 410, "restore must not resurrect purged guest data");
 
+  database.close();
+});
+
+test("selected household cleanup requires a recent backup and deletes only the reviewed households", async () => {
+  const worker = await loadWorker();
+  const { database, d1 } = await migratedDatabase();
+  const admin = { email: "dyotov2@gmail.com", method: "POST" };
+  const preview = await (await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: { mode: "preview", rows, sourceName: "cleanup-test.csv" },
+  })).json();
+  const imported = await apiRequest(worker, d1, "/api/admin/import", {
+    ...admin,
+    body: {
+      mode: "commit",
+      rows,
+      sourceName: "cleanup-test.csv",
+      sourceHash: preview.sourceHash,
+      previewToken: preview.previewToken,
+    },
+  });
+  assert.equal(imported.status, 200);
+
+  const selectedToken = database.prepare("SELECT link_token AS token FROM households WHERE external_id = 'HOUSEHOLD-001'").get().token;
+  const survivingToken = database.prepare("SELECT link_token AS token FROM households WHERE external_id = 'HOUSEHOLD-002'").get().token;
+  const withoutBackup = await apiRequest(worker, d1, "/api/admin/households/delete", {
+    ...admin,
+    body: { confirmation: "DELETE SELECTED HOUSEHOLDS", householdExternalIds: ["HOUSEHOLD-001"] },
+  });
+  assert.equal(withoutBackup.status, 409);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM households").get().count, 2);
+
+  const backup = await apiRequest(worker, d1, "/api/admin/backup", { ...admin });
+  assert.equal(backup.status, 200);
+  const wrongConfirmation = await apiRequest(worker, d1, "/api/admin/households/delete", {
+    ...admin,
+    body: { confirmation: "delete", householdExternalIds: ["HOUSEHOLD-001"] },
+  });
+  assert.equal(wrongConfirmation.status, 400);
+  const staleSelection = await apiRequest(worker, d1, "/api/admin/households/delete", {
+    ...admin,
+    body: { confirmation: "DELETE SELECTED HOUSEHOLDS", householdExternalIds: ["HOUSEHOLD-MISSING"] },
+  });
+  assert.equal(staleSelection.status, 409);
+
+  const deleted = await apiRequest(worker, d1, "/api/admin/households/delete", {
+    ...admin,
+    body: { confirmation: "DELETE SELECTED HOUSEHOLDS", householdExternalIds: ["HOUSEHOLD-001"] },
+  });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(await deleted.json(), { ok: true, householdsDeleted: 1, guestsDeleted: 2 });
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM households").get().count, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM guests").get().count, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_previews").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE action = 'households.deleted'").get().count, 1);
+
+  const deletedInvitation = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", origin: undefined, body: { credential: selectedToken },
+  });
+  assert.equal(deletedInvitation.status, 404);
+  const survivingInvitation = await apiRequest(worker, d1, "/api/invitation", {
+    method: "POST", origin: undefined, body: { credential: survivingToken },
+  });
+  assert.equal(survivingInvitation.status, 200);
+  assert.deepEqual(database.prepare("PRAGMA foreign_key_check").all(), []);
   database.close();
 });
 

@@ -26,6 +26,8 @@ type Household = {
   active?: boolean;
   householdName: string;
   greeting: string;
+  shortCode?: string;
+  personalUrl?: string;
   guests: Guest[];
 };
 
@@ -203,6 +205,29 @@ function downloadText(filename: string, contents: string, type = "text/csv;chars
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("copy failed");
+}
+
+function invitationMessage(household: Household, includeUrl = true): string {
+  const greeting = household.greeting.trim() || `Dear ${household.householdName}`;
+  const link = includeUrl && household.personalUrl ? `\n\nOpen your private invitation and RSVP here:\n${household.personalUrl}` : "";
+  const code = household.shortCode ? `\n\nInvitation code: ${household.shortCode}` : "";
+  return `${greeting},\n\nWe would love to celebrate our wedding with you on 20 June 2027 at Midalidare Estate.${link}${code}\n\nEkaterina & Dimitar`;
+}
+
 function formatImportError(error: ImportError): string {
   if (typeof error === "string") return error;
   return error.row ? `Row ${error.row}: ${error.message}` : error.message;
@@ -305,6 +330,8 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [data, setData] = useState<AdminData | null>(null);
   const [filter, setFilter] = useState<Attendance | "all">("all");
   const [status, setStatus] = useState("Loading guest replies…");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkStatus, setLinkStatus] = useState("");
   const [editorHouseholds, setEditorHouseholds] = useState<EditableHousehold[]>([]);
   const [editorHasChanges, setEditorHasChanges] = useState(false);
   const [editorStatus, setEditorStatus] = useState("Edit the list, then select Save guest list.");
@@ -335,6 +362,10 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const [backupPassphraseConfirm, setBackupPassphraseConfirm] = useState("");
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreConfirmation, setRestoreConfirmation] = useState("");
+  const [selectedHouseholdIds, setSelectedHouseholdIds] = useState<string[]>([]);
+  const [cleanupConfirmation, setCleanupConfirmation] = useState("");
+  const [cleanupStatus, setCleanupStatus] = useState("");
+  const [cleanupBusy, setCleanupBusy] = useState(false);
 
   const refresh = useCallback(async (syncEditor = false) => {
     setStatus("Refreshing guest replies…");
@@ -389,6 +420,71 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
       return;
     }
     await refresh();
+  };
+
+  const shareInvitation = async (household: Household) => {
+    if (!household.personalUrl) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Ekaterina & Dimitar — wedding invitation",
+          text: invitationMessage(household, false),
+          url: household.personalUrl,
+        });
+        setLinkStatus(`Invitation shared for ${household.householdName}.`);
+        return;
+      }
+      await copyText(invitationMessage(household));
+      setLinkStatus(`Invitation message copied for ${household.householdName}.`);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setLinkStatus("That invitation could not be shared. Try Copy message instead.");
+    }
+  };
+
+  const copyInvitationMessage = async (household: Household) => {
+    try {
+      await copyText(invitationMessage(household));
+      setLinkStatus(`Invitation message copied for ${household.householdName}.`);
+    } catch {
+      setLinkStatus("The message could not be copied. Open the private link and copy it from the address bar.");
+    }
+  };
+
+  const toggleHouseholdForCleanup = (externalId: string) => {
+    setSelectedHouseholdIds((current) => current.includes(externalId)
+      ? current.filter((id) => id !== externalId)
+      : [...current, externalId]);
+    setCleanupConfirmation("");
+    setCleanupStatus("");
+  };
+
+  const removeSelectedHouseholds = async () => {
+    if (cleanupBusy || selectedHouseholdIds.length === 0 ||
+      cleanupConfirmation !== "DELETE SELECTED HOUSEHOLDS") return;
+    if (!window.confirm(`Permanently delete ${selectedHouseholdIds.length} selected household${selectedHouseholdIds.length === 1 ? "" : "s"} and all of their guest records?`)) return;
+    setCleanupBusy(true);
+    setCleanupStatus("Removing the selected households…");
+    try {
+      const response = await fetch("/api/admin/households/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          confirmation: cleanupConfirmation,
+          householdExternalIds: selectedHouseholdIds,
+        }),
+      });
+      const result = await response.json() as { error?: string; householdsDeleted?: number; guestsDeleted?: number };
+      if (!response.ok) throw new Error(result.error || "The selected households could not be removed.");
+      setSelectedHouseholdIds([]);
+      setCleanupConfirmation("");
+      setCleanupStatus(`${result.householdsDeleted ?? 0} households and ${result.guestsDeleted ?? 0} guest records removed.`);
+      await refresh(true);
+    } catch (error) {
+      setCleanupStatus(error instanceof Error ? error.message : "The selected households could not be removed.");
+    } finally {
+      setCleanupBusy(false);
+    }
   };
 
   const refreshReplies = async () => {
@@ -864,6 +960,18 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
   const declined = guests.filter((guest) => guest.attendance === "declined").length;
   const pending = guests.filter((guest) => guest.attendance === "pending").length;
   const visible = filter === "all" ? guests : guests.filter((guest) => guest.attendance === filter);
+  const shareableHouseholds = useMemo(() => {
+    const query = linkSearch.trim().toLocaleLowerCase("en");
+    return (data?.households ?? [])
+      .filter((household) => household.active !== false && household.personalUrl && household.shortCode)
+      .filter((household) => !query || [
+        household.householdName,
+        household.greeting,
+        household.shortCode,
+        ...household.guests.filter((guest) => guest.active !== false).map((guest) => guest.name),
+      ].some((value) => value?.toLocaleLowerCase("en").includes(query)))
+      .sort((left, right) => left.householdName.localeCompare(right.householdName, "en"));
+  }, [data, linkSearch]);
   if (data?.retentionClosed) {
     return (
       <main className="admin-page">
@@ -912,6 +1020,7 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
         <div><p className="eyebrow">Wedding desk</p><h1>Guest replies</h1></div>
         <nav aria-label="Admin sections">
           <a className="active" href="#overview">Overview</a>
+          <a href="#invitation-links">Invitation links</a>
           <a href="#guest-list">Guest list</a>
           <a href="#responses">Responses</a>
           <a href="#data-care">Data & exports</a>
@@ -945,6 +1054,56 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           <div><strong>{pending}</strong><span>Awaiting reply</span></div>
           <div><strong>{declined}</strong><span>Cannot attend</span></div>
         </div>
+
+        <section className="admin-tool-card invitation-links-card" id="invitation-links" aria-labelledby="invitation-links-title">
+          <div className="admin-tool-heading">
+            <div><p className="eyebrow">Ready to send</p><h2 id="invitation-links-title">Invitation links</h2></div>
+            <span>{shareableHouseholds.length} {shareableHouseholds.length === 1 ? "link" : "links"}</span>
+          </div>
+          <p>Find a household and send its private invitation from your phone. <strong>Share…</strong> opens the phone share sheet; <strong>Copy message</strong> is the reliable fallback for Instagram messages.</p>
+          <div className="invitation-link-toolbar">
+            <label htmlFor="invitation-link-search">
+              <span>Find a household or guest</span>
+              <input
+                id="invitation-link-search"
+                type="search"
+                value={linkSearch}
+                onChange={(event) => setLinkSearch(event.target.value)}
+                placeholder="Start typing a name or code"
+                autoComplete="off"
+              />
+            </label>
+            {linkSearch && <button type="button" onClick={() => setLinkSearch("")}>Clear</button>}
+          </div>
+          <p className="invitation-link-status" role="status" aria-live="polite">{linkStatus}</p>
+          <div className="invitation-link-list">
+            {shareableHouseholds.map((household) => {
+              const invitedNames = household.guests
+                .filter((guest) => guest.active !== false)
+                .sort((left, right) => left.displayOrder - right.displayOrder)
+                .map((guest) => guest.name);
+              const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(invitationMessage(household))}`;
+              return (
+                <article className="invitation-link-item" key={household.id}>
+                  <div>
+                    <strong>{household.householdName}</strong>
+                    <small>{invitedNames.join(" · ")}</small>
+                    <code>{household.shortCode}</code>
+                  </div>
+                  <div className="invitation-link-actions">
+                    <button type="button" aria-label={`Share invitation for ${household.householdName}`} onClick={() => void shareInvitation(household)}>Share…</button>
+                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label={`Send invitation for ${household.householdName} with WhatsApp`}>WhatsApp</a>
+                    <button type="button" className="secondary" aria-label={`Copy invitation message for ${household.householdName}`} onClick={() => void copyInvitationMessage(household)}>Copy message</button>
+                  </div>
+                </article>
+              );
+            })}
+            {data && shareableHouseholds.length === 0 && (
+              <p className="admin-empty">{linkSearch ? "No invitation matches that search." : "Invitation links will appear here after the guest list is saved."}</p>
+            )}
+          </div>
+          <p className="invitation-link-safety">Private links give access to one household’s invitation and RSVP. Send each link only to that household.</p>
+        </section>
 
         <section className="admin-tool-card guest-editor" id="guest-list" aria-labelledby="guest-list-title">
           <div className="admin-tool-heading">
@@ -1328,6 +1487,53 @@ export default function AdminExperience({ displayName, signOutPath }: { displayN
           </div>
           <p className="import-status" role="status">{backupStatus}</p>
         </section>
+
+        <details className="admin-tool-card cleanup-card" id="household-cleanup">
+          <summary>
+            <span><strong>Advanced cleanup</strong><small>Remove test households after taking a fresh backup</small></span>
+            <span aria-hidden="true">Open</span>
+          </summary>
+          <div className="cleanup-card-body">
+            <p>This permanently deletes the selected households, their guests, replies, dietary notes and private links. It requires an encrypted backup made by this account within the last 24 hours.</p>
+            <fieldset disabled={cleanupBusy || editorHasChanges}>
+              <legend>Select households to remove</legend>
+              <div className="cleanup-household-list">
+                {(data?.households ?? []).filter((household) => household.active !== false && household.externalId).map((household) => {
+                  const activeGuests = household.guests.filter((guest) => guest.active !== false);
+                  const repliedGuests = activeGuests.filter((guest) => guest.attendance !== "pending").length;
+                  return (
+                    <label key={household.id}>
+                      <input
+                        type="checkbox"
+                        checked={selectedHouseholdIds.includes(household.externalId!)}
+                        onChange={() => toggleHouseholdForCleanup(household.externalId!)}
+                      />
+                      <span><strong>{household.householdName}</strong><small>{activeGuests.length} guests · {repliedGuests} replied</small></span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <label className="cleanup-confirmation" htmlFor="cleanup-confirmation">Type <strong>DELETE SELECTED HOUSEHOLDS</strong> to confirm</label>
+            <input
+              id="cleanup-confirmation"
+              value={cleanupConfirmation}
+              onChange={(event) => setCleanupConfirmation(event.target.value)}
+              autoComplete="off"
+              disabled={cleanupBusy || editorHasChanges || selectedHouseholdIds.length === 0}
+            />
+            <button
+              type="button"
+              className="cleanup-delete-button"
+              onClick={() => void removeSelectedHouseholds()}
+              disabled={cleanupBusy || editorHasChanges || selectedHouseholdIds.length === 0 || cleanupConfirmation !== "DELETE SELECTED HOUSEHOLDS"}
+            >
+              {cleanupBusy ? "Removing…" : `Delete ${selectedHouseholdIds.length || "selected"} household${selectedHouseholdIds.length === 1 ? "" : "s"}`}
+            </button>
+            {editorHasChanges && <p className="import-omission-note">Save or reset guest-list changes before removing households.</p>}
+            <p className="import-status" role="status">{cleanupStatus}</p>
+          </div>
+        </details>
       </section>
     </main>
   );
