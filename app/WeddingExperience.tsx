@@ -4,10 +4,12 @@ import { createContext, ReactNode, useContext, useEffect, useRef, useState, useS
 import Image from "next/image";
 
 import { COPY, type Copy, type Lang, type StatusKey } from "./copy";
+import { displayGuestName } from "./name-localization";
 
 const LANG_STORAGE_KEY = "wedding-lang";
 const LangContext = createContext<Lang>("en");
 const useCopy = () => COPY[useContext(LangContext)];
+const useLang = () => useContext(LangContext);
 
 function LangToggle({ lang, onChange }: { lang: Lang; onChange: (lang: Lang) => void }) {
   const c = useCopy();
@@ -266,8 +268,10 @@ function statusLabel(c: Copy, attendance: Attendance): string {
   return c.guest.statusPending;
 }
 
-function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest) => void }) {
+function GuestRsvp({ guest, householdName, onChange }: { guest: Guest; householdName: string; onChange: (guest: Guest) => void }) {
   const c = useCopy();
+  const lang = useLang();
+  const displayName = displayGuestName(guest.name, lang, householdName);
   const select = (attendance: Attendance) => onChange({ ...guest, attendance });
   const answered = guest.attendance !== "pending";
 
@@ -275,15 +279,15 @@ function GuestRsvp({ guest, onChange }: { guest: Guest; onChange: (guest: Guest)
     <article className={`guest-card ${guest.attendance}`}>
       <div className="guest-card-head">
         <span className="guest-avatar" aria-hidden="true">
-          {guest.name.slice(0, 1)}
+          {displayName.slice(0, 1)}
           {guest.attendance === "attending" && <span className="guest-avatar-badge">✓</span>}
         </span>
         <div className="guest-card-name">
-          <h3>{guest.name}</h3>
+          <h3>{displayName}</h3>
           <p className={answered ? `is-${guest.attendance}` : "is-pending"}>{statusLabel(c, guest.attendance)}</p>
         </div>
       </div>
-      <div className="attendance-buttons" role="group" aria-label={c.guest.attendanceAria(guest.name)}>
+      <div className="attendance-buttons" role="group" aria-label={c.guest.attendanceAria(displayName)}>
         <button type="button" aria-pressed={guest.attendance === "attending"} className={guest.attendance === "attending" ? "selected yes" : ""} onClick={() => select("attending")}>
           <span aria-hidden="true">✓</span> {c.guest.yes}
         </button>
@@ -1044,6 +1048,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
   contacts: ContactAction[];
 }) {
   const c = useCopy();
+  const lang = useLang();
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState<StatusKey | "">("");
@@ -1066,8 +1071,9 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
   const hasPending = pendingGuests.length > 0;
   const answeredCount = draft.guests.length - pendingGuests.length;
   const isDirty = JSON.stringify(draft.guests) !== JSON.stringify(household.guests);
-  const attendingNames = draft.guests.filter((guest) => guest.attendance === "attending").map((guest) => guest.name);
-  const outstanding = pendingGuests.map((guest) => guest.name.split(" ")[0]);
+  const displayName = (name: string) => displayGuestName(name, lang, household.householdName);
+  const attendingNames = draft.guests.filter((guest) => guest.attendance === "attending").map((guest) => displayName(guest.name));
+  const outstanding = pendingGuests.map((guest) => displayName(guest.name).split(" ")[0]);
 
   useEffect(() => {
     const restoreDraft = window.setTimeout(() => {
@@ -1237,7 +1243,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
           </div>
 
           <div className="guest-list">
-            {draft.guests.map((guest) => <GuestRsvp key={guest.id} guest={guest} onChange={updateGuest} />)}
+            {draft.guests.map((guest) => <GuestRsvp key={guest.id} guest={guest} householdName={household.householdName} onChange={updateGuest} />)}
           </div>
 
           <div className="rsvp-save">
@@ -1252,7 +1258,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
             <div className="rsvp-receipt" aria-label={c.rsvp.receiptAria} ref={receiptRef}>
               <span className="receipt-mark" aria-hidden="true">✓</span>
               <div>
-                <strong>{c.rsvp.receiptTitle(household.householdName)}</strong>
+                <strong>{c.rsvp.receiptTitle(displayName(household.householdName))}</strong>
                 <p>{attendingNames.length > 0 ? c.rsvp.receiptAttending(attendingNames) : c.rsvp.receiptDeclined}</p>
                 {attendingNames.length > 0 && (mealPhaseOpen
                   ? <p>{c.rsvp.receiptMealsOpen.pre} <button type="button" className="receipt-link" onClick={onOpenMeals}>{c.rsvp.receiptMealsOpen.link}</button> {c.rsvp.receiptMealsOpen.post}</p>
@@ -1360,6 +1366,7 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
   onUpdate: (invitation: InvitationResponse) => void;
 }) {
   const c = useCopy();
+  const lang = useLang();
   const attending = household.guests.filter((guest) => guest.attendance === "attending");
   const [draft, setDraft] = useState(household);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -1448,7 +1455,7 @@ function MealSelection({ household, open, mealOptions, onBack, onUpdate }: {
             const availableMeals = mealOptions.filter((meal) => meal.guestType === "all" || meal.guestType === guest.guestType);
             return (
               <article className="meal-guest" key={guest.id}>
-                <h2>{guest.name}</h2>
+                <h2>{displayGuestName(guest.name, lang, household.householdName)}</h2>
                 <div className="meal-options">
                   {availableMeals.map((meal) => (
                     <button key={meal.optionKey} type="button" aria-pressed={current.mealChoice === meal.optionKey} className={current.mealChoice === meal.optionKey ? "selected" : ""} onClick={() => chooseMeal(guest.id, meal.optionKey)}>

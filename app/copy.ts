@@ -1,7 +1,7 @@
 // Bilingual copy for the wedding invitation. `Copy` is a single interface both
 // languages must satisfy, so a missing translation is a compile error. Free text
-// stored on the server (meal names and descriptions) renders as saved; the words
-// around it are translated here.
+// stored on the server (meal names and descriptions) renders as saved; guest
+// names use a display-only Cyrillic fallback when Bulgarian is selected.
 
 export type Lang = "en" | "bg";
 
