@@ -87,10 +87,10 @@ test("production policy is documented consistently", async () => {
 
   assert.match(environment, /^ADMIN_EMAILS=dyotov2@gmail\.com$/m);
   assert.match(policy, /dyotov2@gmail\.com/);
-  assert.match(policy, /2026-12-01/);
+  assert.match(policy, /2026-12-31/);
   assert.match(policy, /2027-06-27/);
   assert.doesNotMatch(environment, /^WEDDING_(?:RSVP_DEADLINE|DATA_DELETE_AFTER)=/m);
-  assert.match(design, /reply by 1 December 2026/i);
+  assert.match(design, /reply by 31 December 2026/i);
   assert.match(importGuide, /household_external_id,household_name,household_greeting,guest_external_id,guest_name,display_order,guest_type/);
   assert.match(`${readme}\n${architecture}\n${importGuide}`, /ampersand .*not valid|&.*not valid.*hostname/is);
   assert.match(`${readme}\n${architecture}\n${importGuide}`, /final canonical.*before.*QR/is);
@@ -170,7 +170,8 @@ test("production source contains no demo household, runtime DDL, or stale deadli
   );
   assert.equal(/ADMIN_EMAILS/.test(serverSource), true, "admin APIs must use the hosted email allowlist");
   assert.equal(/20 April 2027/i.test(guestSource), false, "remove the superseded RSVP deadline");
-  assert.equal(/1 December 2026/i.test(guestSource), true, "show the approved RSVP deadline");
+  assert.equal(/\b1 December 2026/i.test(guestSource), false, "remove the superseded 1 December deadline");
+  assert.equal(/31 December 2026/i.test(guestSource), true, "show the approved RSVP deadline");
 });
 
 test("admin Save guest list validates and commits without a separate preview click", async () => {
