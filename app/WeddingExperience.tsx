@@ -1048,6 +1048,11 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [status, setStatus] = useState<StatusKey | "">("");
   const receiptRef = useRef<HTMLDivElement>(null);
+  // The persist effect must not clean up "stale" drafts until the deferred
+  // restore below has had its one chance to read them: at mount the form is
+  // pristine (isDirty false), so cleaning eagerly would delete every stored
+  // draft one tick before restoration could run.
+  const restoreAttemptedRef = useRef(false);
   const [daysUntilWedding] = useState(() => Math.max(0, Math.ceil((CEREMONY_TIME - Date.now()) / 86_400_000)));
   const draftKey = `wedding-rsvp-draft:${household.id}`;
   const updateGuest = (next: Guest) => {
@@ -1066,6 +1071,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
 
   useEffect(() => {
     const restoreDraft = window.setTimeout(() => {
+      restoreAttemptedRef.current = true;
       try {
         const stored = window.localStorage.getItem(draftKey);
         if (!stored) return;
@@ -1101,8 +1107,10 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
     if (!isDirty || saveState === "success") {
       // A guest who reverts their edits should not leave a stale dirty
       // snapshot behind to silently restore on the next visit. (Successful
-      // saves already clear the draft themselves.)
-      if (!isDirty && saveState !== "success") safeRemoveStoredDraft(draftKey);
+      // saves already clear the draft themselves.) Gated on the restore
+      // having run first: this effect also fires on pristine mount, where
+      // removing would race the deferred restore and destroy the draft.
+      if (restoreAttemptedRef.current && !isDirty && saveState !== "success") safeRemoveStoredDraft(draftKey);
       return;
     }
     const storedDraft: StoredRsvpDraft = {
