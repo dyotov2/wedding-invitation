@@ -59,6 +59,21 @@ test("package and repository describe the wedding product, not the starter", asy
   assert.doesNotMatch(`${packageJson}\n${readme}`, /site-creator-vinext-starter|# vinext-starter/i);
 });
 
+test("shared-link preview uses the canonical domain and the image's real dimensions", async () => {
+  const [layout, image] = await Promise.all([
+    text("app/layout.tsx"),
+    readFile(path.join(root, "public/og-card.jpg")),
+  ]);
+  const startOfFrame = image.indexOf(Buffer.from([0xff, 0xc0]));
+
+  assert.ok(startOfFrame >= 0, "og-card.jpg must be a baseline JPEG");
+  assert.equal(image.readUInt16BE(startOfFrame + 5), 630);
+  assert.equal(image.readUInt16BE(startOfFrame + 7), 1200);
+  assert.match(layout, /metadataBase:\s*new URL\("https:\/\/ekaterina-dimitar\.com"\)/);
+  assert.match(layout, /url:\s*"\/og-card\.jpg",\s*width:\s*1200,\s*height:\s*630/);
+  assert.doesNotMatch(layout, /x-forwarded-proto|requestHeaders\.get\("host"\)/);
+});
+
 test("D1 binding and committed migrations are present", async () => {
   const hosting = JSON.parse(await text(".openai/hosting.json"));
   assert.equal(hosting.d1, "DB");
