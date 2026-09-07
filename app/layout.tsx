@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Cormorant, Figtree, Italiana, Manrope } from "next/font/google";
-import { headers } from "next/headers";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -33,37 +32,31 @@ const manrope = Manrope({
   display: "swap",
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("host") ?? "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og-card.jpg`;
-
-  return {
-    title: "Ekaterina & Dimitar | Our Wedding",
-    description:
-      "Join Ekaterina and Dimitar as they marry among the vines at Midalidare Estate on 20 June 2027.",
-    referrer: "no-referrer",
-    robots: {
-      index: false,
-      follow: false,
-      noarchive: true,
-      noimageindex: true,
-      googleBot: { index: false, follow: false, noarchive: true, noimageindex: true },
-    },
-    openGraph: {
-      title: "Ekaterina & Dimitar | 20 June 2027",
-      description: "20 June 2027 · Midalidare Estate, Bulgaria",
-      images: [{ url: imageUrl, width: 1200, height: 800, alt: "Ekaterina and Dimitar's wedding invitation" }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "Ekaterina & Dimitar | 20 June 2027",
-      description: "20 June 2027 · Midalidare Estate, Bulgaria",
-      images: [imageUrl],
-    },
-  };
-}
+export const metadata: Metadata = {
+  metadataBase: new URL("https://ekaterina-dimitar.com"),
+  title: "Ekaterina & Dimitar | Our Wedding",
+  description:
+    "Join Ekaterina and Dimitar as they marry among the vines at Midalidare Estate on 20 June 2027.",
+  referrer: "no-referrer",
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    noimageindex: true,
+    googleBot: { index: false, follow: false, noarchive: true, noimageindex: true },
+  },
+  openGraph: {
+    title: "Ekaterina & Dimitar | 20 June 2027",
+    description: "20 June 2027 · Midalidare Estate, Bulgaria",
+    images: [{ url: "/og-card.jpg", width: 1200, height: 630, alt: "Ekaterina and Dimitar's wedding invitation" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ekaterina & Dimitar | 20 June 2027",
+    description: "20 June 2027 · Midalidare Estate, Bulgaria",
+    images: ["/og-card.jpg"],
+  },
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

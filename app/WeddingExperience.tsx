@@ -315,7 +315,7 @@ function GuestRsvp({ guest, householdName, onChange }: { guest: Guest; household
 function VenueScene() {
   const c = useCopy();
   return (
-    <div className="venue-scene" aria-label={c.venue.sceneAria}>
+    <div className="venue-scene" role="img" aria-label={c.venue.sceneAria}>
       <div className="scene-fade scene-fade-top" aria-hidden="true" />
       <div className="scene-fade scene-fade-bottom" aria-hidden="true" />
       <div className="scene-sky scene-sky-day" aria-hidden="true" />
@@ -1212,7 +1212,7 @@ function Invitation({ household, onUpdate, onOpenMeals, mealPhaseOpen, contacts 
         <p className="eyebrow hero-eyebrow">{c.hero.eyebrow}</p>
         <h1><span>{c.names.her}</span><small>&amp;</small><span>{c.names.him}</span></h1>
         <p className="hero-subtitle">{c.hero.subtitle}</p>
-        <div className="event-line" aria-label={c.hero.dateAria}>
+        <div className="event-line" role="group" aria-label={c.hero.dateAria}>
           <div><strong>{c.hero.day}</strong><span>{c.hero.dateLong}</span></div>
           <span className="event-divider" aria-hidden="true" />
           <div><strong>{c.hero.venueName}</strong><span>{c.hero.venueCountry}</span></div>
