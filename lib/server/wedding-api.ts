@@ -705,7 +705,7 @@ async function handleAdminHouseholdDelete(request: Request, db: D1Database, emai
   const householdPlaceholders = householdIds.map(() => "?").join(", ");
   const guestCount = await db.prepare(`SELECT COUNT(*) AS count FROM guests
     WHERE household_id IN (${householdPlaceholders})`).bind(...householdIds).first<{ count: number }>();
-  const results = await db.batch([
+  await db.batch([
     db.prepare(`DELETE FROM households WHERE id IN (${householdPlaceholders})`).bind(...householdIds),
     db.prepare("DELETE FROM import_previews"),
     db.prepare(`INSERT INTO audit_events
@@ -718,7 +718,7 @@ async function handleAdminHouseholdDelete(request: Request, db: D1Database, emai
   ]);
   return json({
     ok: true,
-    householdsDeleted: batchChanges(results[0]),
+    householdsDeleted: householdIds.length,
     guestsDeleted: Number(guestCount?.count ?? 0),
   });
 }
