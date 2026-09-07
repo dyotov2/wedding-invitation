@@ -516,7 +516,7 @@ async function handleMeals(request: Request, db: D1Database, env: WeddingApiEnv)
   return payload ? json(payload) : invitationUnavailable();
 }
 
-async function listAdminHouseholds(db: D1Database) {
+async function listAdminHouseholds(db: D1Database, baseUrl = "") {
   const [householdResult, guestResult] = await Promise.all([
     db.prepare(`SELECT id, external_id AS externalId, link_token AS linkToken,
       short_code AS shortCode, household_name AS householdName, greeting, active,
@@ -539,6 +539,8 @@ async function listAdminHouseholds(db: D1Database) {
     externalId: household.externalId,
     householdName: household.householdName,
     greeting: household.greeting,
+    shortCode: household.shortCode,
+    personalUrl: baseUrl ? `${baseUrl}/#invite=${encodeURIComponent(household.linkToken)}` : "",
     active: Boolean(household.active),
     responseVersion: household.responseVersion,
     createdAt: household.createdAt,
@@ -547,7 +549,7 @@ async function listAdminHouseholds(db: D1Database) {
   }));
 }
 
-async function handleAdminIndex(request: Request, db: D1Database): Promise<Response> {
+async function handleAdminIndex(request: Request, db: D1Database, env: WeddingApiEnv): Promise<Response> {
   if (request.method !== "GET") return methodNotAllowed("GET");
   const [settings, retentionReceipt] = await Promise.all([
     getSettings(db),
@@ -568,9 +570,15 @@ async function handleAdminIndex(request: Request, db: D1Database): Promise<Respo
       } : null,
     });
   }
+  let baseUrl = "";
+  try {
+    baseUrl = publicBaseUrl(request, env);
+  } catch {
+    // Keep the planning dashboard usable while a final public domain is being configured.
+  }
   const [mealOptions, households] = await Promise.all([
     getMealOptions(db),
-    listAdminHouseholds(db),
+    listAdminHouseholds(db, baseUrl),
   ]);
   return json({
     households,
@@ -652,6 +660,67 @@ async function handleAdminReply(request: Request, db: D1Database, email: string)
         JSON.stringify({ attendance, responseSource, notesUpdated: dietaryNotes !== null, mealUpdated: mealChanged })),
   ]);
   return json({ ok: true });
+}
+
+const SELECTED_HOUSEHOLD_DELETE_CONFIRMATION = "DELETE SELECTED HOUSEHOLDS";
+const MAX_SELECTED_HOUSEHOLD_DELETIONS = 25;
+
+function selectedHouseholdExternalIds(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SELECTED_HOUSEHOLD_DELETIONS) return null;
+  const ids = value.map((candidate) => importExternalId(candidate));
+  if (ids.some((candidate) => !candidate)) return null;
+  const normalized = ids as string[];
+  return new Set(normalized).size === normalized.length ? normalized : null;
+}
+
+async function handleAdminHouseholdDelete(request: Request, db: D1Database, email: string): Promise<Response> {
+  if (request.method !== "POST") return methodNotAllowed("POST");
+  const body = await readJsonObject(request);
+  if (!body || body.confirmation !== SELECTED_HOUSEHOLD_DELETE_CONFIRMATION ||
+    Object.keys(body).some((key) => !["confirmation", "householdExternalIds"].includes(key))) {
+    return json({ error: "The household deletion confirmation did not match" }, 400);
+  }
+  const externalIds = selectedHouseholdExternalIds(body.householdExternalIds);
+  if (!externalIds) {
+    return json({ error: `Select between 1 and ${MAX_SELECTED_HOUSEHOLD_DELETIONS} distinct households` }, 400);
+  }
+
+  const recentBackup = await db.prepare(`SELECT id FROM audit_events
+    WHERE action = 'backup.exported' AND actor_email = ?
+      AND created_at >= datetime('now', '-1 day')
+    ORDER BY id DESC LIMIT 1`).bind(email).first<{ id: number }>();
+  if (!recentBackup) {
+    return json({ error: "Download a fresh encrypted backup with this account before removing households" }, 409);
+  }
+
+  const externalPlaceholders = externalIds.map(() => "?").join(", ");
+  const selected = await db.prepare(`SELECT id, external_id AS externalId FROM households
+    WHERE active = 1 AND external_id IN (${externalPlaceholders})`)
+    .bind(...externalIds).all<{ id: number; externalId: string }>();
+  if (selected.results.length !== externalIds.length) {
+    return json({ error: "One or more selected households no longer exist. Refresh the page and review the selection." }, 409);
+  }
+
+  const householdIds = selected.results.map((household) => household.id);
+  const householdPlaceholders = householdIds.map(() => "?").join(", ");
+  const guestCount = await db.prepare(`SELECT COUNT(*) AS count FROM guests
+    WHERE household_id IN (${householdPlaceholders})`).bind(...householdIds).first<{ count: number }>();
+  await db.batch([
+    db.prepare(`DELETE FROM households WHERE id IN (${householdPlaceholders})`).bind(...householdIds),
+    db.prepare("DELETE FROM import_previews"),
+    db.prepare(`INSERT INTO audit_events
+      (event_id, actor_type, actor_email, action, entity_type, details_json)
+      VALUES (?, 'admin', ?, 'households.deleted', 'households', ?)`)
+      .bind(crypto.randomUUID(), email, JSON.stringify({
+        householdCount: householdIds.length,
+        guestCount: Number(guestCount?.count ?? 0),
+      })),
+  ]);
+  return json({
+    ok: true,
+    householdsDeleted: householdIds.length,
+    guestsDeleted: Number(guestCount?.count ?? 0),
+  });
 }
 
 async function tableCount(db: D1Database, table: "households" | "guests" | "import_batches"): Promise<number> {
@@ -1485,13 +1554,14 @@ export async function handleWeddingApi(request: Request, env: WeddingApiEnv): Pr
       if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin) {
         return json({ error: "Cross-origin administrative requests are not allowed" }, 403);
       }
-      if (pathname === "/api/admin") return handleAdminIndex(request, db);
+      if (pathname === "/api/admin") return handleAdminIndex(request, db, env);
       if (pathname === "/api/admin/retention/purge") return handleAdminRetentionPurge(request, db);
       if (await retentionClosed(db)) {
         return json({ error: "The wedding guest-data retention period has ended" }, 410);
       }
       if (pathname === "/api/admin/settings") return handleAdminSettings(request, db, email);
       if (pathname === "/api/admin/reply") return handleAdminReply(request, db, email);
+      if (pathname === "/api/admin/households/delete") return handleAdminHouseholdDelete(request, db, email);
       if (pathname === "/api/admin/import") return handleAdminImport(request, db, email);
       if (pathname === "/api/admin/export") return handleAdminPlanningExport(request, db, email);
       if (pathname === "/api/admin/delivery-export") return handleAdminDeliveryExport(request, db, env, email);

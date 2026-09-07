@@ -566,6 +566,24 @@ h1, h2, h3, p { margin-top: 0; }
 .admin-tool-heading > span { color: var(--sage-dark); font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .admin-tool-card > p, .data-care-card p { max-width: 70ch; color: oklch(43% .022 80); line-height: 1.65; }
 .admin-tool-card code { border-radius: 3px; background: var(--pastel-champagne); padding: .08rem .3rem; font-size: .78em; }
+.invitation-links-card { scroll-margin-top: 1rem; }
+.invitation-link-toolbar { display: flex; align-items: end; gap: .65rem; margin-top: 1.25rem; }
+.invitation-link-toolbar label { flex: 1 1 22rem; display: grid; gap: .4rem; color: oklch(39% .025 80); }
+.invitation-link-toolbar label > span { font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.invitation-link-toolbar input { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 4px; background: var(--white-tint); padding: .7rem .8rem; color: var(--ink); font: inherit; font-size: 1rem; }
+.invitation-link-toolbar input:focus-visible { border-color: var(--sage-dark); outline: 3px solid oklch(74% .08 130 / .25); outline-offset: 1px; }
+.invitation-link-toolbar > button { min-height: 48px; border: 1px solid var(--line); border-radius: 999px; background: transparent; padding: .7rem 1rem; color: var(--sage-dark); font-weight: 750; cursor: pointer; }
+.invitation-link-status { min-height: 1.35rem; margin: .65rem 0 0; color: var(--sage-dark) !important; font-size: .78rem; font-weight: 700; }
+.invitation-link-list { display: grid; gap: .75rem; max-height: 42rem; overflow-y: auto; margin-top: .45rem; padding-right: .3rem; }
+.invitation-link-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; border: 1px solid var(--line); background: var(--white-tint); padding: 1rem; }
+.invitation-link-item > div:first-child { min-width: 0; }
+.invitation-link-item strong, .invitation-link-item small { display: block; }
+.invitation-link-item small { overflow: hidden; margin-top: .25rem; color: oklch(47% .02 80); line-height: 1.45; text-overflow: ellipsis; }
+.invitation-link-item code { display: inline-block; margin-top: .55rem; color: var(--mulberry); font-size: .74rem; font-weight: 800; letter-spacing: .08em; }
+.invitation-link-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.invitation-link-actions button, .invitation-link-actions a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--sage-dark); border-radius: 999px; background: var(--sage-dark); padding: .62rem .85rem; color: var(--white-tint); font-size: .76rem; font-weight: 780; text-decoration: none; cursor: pointer; }
+.invitation-link-actions .secondary, .invitation-link-actions a { background: transparent; color: var(--sage-dark); }
+.invitation-link-safety { margin: 1rem 0 0; color: oklch(49% .02 80) !important; font-size: .72rem; }
 .guest-editor { scroll-margin-top: 1rem; }
 .guest-editor-intro { margin-bottom: 0; }
 .guest-editor-status { min-height: 1.35rem; margin: .7rem 0 0; color: var(--sage-dark) !important; font-size: .8rem; font-weight: 700; }
@@ -645,6 +663,31 @@ h1, h2, h3, p { margin-top: 0; }
 .backup-card input[type="password"], .backup-card input:not([type]) { display: block; width: 100%; max-width: 620px; min-height: 48px; margin-top: .45rem; border: 1px solid var(--line); border-radius: 4px; background: var(--white-tint); padding: .7rem .8rem; }
 .backup-card .admin-tool-actions { margin-top: 1rem; }
 .backup-restore-picker { max-width: 620px; margin-top: .9rem; }
+.cleanup-card { padding: 0; border-color: oklch(73% .06 25); background: oklch(99% .01 25); }
+.cleanup-card > summary { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; color: oklch(42% .075 25); cursor: pointer; list-style: none; }
+.cleanup-card > summary::-webkit-details-marker { display: none; }
+.cleanup-card > summary > span:first-child { display: grid; gap: .2rem; }
+.cleanup-card > summary strong { font-size: .9rem; }
+.cleanup-card > summary small { color: oklch(49% .035 25); font-size: .72rem; font-weight: 600; }
+.cleanup-card > summary > span:last-child { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cleanup-card[open] > summary { border-bottom: 1px solid oklch(82% .04 25); }
+.cleanup-card[open] > summary > span:last-child { font-size: 0; }
+.cleanup-card[open] > summary > span:last-child::after { content: "Close"; font-size: .68rem; }
+.cleanup-card-body { padding: clamp(1.25rem, 4vw, 2.5rem); }
+.cleanup-card-body > p:first-child { max-width: 70ch; color: oklch(43% .035 25); line-height: 1.65; }
+.cleanup-card fieldset { max-width: 760px; margin: 1.25rem 0 0; border: 0; padding: 0; }
+.cleanup-card legend, .cleanup-confirmation { color: oklch(39% .045 25); font-size: .76rem; font-weight: 750; }
+.cleanup-household-list { max-height: 320px; overflow-y: auto; margin-top: .55rem; border: 1px solid oklch(82% .04 25); background: var(--white-tint); }
+.cleanup-household-list label { min-height: 58px; display: flex; align-items: center; gap: .75rem; border-bottom: 1px solid var(--line); padding: .65rem .8rem; cursor: pointer; }
+.cleanup-household-list label:last-child { border-bottom: 0; }
+.cleanup-household-list input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: oklch(43% .13 25); }
+.cleanup-household-list span, .cleanup-household-list strong, .cleanup-household-list small { display: block; }
+.cleanup-household-list span { min-width: 0; }
+.cleanup-household-list small { margin-top: .15rem; color: oklch(50% .025 25); font-size: .7rem; }
+.cleanup-confirmation { display: block; max-width: 620px; margin-top: 1.25rem; }
+.cleanup-card-body > input { display: block; width: 100%; max-width: 620px; min-height: 48px; margin-top: .45rem; border: 1px solid oklch(73% .06 25); border-radius: 4px; background: var(--white-tint); padding: .7rem .8rem; color: var(--ink); font: inherit; }
+.cleanup-delete-button { min-height: 48px; margin-top: 1rem; border: 0; border-radius: 999px; background: oklch(43% .13 25); padding: .75rem 1.2rem; color: white; font-weight: 800; cursor: pointer; }
+.cleanup-delete-button:disabled { cursor: not-allowed; opacity: .45; }
 .retention-card { border-color: oklch(68% .09 25); background: oklch(98% .018 25); }
 .retention-card label, .retention-card input { display: block; width: 100%; max-width: 620px; }
 .retention-card label { margin-top: 1.2rem; color: oklch(38% .045 25); font-size: .8rem; }
@@ -706,6 +749,8 @@ h1, h2, h3, p { margin-top: 0; }
   .table-row span::before { content: attr(data-label); display: block; color: oklch(48% 0.02 43); font-size: 0.64rem; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; }
   .notes-cell { grid-column: 1 / -1; }
   .admin-tool-heading, .data-care-card { align-items: stretch; flex-direction: column; }
+  .invitation-link-item { align-items: stretch; grid-template-columns: 1fr; }
+  .invitation-link-actions { justify-content: flex-start; }
   .editor-save-actions { align-items: stretch; flex-direction: column; }
   .editor-save-actions > div:last-child { justify-content: flex-start; }
   .guest-file-picker { align-items: stretch; flex-direction: column; }
@@ -732,6 +777,11 @@ h1, h2, h3, p { margin-top: 0; }
   .editor-row-action .editor-remove-button { width: 100%; }
   .household-editor-actions, .editor-save-actions > div { display: grid; grid-template-columns: 1fr; }
   .household-editor-actions button, .editor-save-actions button { width: 100%; }
+  .invitation-link-toolbar { align-items: stretch; flex-direction: column; }
+  .invitation-link-toolbar > button { align-self: flex-start; }
+  .invitation-link-list { max-height: 64svh; }
+  .invitation-link-actions { display: grid; grid-template-columns: 1fr; }
+  .invitation-link-actions button, .invitation-link-actions a, .cleanup-delete-button { width: 100%; }
   .csv-fallback summary { padding: 1rem; }
   .import-preview { grid-template-columns: 1fr 1fr; }
   .import-preview div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
